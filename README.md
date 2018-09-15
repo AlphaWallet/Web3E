@@ -1,12 +1,4 @@
-# U8g2_Arduino: Arduino Monochrome Graphics Library
+# Web3E Ethereum for Embedded devices running Arduino framework
 
-![https://alphawallet.io](https://alphawallet.io) 
-
-Web3 (Ethereum) for Arduino
-
-Description: 
-
-Issue Tracker: 
-
-Download (0.9): 
+Version 0.9
 
