@@ -6,6 +6,8 @@
 #include <WiFi.h>
 #include "Util.h"
 #include "Log.h"
+#include "cJSON/cJSON.h"
+#include "TagReader/TagReader.h"
 #include <vector>
 
 #define SIGNATURE_LENGTH 64
@@ -410,21 +412,16 @@ vector<uint8_t> Contract::RlpEncodeForRawTransaction(
     return encoded;
 }
 
-void ConvertCharStrToVector(string *value, vector<string> *result);
-
 vector<string> *Contract::InterpretVectorResult(string *result)
 {
-    const char *resultScan = "result\":\"";
-    std::size_t found = result->find(resultScan);
     vector<string> *retVal = new vector<string>();
-    
-    if (found != std::string::npos)
+    TagReader reader;
+    const char *value = reader.getTag(result, "result");
+
+    if (value != NULL && strlen(value) > 0) 
     {
-        found += strlen(resultScan);
-        string newChar = result->substr(found);
-        //first test if it's array type
         vector<string> breakDown;
-        ConvertCharStrToVector(&newChar, &breakDown);
+        reader.ConvertCharStrToVector(value, reader.length(), &breakDown);
 
         if (breakDown.size() > 2)
         {
@@ -450,17 +447,4 @@ vector<string> *Contract::InterpretVectorResult(string *result)
     }
 
     return retVal;
-}
-
-void ConvertCharStrToVector(string *value, vector<string> *result) 
-{
-    int index = 0;
-    if (value->find("0x") != std::string::npos) index = 2;
-
-    while (index <= (value->length() - 64))
-    {
-        //Serial.println(value->substr(index, 64).c_str());
-        result->push_back(value->substr(index, 64));
-        index += 64;
-    }
 }
