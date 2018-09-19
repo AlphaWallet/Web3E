@@ -7,7 +7,6 @@
 #include "Util.h"
 #include "Log.h"
 #include "cJSON/cJSON.h"
-#include "TagReader/TagReader.h"
 #include <vector>
 
 #define SIGNATURE_LENGTH 64
@@ -415,45 +414,3 @@ vector<uint8_t> Contract::RlpEncodeForRawTransaction(
 
     return encoded;
 }
-
-vector<string> *Contract::InterpretVectorResult(string *result)
-{
-    vector<string> *retVal = new vector<string>();
-    TagReader reader;
-    const char *value = reader.getTag(result, "result");
-
-    if (value != NULL && strlen(value) > 0) 
-    {
-        vector<string> breakDown;
-        reader.ConvertCharStrToVector32(value, reader.length(), &breakDown);
-
-        if (breakDown.size() > 2)
-        {
-            //check first value
-            auto itr = breakDown.begin();
-            long dyn = strtol(itr++->c_str(), NULL, 16);
-            if (dyn == 32) //array marker
-            {
-                long length = strtol(itr++->c_str(), NULL, 16);
-                
-                //checksum
-                if (breakDown.size() != (length + 2))
-                {
-                    Serial.println("Bad array result data.");
-                    for (itr = breakDown.begin(); itr != breakDown.end(); itr++) Serial.println(*itr->c_str());
-                }
-                for (;itr != breakDown.end(); itr++)
-                {
-                    retVal->push_back(*itr);
-                }   
-            }
-        }
-    }
-
-    return retVal;
-}
-// void ConvertCharStrToVector(string *value, vector<string> *result)
-// {
-//     int index = 0;
-//     if (((*value)[0] == '0') && ((*value)[1] == 'x'))
-//         index = 2;

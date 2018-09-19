@@ -32,7 +32,6 @@ public:
     string ViewCall(const string *param);
     string SendTransaction(uint32_t nonceVal, uint32_t gasPriceVal, uint32_t gasLimitVal,
                            string *toStr, string *valueStr, string *dataStr);
-    vector<string>* InterpretVectorResult(string *result);
 
 private:
     Log Debug;
