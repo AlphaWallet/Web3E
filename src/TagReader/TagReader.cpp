@@ -82,28 +82,3 @@ const char* TagReader::getTag(const string *JSON_Str, const char *value)
 
 	return value_ptr;
 }
-
-/**
- * Build a std::vector of bytes32 as hex strings
- **/
-vector<string>* TagReader::ConvertCharStrToVector32(const char *resultPtr, size_t resultSize, vector<string> *result) 
-{
-	if (resultSize < 64) return result;
-    if (resultPtr[0] == '0' && resultPtr[1] == 'x') resultPtr += 2;
-	//estimate size of return
-	int returnSize = resultSize / 64;
-	result->reserve(returnSize);
-    int index = 0;
-    char element[65];
-    element[64] = 0;
-
-    while (index <= (resultSize - 64))
-    {
-        memcpy(element, resultPtr, 64);
-        result->push_back(string(element));
-        resultPtr += 64;
-        index += 64;
-    }
-
-	return result;
-}
