@@ -24,6 +24,8 @@ public:
     static void PublicKeyToAddress(const uint8_t *publicKey, uint8_t *address);
     static void Keccak256(const uint8_t *data, uint16_t length, uint8_t *result);
 
+    static string Keccak256(vector<uint8_t> bytes);
+
 
 private:
     Log Debug;

@@ -12,6 +12,8 @@
 
 #define SIGNATURE_LENGTH 64
 
+using namespace std;
+
 Crypto::Crypto(Web3* _web3) 
 {
     web3 = _web3;
@@ -22,12 +24,8 @@ bool Crypto::Sign(BYTE* digest, BYTE* result)
     const ecdsa_curve *curve = &secp256k1;
     uint8_t pby;
     int res = ecdsa_sign_digest(curve, privateKey, digest, result, &pby, NULL);
+    result[64] = pby;
 
-    result[65] = pby;
-
-    Serial.println("SIGN");
-    Serial.println(pby);
-    Serial.println(res);
 	return (res == 1);
 }
 
@@ -76,4 +74,16 @@ void Crypto::PublicKeyToAddress(const uint8_t *publicKey, uint8_t *address)
 void Crypto::Keccak256(const uint8_t *data, uint16_t length, uint8_t *result)
 {
     keccak_256(data, length, result);
+}
+
+string Crypto::Keccak256(vector<uint8_t> bytes)
+{
+    uint8_t result[ETHERS_KECCAK256_LENGTH];
+    keccak_256(bytes.data(), bytes.size(), result);
+    //now convert result to hex string
+
+    vector<uint8_t> resultVector;
+    for (int i = 0; i < ETHERS_KECCAK256_LENGTH; i++) resultVector.push_back(result[i]);
+
+    return Util::VectorToString(resultVector);
 }
