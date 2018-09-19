@@ -41,21 +41,21 @@ public:
 
     static const char* getDAppCode();
 
+    long long int getLongLong(const string* json);
+    string getString(const string* json);
+    int getInt(const string* json);
+
 private:
     string exec(const string* data);
     string generateJson(const string* method, const string* params);
-    int getInt(const string* json);
+    
     long getLong(const string* json);
-    long long int getLongLong(const string* json);
     double getDouble(const string* json);
     bool getBool(const string* json);
-    string getString(const string* json);
 
 private:
     const string* host;
     const string* path;
-
-
 };
 
 #endif //ARDUINO_WEB3_WEB3_H

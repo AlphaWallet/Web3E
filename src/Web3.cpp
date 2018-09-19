@@ -135,7 +135,8 @@ long long int Web3::EthGetBalance(const string* address) {
 string Web3::EthViewCall(const string* data, const char* to)
 {
     string m = "eth_call";
-    string p = "[{\"data\":\"" + *data;
+    string p = "[{\"data\":\"";// + *data;
+    p += data->c_str();
     p += "\",\"to\":\"";
     p += to;
     p += "\"}, \"latest\"]";
@@ -220,8 +221,6 @@ string Web3::exec(const string* data) {
         char c = client.read();
         result += c;
     }
-    //LOG(result.c_str());
-
     client.stop();
 
     return result;
@@ -292,9 +291,10 @@ string Web3::getString(const string* json) {
     cJSON *root, *value;
     root = cJSON_Parse(json->c_str());
     value = cJSON_GetObjectItem(root, "result");
-    if (cJSON_IsString(value)) {
+    if (cJSON_IsString(value)) 
+    {
         cJSON_free(root);
-        return string(value->valuestring);
+        return Util::ConvertString(value->valuestring);
     }
     cJSON_free(root);
     return nullptr;
