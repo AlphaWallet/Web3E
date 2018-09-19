@@ -294,7 +294,7 @@ string Web3::getString(const string* json) {
     if (cJSON_IsString(value)) 
     {
         cJSON_free(root);
-        return Util::ConvertString(value->valuestring);
+        return string(value->valuestring);
     }
     cJSON_free(root);
     return nullptr;
