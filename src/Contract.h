@@ -27,7 +27,7 @@ public:
 public:
     Contract(Web3* _web3, const char* address);
     void SetPrivateKey(const uint8_t *key);
-    string SetupContractData(const string *func, ...);
+    string SetupContractData(const char* func, ...);
     string Call(const string* param);
     string ViewCall(const string *param);
     string SendTransaction(uint32_t nonceVal, uint32_t gasPriceVal, uint32_t gasLimitVal,
@@ -43,7 +43,7 @@ private:
     Crypto* crypto;
 
 private:
-    string GenerateContractBytes(const string *func);
+    string GenerateContractBytes(const char *func);
     string GenerateBytesForInt(const int32_t value);
     string GenerateBytesForUint(const uint32_t value);
     string GenerateBytesForAddress(const string *value);
