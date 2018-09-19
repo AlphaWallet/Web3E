@@ -10,9 +10,9 @@ class TagReader
 {
 public:
 	TagReader();
-	const char * getTag(const string * JSON_Str, const char * value);
-	void		 ConvertCharStrToVector(const char *resultPtr, size_t resultSize, vector<string> *result);
-	size_t		 length() { return _length; }
+	const char 	* getTag(const string * JSON_Str, const char * value);
+	vector<string> * ConvertCharStrToVector32(const char *resultPtr, size_t resultSize, vector<string> *result);
+	size_t		  length() { return _length; }
 	
 private:
 	size_t _length;
