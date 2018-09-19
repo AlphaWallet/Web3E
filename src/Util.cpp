@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
+#include "TagReader/TagReader.h"
 
 // returns output (header) length
 uint32_t Util::RlpEncodeWholeHeader(uint8_t* header_output, uint32_t total_len) {
@@ -301,8 +302,6 @@ String Util::BytesToHex(uint8_t *bytes, int length)
     }
     *hexPtr = 0;
 
-    Serial.println(hexString);
-
     return String(hexString);
 }
 
@@ -501,8 +500,134 @@ string Util::ConvertDecimal(int decimals, string *result)
     return newValue;
 }
 
-string Util::ConvertString(const char *result)
+string Util::ConvertHexToString(const char *result, size_t length)
 {
-     //sdfsd
-     return string(result);
+	//convert hex to string.
+	//first trim all the zeros
+	int index = 0;
+	string converted = "";
+	char reader;
+	int state = 0;
+	bool endOfString = false;
+
+	//No ASCII is less than 16 so this is safe
+	while (index < length && (result[index] == '0' || result[index] == 'x')) index++;
+
+	while (index < length && endOfString == false)
+	{
+		// convert from hex to ascii
+		char c = result[index];
+		switch (state)
+		{
+		case 0:
+			reader = (char)(Util::HexToInt(c) * 16);
+			state = 1;
+			break;
+		case 1:
+			reader += (char)Util::HexToInt(c);
+			if (reader == 0)
+			{
+				endOfString = true;
+			}
+			else
+			{
+				converted += reader;
+				state = 0;
+			}
+			break;
+		}
+		index++;
+	}
+
+	return converted;  
+}
+
+/**
+ * Build a std::vector of bytes32 as hex strings
+ **/
+vector<string>* Util::ConvertCharStrToVector32(const char *resultPtr, size_t resultSize, vector<string> *result) 
+{
+	if (resultSize < 64) return result;
+    if (resultPtr[0] == '0' && resultPtr[1] == 'x') resultPtr += 2;
+	//estimate size of return
+	int returnSize = resultSize / 64;
+	result->reserve(returnSize);
+    int index = 0;
+    char element[65];
+    element[64] = 0;
+
+    while (index <= (resultSize - 64))
+    {
+        memcpy(element, resultPtr, 64);
+        result->push_back(string(element));
+        resultPtr += 64;
+        index += 64;
+    }
+
+	return result;
+}
+
+string Util::InterpretStringResult(const char *result)
+{
+    //convert to vector bytes32
+    string retVal = "";
+
+    if (result != NULL && strlen(result) > 0) 
+    {
+        vector<string> breakDown;
+        Util::ConvertCharStrToVector32(result, strlen(result), &breakDown);
+
+        if (breakDown.size() > 2)
+        {
+            //check first value
+            auto itr = breakDown.begin();
+            long dyn = strtol(itr++->c_str(), NULL, 16);
+            if (dyn == 32) //array marker
+            {
+                long length = strtol(itr++->c_str(), NULL, 16);
+                //now get a pointer to string immediately after the length marker
+                const char *strPtr = result + 2 + (2*64);
+                retVal = ConvertHexToString(strPtr, length*2);
+            }
+        }
+    }
+
+    return retVal;
+}
+
+vector<string> *Util::InterpretVectorResult(string *result)
+{
+    vector<string> *retVal = new vector<string>();
+    TagReader reader;
+    const char *value = reader.getTag(result, "result");
+
+    if (value != NULL && strlen(value) > 0) 
+    {
+        vector<string> breakDown;
+        Util::ConvertCharStrToVector32(value, reader.length(), &breakDown);
+
+        if (breakDown.size() > 2)
+        {
+            //check first value
+            auto itr = breakDown.begin();
+            long dyn = strtol(itr++->c_str(), NULL, 16);
+            if (dyn == 32) //array marker
+            {
+                long length = strtol(itr++->c_str(), NULL, 16);
+                
+                //checksum
+                if (breakDown.size() != (length + 2))
+                {
+                    Serial.println("Bad array result data.");
+                    for (itr = breakDown.begin(); itr != breakDown.end(); itr++) Serial.println(*itr->c_str());
+                }
+                for (;itr != breakDown.end(); itr++)
+                {
+                    retVal->push_back(*itr);
+                }   
+            }
+        }
+    }
+
+    return retVal;
 }

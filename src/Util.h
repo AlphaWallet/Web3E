@@ -36,6 +36,11 @@ public:
     static string  ConvertBase(int from, int to, const char *s);
     static string  ConvertDecimal(int decimal, string *s);
     static string  ConvertString(const char* value);
+    static string  ConvertHexToString(const char *result, size_t length);
+    static string  InterpretStringResult(const char *result);
+    static vector<string>* InterpretVectorResult(string *result);
+
+    static vector<string>* ConvertCharStrToVector32(const char *resultPtr, size_t resultSize, vector<string> *result);
     //static string  BytesToHexString(uint8_t *_dst, const char *_src, int length);
 };
 
