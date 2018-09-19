@@ -272,7 +272,8 @@ void Util::VectorToCharStr(char* str, const vector<uint8_t> buf) {
 
 string Util::VectorToString(const vector<uint8_t> buf) 
 {
-    char *hexString = (char*)alloca(buf.size()*2 + 3);
+    size_t chSz = buf.size()*2 + 3;
+    char hexString[chSz];
     char *hexPtr = hexString;
     *hexPtr++= '0';
     *hexPtr++= 'x';
@@ -288,7 +289,8 @@ string Util::VectorToString(const vector<uint8_t> buf)
 
 String Util::BytesToHex(uint8_t *bytes, int length)
 {
-    char *hexString = (char*)alloca(length*2 + 3);
+    size_t chSz = length*2 + 3;
+    char hexString[chSz];
     char *hexPtr = hexString;
     *hexPtr++= '0';
     *hexPtr++= 'x';
@@ -316,4 +318,191 @@ void Util::ConvertToBytes(uint8_t *_dst, const char *_src, int length)
         extract = HexToInt(a) << 4 | HexToInt(b);
         _dst[i] = extract;
     }
+}
+
+string  Util::ConvertBase(int from, int to, const char *s)
+{
+    if ( s == NULL )
+    return NULL;
+
+    if (from < 2 || from > 36 || to < 2 || to > 36) { return NULL; }
+
+    if (s[0] == '0' && s[1] == 'x') s += 2;
+
+    int il = strlen(s);
+
+    int *fs = new int[il];
+    int k = 0;
+    int i,j;
+
+    for (i = il - 1; i >=0; i-- )
+    {
+        if (s[i] >= '0' && s[i] <= '9') 
+        {
+            fs[k] = (int)(s[i] - '0'); 
+        }
+        else
+        {
+            if (s[i] >= 'A' && s[i] <= 'Z') 
+            {
+                fs[k] = 10 + (int)(s[i] - 'A'); 
+            }
+            else if (s[i] >= 'a' && s[i] <= 'z') 
+            {
+                fs[k] = 10 + (int)(s[i] - 'a'); 
+            }
+            else
+            {
+                delete[]fs;
+                return NULL; 
+            } //only allow 0-9 A-Z characters
+        }
+        k++;
+    }
+
+    for (i=0;i<il;i++)
+    {
+        if ( fs[i] >= from ) 
+            return NULL;
+    }
+
+    double x = ceil(log( from )  / log (to));
+    int ol = 1+( il * x );
+
+    int * ts = new int[ol];
+    int * cums = new int [ol];
+
+    for (i=0;i<ol;i++)
+    {
+        ts[i]=0;
+        cums[i]=0;
+    }
+    ts[0]=1;
+
+    //evaluate the output
+    for (i = 0; i < il; i++) //for each input digit
+    {
+        for (j = 0; j < ol; j++) //add the input digit times (base:to from^i) to the output cumulator
+        {
+            cums[j] += ts[j] * fs[i];
+            int temp = cums[j];
+            int rem = 0;
+            int ip = j;
+            do // fix up any remainders in base:to
+            {
+                rem = temp / to;
+                cums[ip] = temp - rem * to; 
+                ip++;
+                if (ip >= ol)
+                {
+                    if ( rem > 0 )
+                    {
+                        delete[]ts;
+                        delete[]cums;
+                        delete[]fs;
+                        return NULL;
+                    }
+                    break;
+                }
+                cums[ip] += rem;
+                temp = cums[ip];
+            }
+            while (temp >= to);
+        }
+
+        for (j = 0; j < ol; j++)
+        {
+            ts[j] = ts[j] * from;
+        }
+
+        for (j = 0; j < ol; j++) //check for any remainders
+        {
+            int temp = ts[j];
+            int rem = 0;
+            int ip = j;
+            do  //fix up any remainders
+            {
+                rem = temp / to;
+                ts[ip] = temp - rem * to; 
+                ip++;
+                if (ip >= ol)
+                {          
+                    if ( rem > 0 )
+                    {
+                        delete[]ts;
+                        delete[]cums;
+                        delete[]fs;
+                        return NULL;
+                    }
+                    break;
+                }
+                ts[ip] += rem;
+                temp = ts[ip];
+            }
+            while (temp >= to);
+        }
+    }
+
+    char out[sizeof(char) * (ol + 1)];
+
+    int spos = 0;
+    bool first = false; //leading zero flag
+    for (i = ol-1; i >= 0; i--)
+    {
+        if (cums[i] != 0) 
+        { 
+            first = true; 
+        }
+        if (!first) 
+        { 
+            continue; 
+        }
+
+        if (cums[i] < 10) 
+        { 			
+            out[spos] = (char)(cums[i] + '0'); 
+        }
+        else 
+        { 			
+            out[spos] = (char)(cums[i] + 'A' - 10); 
+        }
+        spos ++;
+    }
+    out[spos]=0;
+
+    delete[]ts;
+    delete[]cums;
+    delete[]fs;
+
+    return string(out);
+}
+
+string Util::ConvertDecimal(int decimals, string *result)
+{
+    int decimalLocation = result->length() - decimals;
+	string newValue = "";
+	if (decimalLocation <= 0)
+	{
+		newValue += "0.";
+		for (; decimalLocation < 0; decimalLocation++)
+		{
+			newValue += "0";
+		}
+		newValue += *result;
+	}
+	else
+	{
+		//need to insert the point within the string
+		newValue = result->substr(0, decimalLocation);
+		newValue += ".";
+		newValue += result->substr(decimalLocation);
+	}
+
+    return newValue;
+}
+
+string Util::ConvertString(const char *result)
+{
+     //sdfsd
+     return string(result);
 }

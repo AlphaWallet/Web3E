@@ -33,6 +33,10 @@ public:
     static string  VectorToString(const vector<uint8_t> buf);
     static String  BytesToHex(uint8_t *bytes, int length);
     static void    ConvertToBytes(uint8_t *_dst, const char *_src, int length);
+    static string  ConvertBase(int from, int to, const char *s);
+    static string  ConvertDecimal(int decimal, string *s);
+    static string  ConvertString(const char* value);
+    //static string  BytesToHexString(uint8_t *_dst, const char *_src, int length);
 };
 
 #endif //WEB3_UTIL_H
