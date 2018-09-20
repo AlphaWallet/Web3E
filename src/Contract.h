@@ -30,7 +30,7 @@ public:
     string SetupContractData(const char* func, ...);
     string Call(const string* param);
     string ViewCall(const string *param);
-    string SendTransaction(uint32_t nonceVal, uint32_t gasPriceVal, uint32_t gasLimitVal,
+    string SendTransaction(uint32_t nonceVal, unsigned long long gasPriceVal, uint32_t gasLimitVal,
                            string *toStr, string *valueStr, string *dataStr);
 
 private:
@@ -49,13 +49,13 @@ private:
     string GenerateBytesForString(const string *value);
     string GenerateBytesForBytes(const char* value, const int len);
 
-    void GenerateSignature(uint8_t* signature, int* recid, uint32_t nonceVal, uint32_t gasPriceVal, uint32_t  gasLimitVal,
+    void GenerateSignature(uint8_t* signature, int* recid, uint32_t nonceVal, unsigned long long gasPriceVal, uint32_t  gasLimitVal,
                            string* toStr, string* valueStr, string* dataStr);
     vector<uint8_t> RlpEncode(
-            uint32_t nonceVal, uint32_t gasPriceVal, uint32_t  gasLimitVal,
+            uint32_t nonceVal, unsigned long long gasPriceVal, uint32_t  gasLimitVal,
             string* toStr, string* valueStr, string* dataStr);
     vector<uint8_t> RlpEncodeForRawTransaction(
-            uint32_t nonceVal, uint32_t gasPriceVal, uint32_t  gasLimitVal,
+            uint32_t nonceVal, unsigned long long gasPriceVal, uint32_t  gasLimitVal,
             string* toStr, string* valueStr, string* dataStr, uint8_t* sig, uint8_t recid);
     void Sign(uint8_t* hash, uint8_t* sig, int* recid);
 };

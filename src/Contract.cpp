@@ -63,7 +63,7 @@ string Contract::SetupContractData(const char* func, ...)
     va_list args;
     va_start(args, paramCount);
     for( int i = 0; i < paramCount; ++i ) {
-        if (strncmp(params[i].c_str(), "uint", sizeof("uint")) == 0)
+        if (strncmp(params[i].c_str(), "uint", sizeof("uint")) == 0 || strncmp(params[i].c_str(), "uint256", sizeof("uint256")) == 0)
         {
             string output = GenerateBytesForUint(va_arg(args, uint32_t));
             ret = ret + output;
@@ -117,7 +117,7 @@ string Contract::Call(const string *param)
     return result;
 }
 
-string Contract::SendTransaction(uint32_t nonceVal, uint32_t gasPriceVal, uint32_t gasLimitVal,
+string Contract::SendTransaction(uint32_t nonceVal, unsigned long long gasPriceVal, uint32_t gasLimitVal,
                                  string *toStr, string *valueStr, string *dataStr)
 {
     uint8_t signature[SIGNATURE_LENGTH];
@@ -125,6 +125,7 @@ string Contract::SendTransaction(uint32_t nonceVal, uint32_t gasPriceVal, uint32
     int recid[1] = {0};
     GenerateSignature(signature, recid, nonceVal, gasPriceVal, gasLimitVal,
                       toStr, valueStr, dataStr);
+
     vector<uint8_t> param = RlpEncodeForRawTransaction(nonceVal, gasPriceVal, gasLimitVal,
                                                        toStr, valueStr, dataStr,
                                                        signature, recid[0]);
@@ -147,20 +148,22 @@ string Contract::SendTransaction(uint32_t nonceVal, uint32_t gasPriceVal, uint32
  * Private functions
  **/
 
-void Contract::GenerateSignature(uint8_t *signature, int *recid, uint32_t nonceVal, uint32_t gasPriceVal, uint32_t gasLimitVal,
+void Contract::GenerateSignature(uint8_t *signature, int *recid, uint32_t nonceVal, unsigned long long gasPriceVal, uint32_t gasLimitVal,
                                  string *toStr, string *valueStr, string *dataStr)
 {
     vector<uint8_t> encoded = RlpEncode(nonceVal, gasPriceVal, gasLimitVal, toStr, valueStr, dataStr);
 
     // hash
     string t = Util::VectorToString(encoded);
-    //string hashedStr = web3->Web3Sha3(&t);
-    string hashedStr = Crypto::Keccak256(Util::ConvertStringToVector(&t));
+    //Serial.println(t.c_str());
+    uint8_t *hash = new uint8_t[ETHERS_KECCAK256_LENGTH];
+    size_t encodedTxBytesLength = (t.length()-2)/2;
+    //Serial.println(encodedTxBytesLength);
+    uint8_t *bytes = new uint8_t[encodedTxBytesLength];
+    Util::ConvertToBytes(bytes, t.c_str(), encodedTxBytesLength);
 
+    Crypto::Keccak256((uint8_t*)bytes, encodedTxBytesLength, hash);
     // sign
-    char hash[hashedStr.size()];
-    memset(hash, 0, sizeof(hash));
-    Util::ConvertCharStrToUintArray((uint8_t *)hash, (uint8_t *)hashedStr.c_str());
     Sign((uint8_t *)hash, signature, recid);
 
 #if 0
@@ -255,14 +258,15 @@ string Contract::GenerateBytesForAddress(const string *v)
 
 string Contract::GenerateBytesForString(const string *value)
 {
+    const char *valuePtr = value->c_str(); //don't fail if given a 'String'
     string zeros = "";
-    size_t remain = 32 - ((value->size() - 2) % 32);
+    size_t remain = 32 - ((strlen(valuePtr) - 2) % 32);
     for (int i = 0; i < remain + 32; i++)
     {
         zeros = zeros + "0";
     }
 
-    return *value + zeros;
+    return string(valuePtr + zeros);
 }
 
 string Contract::GenerateBytesForBytes(const char *value, const int len)
@@ -284,7 +288,7 @@ string Contract::GenerateBytesForBytes(const char *value, const int len)
 }
 
 vector<uint8_t> Contract::RlpEncode(
-    uint32_t nonceVal, uint32_t gasPriceVal, uint32_t gasLimitVal,
+    uint32_t nonceVal, unsigned long long gasPriceVal, uint32_t gasLimitVal,
     string *toStr, string *valueStr, string *dataStr)
 {
     vector<uint8_t> nonce = Util::ConvertNumberToVector(nonceVal);
@@ -329,14 +333,14 @@ vector<uint8_t> Contract::RlpEncode(
 
 void Contract::Sign(uint8_t *hash, uint8_t *sig, int *recid)
 {
-
     BYTE fullSig[65];
     crypto->Sign(hash, fullSig);
     *recid = fullSig[64];
+    memcpy(sig,fullSig, 64);
 }
 
 vector<uint8_t> Contract::RlpEncodeForRawTransaction(
-    uint32_t nonceVal, uint32_t gasPriceVal, uint32_t gasLimitVal,
+    uint32_t nonceVal, unsigned long long gasPriceVal, uint32_t gasLimitVal,
     string *toStr, string *valueStr, string *dataStr, uint8_t *sig, uint8_t recid)
 {
 
