@@ -131,7 +131,7 @@ vector<uint8_t> Util::RlpEncodeItemWithVector(const vector<uint8_t> input) {
             tmp = (uint32_t)(tmp / 256);
         }
         tmp_header.push_back((uint8_t)(tmp));
-        uint8_t len = tmp_header.size() + 1;
+        uint8_t len = tmp_header.size();// + 1;
         tmp_header.insert(tmp_header.begin(), 0xb7 + len);
 
         // fix direction for header
@@ -148,23 +148,28 @@ vector<uint8_t> Util::RlpEncodeItemWithVector(const vector<uint8_t> input) {
     return output;
 }
 
+vector<uint8_t> Util::ConvertNumberToVector(unsigned long long val) {
+	vector<uint8_t> tmp;
+	vector<uint8_t> ret;
+	if ((unsigned long long)(val / 256) >= 0) {
+		while ((unsigned long long)(val / 256) > 0) {
+			tmp.push_back((uint8_t)(val % 256));
+			val = (unsigned long long)(val / 256);
+		}
+		tmp.push_back((uint8_t)(val % 256));
+		uint8_t len = tmp.size();
+		for (int i = 0; i<len; i++) {
+			ret.push_back(tmp[len - i - 1]);
+		}
+	}
+	else {
+		ret.push_back((uint8_t)val);
+	}
+	return ret;
+}
+
 vector<uint8_t> Util::ConvertNumberToVector(uint32_t val) {
-    vector<uint8_t> tmp;
-    vector<uint8_t> ret;
-    if ((uint32_t)(val / 256) >= 0) {
-        while ((uint32_t)(val / 256) > 0) {
-            tmp.push_back((uint8_t)(val % 256));
-            val = (uint32_t)(val / 256);
-        }
-        tmp.push_back((uint8_t)(val % 256));
-        uint8_t len = tmp.size();
-        for (int i=0; i<len; i++) {
-            ret.push_back(tmp[len-i-1]);
-        }
-    } else {
-        ret.push_back((uint8_t)val);
-    }
-    return ret;
+    return ConvertNumberToVector((unsigned long long) val);
 }
 
 uint32_t Util::ConvertNumberToUintArray(uint8_t *str, uint32_t val) {
@@ -288,7 +293,7 @@ string Util::VectorToString(const vector<uint8_t> buf)
     return string(hexString);
 }
 
-String Util::BytesToHex(uint8_t *bytes, int length)
+string Util::BytesToHex(uint8_t *bytes, int length)
 {
     size_t chSz = length*2 + 3;
     char hexString[chSz];
@@ -302,7 +307,7 @@ String Util::BytesToHex(uint8_t *bytes, int length)
     }
     *hexPtr = 0;
 
-    return String(hexString);
+    return string(hexString);
 }
 
 void Util::ConvertToBytes(uint8_t *_dst, const char *_src, int length)

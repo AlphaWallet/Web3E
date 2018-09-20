@@ -23,6 +23,7 @@ public:
 
     static uint32_t        ConvertNumberToUintArray(uint8_t *str, uint32_t val);
     static vector<uint8_t> ConvertNumberToVector(uint32_t val);
+    static vector<uint8_t> ConvertNumberToVector(unsigned long long val);
     static uint32_t        ConvertCharStrToUintArray(uint8_t *out, const uint8_t *in);
     static vector<uint8_t> ConvertCharStrToVector(const uint8_t *in);
     static vector<uint8_t> ConvertStringToVector(const string* str);
@@ -31,7 +32,7 @@ public:
     static void    BufToCharStr(char* str, const uint8_t* buf, uint32_t len);
     static void    VectorToCharStr(char* str, const vector<uint8_t> buf);
     static string  VectorToString(const vector<uint8_t> buf);
-    static String  BytesToHex(uint8_t *bytes, int length);
+    static string  BytesToHex(uint8_t *bytes, int length);
     static void    ConvertToBytes(uint8_t *_dst, const char *_src, int length);
     static string  ConvertBase(int from, int to, const char *s);
     static string  ConvertDecimal(int decimal, string *s);
