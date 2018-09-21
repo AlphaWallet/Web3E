@@ -2,7 +2,7 @@
 
 Version 0.9
 
-Originally forked from: https://github.com/kopanitsa/web3-arduino but with almost a complete re-write it is a new framework entirely.
+Originally forked https://github.com/kopanitsa/web3-arduino but with almost a complete re-write it is a new framework entirely.
 
 Starting from a simple requirement - write a dapp capable of running on an ESP32 which can serve as a security door entry system, the hunt began. On finding kopanitsa's excellent start there was an initial anchor point but it was quickly determined that the framework was far from capable of performing what it needed to, and had a great many flaws and missing areas.
 
