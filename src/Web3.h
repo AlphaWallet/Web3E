@@ -19,7 +19,7 @@ using namespace std;
 
 class Web3 {
 public:
-    Web3(const string* _host, const string* _path);
+    Web3(const char* _host, const char* _path);
     string Web3ClientVersion();
     string Web3Sha3(const string* data);
     int NetVersion();
@@ -54,8 +54,8 @@ private:
     bool getBool(const string* json);
 
 private:
-    const string* host;
-    const string* path;
+    const char* host;
+    const char* path;
 };
 
 #endif //ARDUINO_WEB3_WEB3_H

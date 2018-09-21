@@ -15,7 +15,7 @@ WiFiClientSecure client;
 Log debug;
 #define LOG(x) debug.println(x)
 
-Web3::Web3(const string* _host, const string* _path) {
+Web3::Web3(const char* _host, const char* _path) {
     client.setCACert(infura_ca_cert);
     host = _host;
     path = _path;
@@ -183,21 +183,23 @@ string Web3::exec(const string* data) {
     string result;
 
     // start connection
-    LOG("\nStarting connection to server...");
-    int connected = client.connect(host->c_str(), 443);
+    LOG("\nStarting call to Ethereum node.");
+    int connected = client.connect(host, 443);
     if (!connected) {
+        LOG("Unable to connect to Host");
+        LOG(host);
         return "";
     }
 
-    LOG("Connected to server!");
+    //LOG("Connected to server!");
     // Make a HTTP request:
     int l = data->size();
     stringstream ss;
     ss << l;
     string lstr = ss.str();
 
-    string strPost = "POST " + *path + " HTTP/1.1";
-    string strHost = "Host: " + *host;
+    string strPost = "POST " + string(path) + " HTTP/1.1";
+    string strHost = "Host: " + string(host);
     string strContentLen = "Content-Length: " + lstr;
 
     client.println(strPost.c_str());
@@ -210,7 +212,7 @@ string Web3::exec(const string* data) {
 
     while (client.connected()) {
         String line = client.readStringUntil('\n');
-        LOG(line.c_str());
+        //LOG(line.c_str());
         if (line == "\r") {
             break;
         }
