@@ -4,35 +4,15 @@
         "url": "https://github.com/alpha-wallet", 
         "type": "git"
     }, 
-    "platforms": [
-        "atmelavr", 
-        "atmelsam", 
+    "platforms": [ 
         "espressif32", 
-        "espressif8266", 
-        "intel_arc32", 
-        "microchippic32", 
-        "nordicnrf51", 
-        "nordicnrf52", 
-        "ststm32", 
-        "teensy", 
-        "timsp430"
+        "espressif8266"
     ], 
-    "export": {
-        "exclude": [
-            "extras", 
-            "docs", 
-            "tests", 
-            "test", 
-            "*.doxyfile", 
-            "*.pdf"
-        ], 
-        "include": null
-    }, 
     "authors": [
         {
             "maintainer": true, 
             "name": "james", 
-            "url": null, 
+            "url": "https://github.com/JamesSmartCell", 
             "email": "james.brown@awallet.io"
         }
     ], 
