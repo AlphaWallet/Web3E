@@ -29,9 +29,10 @@ bool Crypto::Sign(BYTE* digest, BYTE* result)
 	return (res == 1);
 }
 
-void Crypto::SetPrivateKey(const uint8_t *key) 
+void Crypto::SetPrivateKey(const char *key) 
 {
-    privateKey = key;
+    Util::ConvertHexToBytes(privateKey, key, ETHERS_PRIVATEKEY_LENGTH);
+    LOG(Util::ConvertBytesToHex(privateKey, ETHERS_PRIVATEKEY_LENGTH).c_str());
 }
 
 void Crypto::ECRecover(BYTE* signature, BYTE *public_key, BYTE *message_hash)

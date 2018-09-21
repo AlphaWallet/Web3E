@@ -16,7 +16,7 @@ class Crypto {
 public:
     Crypto(Web3* _web3);
     bool Sign(BYTE* digest, BYTE* result);
-    void SetPrivateKey(const uint8_t *key);
+    void SetPrivateKey(const char *key);
     
     static void ECRecover(BYTE* signature, BYTE *public_key, BYTE *message_hash); 
     static bool Verify(const uint8_t *public_key, const uint8_t *message_hash, const uint8_t *signature);
@@ -32,8 +32,7 @@ private:
     #define LOG(x) Debug.println(x)
 
     Web3* web3;
-    const string * contractAddress;
-    const uint8_t * privateKey;
+    uint8_t privateKey[ETHERS_PRIVATEKEY_LENGTH];
 
 };
 
