@@ -148,7 +148,8 @@ vector<uint8_t> Util::RlpEncodeItemWithVector(const vector<uint8_t> input) {
     return output;
 }
 
-vector<uint8_t> Util::ConvertNumberToVector(unsigned long long val) {
+vector<uint8_t> Util::ConvertNumberToVector(unsigned long long val) 
+{
 	vector<uint8_t> tmp;
 	vector<uint8_t> ret;
 	if ((unsigned long long)(val / 256) >= 0) {
@@ -193,22 +194,16 @@ uint32_t Util::ConvertNumberToUintArray(uint8_t *str, uint32_t val) {
     return ret+1;
 }
 
-vector<uint8_t> Util::ConvertCharStrToVector(const uint8_t *in) {
+vector<uint8_t> Util::ConvertHexToVector(const uint8_t *in) 
+{
     uint32_t ret = 0;
-    uint8_t tmp[256];
-    strcpy((char *)tmp, (char *)in);
+    const uint8_t *ptr = in;
     vector<uint8_t> out;
+    if (in[0] == '0' && in[1] == 'x') ptr += 2;
 
-    // remove "0x"
-    char * ptr = strtok((char*)tmp, "x");
-    if (strlen(ptr)!=1) {
-        ptr = (char *)tmp;
-    } else {
-        ptr = strtok(NULL, "x");
-    }
-
-    size_t lenstr = strlen(ptr);
-    for (int i=0; i<lenstr; i+=2) {
+    size_t lenstr = strlen((const char*)ptr);
+    for (int i=0; i<lenstr; i+=2) 
+    {
         char c[3];
         c[0] = *(ptr+i);
         c[1] = *(ptr+i+1);
@@ -220,24 +215,17 @@ vector<uint8_t> Util::ConvertCharStrToVector(const uint8_t *in) {
     return out;
 }
 
-vector<uint8_t> Util::ConvertStringToVector(const string* str) {
-    return ConvertCharStrToVector((uint8_t*)(str->c_str()));
+vector<uint8_t> Util::ConvertHexToVector(const string* str) {
+    return ConvertHexToVector((uint8_t*)(str->c_str()));
 }
 
 uint32_t Util::ConvertCharStrToUintArray(uint8_t *out, const uint8_t *in) {
     uint32_t ret = 0;
-    uint8_t tmp[256];
-    strcpy((char *)tmp, (char *)in);
-
+    const uint8_t *ptr = in;
     // remove "0x"
-    char * ptr = strtok((char*)tmp, "x");
-    if (strlen(ptr)!=1) {
-        ptr = (char *)tmp;
-    } else {
-        ptr = strtok(NULL, "x");
-    }
+    if (in[0] == '0' && in[1] == 'x') ptr += 2;
 
-    size_t lenstr = strlen(ptr);
+    size_t lenstr = strlen((const char*)ptr);
     for (int i=0; i<lenstr; i+=2) {
         char c[3];
         c[0] = *(ptr+i);
@@ -262,13 +250,6 @@ uint8_t Util::HexToInt(uint8_t s) {
     return ret;
 }
 
-void Util::BufToCharStr(char* str, const uint8_t* buf, uint32_t len) {
-    sprintf(str, "0x");
-    for (int i = 0; i < len; i++) {
-        sprintf(str, "%s%02x", str, buf[i]);
-    }
-}
-
 void Util::VectorToCharStr(char* str, const vector<uint8_t> buf) {
     sprintf(str, "0x");
     for (int i = 0; i < buf.size(); i++) {
@@ -278,22 +259,10 @@ void Util::VectorToCharStr(char* str, const vector<uint8_t> buf) {
 
 string Util::VectorToString(const vector<uint8_t> buf) 
 {
-    size_t chSz = buf.size()*2 + 3;
-    char hexString[chSz];
-    char *hexPtr = hexString;
-    *hexPtr++= '0';
-    *hexPtr++= 'x';
-    for (int i = 0; i < buf.size(); i++) 
-    {
-        sprintf(hexPtr, "%02x", buf[i]);
-        hexPtr += 2;
-    }
-    *hexPtr = 0;
-
-    return string(hexString);
+    return ConvertBytesToHex((const uint8_t*)buf.data(), buf.size());
 }
 
-string Util::BytesToHex(uint8_t *bytes, int length)
+string Util::ConvertBytesToHex(const uint8_t *bytes, int length)
 {
     size_t chSz = length*2 + 3;
     char hexString[chSz];
@@ -310,7 +279,7 @@ string Util::BytesToHex(uint8_t *bytes, int length)
     return string(hexString);
 }
 
-void Util::ConvertToBytes(uint8_t *_dst, const char *_src, int length)
+void Util::ConvertHexToBytes(uint8_t *_dst, const char *_src, int length)
 {
     if (_src[0] == '0' && _src[1] == 'x') _src += 2; //chop off 0x
 
@@ -505,7 +474,7 @@ string Util::ConvertDecimal(int decimals, string *result)
     return newValue;
 }
 
-string Util::ConvertHexToString(const char *result, size_t length)
+string Util::ConvertHexToASCII(const char *result, size_t length)
 {
 	//convert hex to string.
 	//first trim all the zeros
@@ -592,7 +561,7 @@ string Util::InterpretStringResult(const char *result)
                 long length = strtol(itr++->c_str(), NULL, 16);
                 //now get a pointer to string immediately after the length marker
                 const char *strPtr = result + 2 + (2*64);
-                retVal = ConvertHexToString(strPtr, length*2);
+                retVal = ConvertHexToASCII(strPtr, length*2);
             }
         }
     }
@@ -635,4 +604,13 @@ vector<string> *Util::InterpretVectorResult(string *result)
     }
 
     return retVal;
+}
+
+void Util::PadForward(string *target, int targetSize)
+{
+    int remain = (targetSize*2) - (target->length() % targetSize);
+    char buffer[remain+1];
+    memset(buffer, '0', remain);
+    buffer[remain] = 0;
+    *target = buffer + *target;
 }

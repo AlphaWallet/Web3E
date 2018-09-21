@@ -25,24 +25,26 @@ public:
     static vector<uint8_t> ConvertNumberToVector(uint32_t val);
     static vector<uint8_t> ConvertNumberToVector(unsigned long long val);
     static uint32_t        ConvertCharStrToUintArray(uint8_t *out, const uint8_t *in);
-    static vector<uint8_t> ConvertCharStrToVector(const uint8_t *in);
-    static vector<uint8_t> ConvertStringToVector(const string* str);
+    static vector<uint8_t> ConvertHexToVector(const uint8_t *in);
+    static vector<uint8_t> ConvertHexToVector(const string* str);
+    static char *          ConvertToString(const uint8_t *in);
 
     static uint8_t HexToInt(uint8_t s);
-    static void    BufToCharStr(char* str, const uint8_t* buf, uint32_t len);
     static void    VectorToCharStr(char* str, const vector<uint8_t> buf);
     static string  VectorToString(const vector<uint8_t> buf);
-    static string  BytesToHex(uint8_t *bytes, int length);
-    static void    ConvertToBytes(uint8_t *_dst, const char *_src, int length);
+    static string  ConvertBytesToHex(const uint8_t *bytes, int length);
+    static void    ConvertHexToBytes(uint8_t *_dst, const char *_src, int length);
     static string  ConvertBase(int from, int to, const char *s);
     static string  ConvertDecimal(int decimal, string *s);
     static string  ConvertString(const char* value);
-    static string  ConvertHexToString(const char *result, size_t length);
+    static string  ConvertHexToASCII(const char *result, size_t length);
     static string  InterpretStringResult(const char *result);
     static vector<string>* InterpretVectorResult(string *result);
+    static void PadForward(string *target, int targetSize);
 
     static vector<string>* ConvertCharStrToVector32(const char *resultPtr, size_t resultSize, vector<string> *result);
     //static string  BytesToHexString(uint8_t *_dst, const char *_src, int length);
+
 };
 
 #endif //WEB3_UTIL_H
