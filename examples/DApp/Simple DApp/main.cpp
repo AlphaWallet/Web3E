@@ -12,19 +12,18 @@
 #include <string>
 #include <Util.h>
 
-const char *ssid = "Ten Forward";
-const char *password = "This place is happening man.";
-const string INFURA_HOST = "kovan.infura.io";
-const string INFURA_PATH = "/llyrtzQ3YhkdESt2Fzrk";
+const char *ssid = "<Your SSID>";
+const char *password = "<Your WiFi password>";
+const char *INFURA_HOST = "kovan.infura.io";
+const char *INFURA_PATH = "/v3/c7df4c29472d4d54a39f7aa78f146853";
 
 #define BLUE_LED 2 //the little blue LED on the ESP8266/ESP32
 #define CHALLENGE_SIZE 32
 
 WiFiServer server(80);
-Web3 web3(&INFURA_HOST, &INFURA_PATH);
 int wificounter = 0;
 
-const char * seedWords[] = { "Apples", "Oranges", "Grapes", "Dragon fruit", "Bread fruit", "Pomegranite", "Mangifera indica", "Persea americana", 0 };
+const char * seedWords[] = { "Apples", "Oranges", "Grapes", "Dragon fruit", "Bread fruit", "Pomegranate", "Mangifera indica", "Persea americana", 0 };
 
 String header;
 String currentChallenge;
@@ -256,33 +255,33 @@ bool checkSignature(String signature, String address)
 
     //we have to hash the challenge first
     //first convert to a hex string
-    String hexVal = Util::BytesToHex((uint8_t*)currentChallenge.c_str(), currentChallenge.length());
-    Serial.println(hexVal);
+    string hexVal = Util::ConvertBytesToHex((uint8_t*)currentChallenge.c_str(), currentChallenge.length());
+    Serial.println(hexVal.c_str());
 
     //String signMessage = "\u0019Ethereum Signed Message:\n";
     //signMessage += hexVal.length();
     //signMessage += hexVal.substring(2); // cut off the leading '0x'
 
     Serial.println("BYTES");
-    Serial.println(Util::BytesToHex((uint8_t*)currentChallenge.c_str(), currentChallenge.length()));
+    Serial.println(Util::ConvertBytesToHex((uint8_t*)currentChallenge.c_str(), currentChallenge.length()).c_str());
 
     //hash the full challenge    
     Crypto::Keccak256((uint8_t*)currentChallenge.c_str(), currentChallenge.length(), challengeHash);
 
     Serial.println("Challenge : " + currentChallenge);
     Serial.print("Challenge#: ");
-    Serial.println(Util::BytesToHex(challengeHash, ETHERS_KECCAK256_LENGTH));
+    Serial.println(Util::ConvertBytesToHex(challengeHash, ETHERS_KECCAK256_LENGTH).c_str());
 
     //convert address to BYTE
     BYTE addrBytes[ETHERS_ADDRESS_LENGTH];
     BYTE signatureBytes[ETHERS_SIGNATURE_LENGTH];
-    BYTE publicKeyBytes[64];
+    BYTE publicKeyBytes[ETHERS_PUBLICKEY_LENGTH];
 
-    Util::ConvertToBytes(addrBytes, address.c_str(), ETHERS_ADDRESS_LENGTH);
-    Util::ConvertToBytes(signatureBytes, signature.c_str(), ETHERS_SIGNATURE_LENGTH);
+    Util::ConvertHexToBytes(addrBytes, address.c_str(), ETHERS_ADDRESS_LENGTH);
+    Util::ConvertHexToBytes(signatureBytes, signature.c_str(), ETHERS_SIGNATURE_LENGTH);
 
     Serial.println("SIG");
-    Serial.println(Util::BytesToHex(signatureBytes, ETHERS_SIGNATURE_LENGTH));
+    Serial.println(Util::ConvertBytesToHex(signatureBytes, ETHERS_SIGNATURE_LENGTH).c_str());
 
     Serial.println();
 
@@ -291,7 +290,7 @@ bool checkSignature(String signature, String address)
     Crypto::ECRecover(signatureBytes, publicKeyBytes, challengeHash); 
 
     Serial.println("Recover Pub:");
-    Serial.println(Util::BytesToHex(publicKeyBytes, 64));
+    Serial.println(Util::ConvertBytesToHex(publicKeyBytes, ETHERS_PUBLICKEY_LENGTH).c_str());
 
     BYTE recoverAddr[ETHERS_ADDRESS_LENGTH];
     // Now reduce the recovered public key to Ethereum address
@@ -300,9 +299,9 @@ bool checkSignature(String signature, String address)
     Serial.println("Received Address:");
     Serial.println(address);
     Serial.println("Recovered Address:");
-    Serial.println(Util::BytesToHex(recoverAddr, 20));
+    Serial.println(Util::ConvertBytesToHex(recoverAddr, ETHERS_ADDRESS_LENGTH).c_str());
 
-    if (memcmp(recoverAddr, addrBytes, 20) == 0) //did the same address sign the message as the user is claiming to own?
+    if (memcmp(recoverAddr, addrBytes, ETHERS_ADDRESS_LENGTH) == 0) //did the same address sign the message as the user is claiming to own?
     {
         return true;
     }

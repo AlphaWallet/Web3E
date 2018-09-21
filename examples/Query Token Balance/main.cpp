@@ -9,25 +9,23 @@
 #include <string>
 #include <Util.h>
 
+// This sample should work straight 'out of the box' after you plug in your WiFi credentials
+
 const char *ssid = "<YOUR SSID>";
 const char *password = "<YOUR WiFi PASSWORD>";
-const string INFURA_HOST = "kovan.infura.io";
-const string INFURA_PATH = "/v3/c7df4c29472d4d54a39f7aa78f146853"; //this is an anonymous infura public API key for courtesy testing, please don't use it for production
-#define NATIVE_ETH_TOKENS "Kovan ETH"  //if you switch chains you might want to change this
+const char *INFURA_HOST = "kovan.infura.io";
+const char *INFURA_PATH = "/v3/c7df4c29472d4d54a39f7aa78f146853";    //this is an anonymous infura public API key for courtesy testing, please don't use it for production
+#define NATIVE_ETH_TOKENS "Kovan ETH"                                //if you switch chains you might want to change this
 #define ERC875CONTRACT "0x0b70dd9f8ada11eee393c8ab0dd0d3df6a172876"  //an ERC875 token contract on Kovan
 #define ERC20CONTRACT  "0xb06d72a24df50d4e2cac133b320c5e7de3ef94cb"  //and ERC20 token contract on Kovan
 #define USERACCOUNT "0x835bb27deec61e1cd81b3a2feec9fbd76b15971d"     //a user account that holds Kovan ETH and balances of tokens in the two above contracts 
 
-Web3 web3(&INFURA_HOST, &INFURA_PATH);
+Web3 web3(INFURA_HOST, INFURA_PATH);
 int wificounter = 0;
 
 void queryERC875Balance(const char* Address, const char* ERC875ContractAddress);
 void queryERC20Balance(String userAddress, const char* ERC875ContractAddress);
-void queryBalance(String userAddress);
 void setup_wifi();
-unsigned long long hexToDec(const char *hexString);
-string str_hex2dec(const string &hex);
-string str_dec2hex(string dec);
 
 void setup() 
 {
@@ -56,8 +54,6 @@ void setup()
     queryERC20Balance(USERACCOUNT, ERC20CONTRACT);
 
     Serial.println("FINISHED");
-    
-    //queryBalance(USERACCOUNT);
 }
 
 
@@ -161,6 +157,7 @@ void queryERC875Balance(const char *userAddress, const char* ContractAddress)
 /* Query balance of ERC875 tokens */
 void queryERC20Balance(String userAddress, const char *ContractAddress)
 {
+    Serial.println("ERC20 token fucntions");
     // query balance of account
     Contract contract(&web3, ContractAddress);
     string func = "balanceOf(address)";
