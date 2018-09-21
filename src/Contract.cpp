@@ -25,7 +25,7 @@ Contract::Contract(Web3* _web3, const char* address) {
     crypto = NULL;
 }
 
-void Contract::SetPrivateKey(const uint8_t *key) {
+void Contract::SetPrivateKey(const char *key) {
     crypto = new Crypto(web3);
     crypto->SetPrivateKey(key);
 }
@@ -63,7 +63,13 @@ string Contract::SetupContractData(const char* func, ...)
     va_list args;
     va_start(args, paramCount);
     for( int i = 0; i < paramCount; ++i ) {
-        if (strncmp(params[i].c_str(), "uint", sizeof("uint")) == 0 || strncmp(params[i].c_str(), "uint256", sizeof("uint256")) == 0)
+        if (strstr(params[i].c_str(), "uint") != NULL && strstr(params[i].c_str(), "[]") != NULL)
+        {
+            // value array
+            string output = GenerateBytesForUIntArray(va_arg(args, vector<uint32_t> *));
+            ret = ret + output;
+        }
+        else if (strncmp(params[i].c_str(), "uint", sizeof("uint")) == 0 || strncmp(params[i].c_str(), "uint256", sizeof("uint256")) == 0)
         {
             string output = GenerateBytesForUint(va_arg(args, uint32_t));
             ret = ret + output;
@@ -129,6 +135,7 @@ string Contract::SendTransaction(uint32_t nonceVal, unsigned long long gasPriceV
     vector<uint8_t> param = RlpEncodeForRawTransaction(nonceVal, gasPriceVal, gasLimitVal,
                                                        toStr, valueStr, dataStr,
                                                        signature, recid[0]);
+
     string paramStr = Util::VectorToString(param);
 
 #if 0
@@ -152,28 +159,17 @@ void Contract::GenerateSignature(uint8_t *signature, int *recid, uint32_t nonceV
                                  string *toStr, string *valueStr, string *dataStr)
 {
     vector<uint8_t> encoded = RlpEncode(nonceVal, gasPriceVal, gasLimitVal, toStr, valueStr, dataStr);
-
     // hash
     string t = Util::VectorToString(encoded);
     //Serial.println(t.c_str());
     uint8_t *hash = new uint8_t[ETHERS_KECCAK256_LENGTH];
     size_t encodedTxBytesLength = (t.length()-2)/2;
-    //Serial.println(encodedTxBytesLength);
     uint8_t *bytes = new uint8_t[encodedTxBytesLength];
-    Util::ConvertToBytes(bytes, t.c_str(), encodedTxBytesLength);
+    Util::ConvertHexToBytes(bytes, t.c_str(), encodedTxBytesLength);
 
     Crypto::Keccak256((uint8_t*)bytes, encodedTxBytesLength, hash);
     // sign
     Sign((uint8_t *)hash, signature, recid);
-
-#if 0
-    printf("\nhash_input : %s\n", tmp);
-    printf("\nhash_output: %s\n", hashedStr);
-    printf("\nhash--------\n ");
-    for (int i = 0; i<32; i++) {
-        printf("%02x ", tmp[i]);
-    }
-#endif
 }
 
 string Contract::GenerateContractBytes(const char *func)
@@ -193,7 +189,7 @@ string Contract::GenerateContractBytes(const char *func)
         in = in + intmp;
     }
     //get the hash of the input
-    string out = Crypto::Keccak256(Util::ConvertStringToVector(&in));
+    string out = Crypto::Keccak256(Util::ConvertHexToVector(&in));
     out.resize(10);
     return out;
 }
@@ -241,6 +237,25 @@ string Contract::GenerateBytesForInt(const int32_t value)
     }
     sprintf(output, "%s%x", output, value);
     return string(output);
+}
+
+string Contract::GenerateBytesForUIntArray(const vector<uint32_t> *v)
+{
+    string output;
+    char numstr[21];
+    string dynamicMarker = "40";
+    Util::PadForward(&dynamicMarker, 32);
+    string arraySize = itoa(v->size(), numstr, 16);
+    Util::PadForward(&arraySize, 32);
+    output = dynamicMarker + arraySize;
+    for (auto itr = v->begin(); itr != v->end(); itr++)
+    {
+        string element = itoa(*itr, numstr, 16);
+        Util::PadForward(&element, 32);
+        output += element;
+    }
+
+    return output;
 }
 
 string Contract::GenerateBytesForAddress(const string *v)
@@ -294,9 +309,9 @@ vector<uint8_t> Contract::RlpEncode(
     vector<uint8_t> nonce = Util::ConvertNumberToVector(nonceVal);
     vector<uint8_t> gasPrice = Util::ConvertNumberToVector(gasPriceVal);
     vector<uint8_t> gasLimit = Util::ConvertNumberToVector(gasLimitVal);
-    vector<uint8_t> to = Util::ConvertStringToVector(toStr);
-    vector<uint8_t> value = Util::ConvertStringToVector(valueStr);
-    vector<uint8_t> data = Util::ConvertStringToVector(dataStr);
+    vector<uint8_t> to = Util::ConvertHexToVector(toStr);
+    vector<uint8_t> value = Util::ConvertHexToVector(valueStr);
+    vector<uint8_t> data = Util::ConvertHexToVector(dataStr);
 
     vector<uint8_t> outputNonce = Util::RlpEncodeItemWithVector(nonce);
     vector<uint8_t> outputGasPrice = Util::RlpEncodeItemWithVector(gasPrice);
@@ -352,9 +367,9 @@ vector<uint8_t> Contract::RlpEncodeForRawTransaction(
     vector<uint8_t> nonce = Util::ConvertNumberToVector(nonceVal);
     vector<uint8_t> gasPrice = Util::ConvertNumberToVector(gasPriceVal);
     vector<uint8_t> gasLimit = Util::ConvertNumberToVector(gasLimitVal);
-    vector<uint8_t> to = Util::ConvertStringToVector(toStr);
-    vector<uint8_t> value = Util::ConvertStringToVector(valueStr);
-    vector<uint8_t> data = Util::ConvertStringToVector(dataStr);
+    vector<uint8_t> to = Util::ConvertHexToVector(toStr);
+    vector<uint8_t> value = Util::ConvertHexToVector(valueStr);
+    vector<uint8_t> data = Util::ConvertHexToVector(dataStr);
 
     vector<uint8_t> outputNonce = Util::RlpEncodeItemWithVector(nonce);
     vector<uint8_t> outputGasPrice = Util::RlpEncodeItemWithVector(gasPrice);
