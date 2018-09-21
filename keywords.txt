@@ -21,11 +21,74 @@ Web3	KEYWORD1
 #######################################	
 
 
-BYTE	KEYWORD2
+
+Web3ClientVersion 	KEYWORD2
+Web3Sha3	KEYWORD2
+NetVersion	KEYWORD2
+NetListening	KEYWORD2
+NetPeerCount	KEYWORD2
+EthProtocolVersion	KEYWORD2
+EthSyncing	KEYWORD2
+EthMining	KEYWORD2
+EthHashrate	KEYWORD2
+EthGasPrice	KEYWORD2
+EthAccounts	KEYWORD2
+EthBlockNumber	KEYWORD2
+EthGetBalance	KEYWORD2
+EthGetTransactionCount	KEYWORD2
+EthViewCall				KEYWORD2
+
+EthCall		KEYWORD2
+EthSendSignedTransaction	KEYWORD2
+getDAppCode		KEYWORD2
+
+getLongLong		KEYWORD2
+getString		KEYWORD2
+getInt			KEYWORD2
 
 
+RlpEncodeWholeHeader		KEYWORD2
+RlpEncodeWholeHeaderWithVector		KEYWORD2
+RlpEncodeItem		KEYWORD2
+RlpEncodeItemWithVector		KEYWORD2
+ConvertNumberToUintArray		KEYWORD2
+ConvertNumberToVector		KEYWORD2
+ConvertCharStrToUintArray		KEYWORD2
+ConvertHexToVector		KEYWORD2
+ConvertToString		KEYWORD2
+
+HexToInt		KEYWORD2
+VectorToCharStr		KEYWORD2
+VectorToString		KEYWORD2
+ConvertBytesToHex		KEYWORD2
+ConvertHexToBytes		KEYWORD2
+ConvertBase		KEYWORD2
+ConvertDecimal		KEYWORD2
+ConvertString		KEYWORD2
+ConvertHexToASCII		KEYWORD2
+InterpretStringResult		KEYWORD2
+InterpretVectorResult		KEYWORD2
+PadForward		KEYWORD2
+ConvertCharStrToVector32		KEYWORD2
+Crypto		KEYWORD2
+Sign		KEYWORD2
+SetPrivateKey		KEYWORD2
+    
+ECRecover		KEYWORD2
+Verify		KEYWORD2
+PrivateKeyToPublic		KEYWORD2
+PublicKeyToAddress		KEYWORD2
+Keccak256		KEYWORD2
+
+Contract		KEYWORD2
+SetPrivateKey		KEYWORD2
+SetupContractData		KEYWORD2
+Call		KEYWORD2
+ViewCall		KEYWORD2
+SendTransaction		KEYWORD2
 
 #######################################
 # Constants (LITERAL1)
 #######################################
  
+BYTE	LITERAL1
