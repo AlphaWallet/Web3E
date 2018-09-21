@@ -2,8 +2,6 @@
 
 Version 0.9
 
-Originally forked https://github.com/kopanitsa/web3-arduino but with almost a complete re-write it is a new framework entirely.
-
 Web3E is a functional but still in development Web3 framework for Embedded devices running Arduino. Tested mainly on ESP32 and working on ESP8266. Also included is a rapid development DApp injector to convert your embedded server into a fully integrated Ethereum DApp. 
 
 Starting from a simple requirement - write a DApp capable of running on an ESP32 which can serve as a security door entry system. There was an existing Web3 for Arduino which was an excellent start but seems to have been neglected. It is possible that as Ethereum runs natively on embedded devices a new revolution in the blockchain saga will begin.
@@ -20,6 +18,8 @@ Included in the package are three samples.
 - Push transactions, showing token transfer of ERC20 and ERC875 tokens.
 
 The push transaction sample requires a little work to get running. You have to have an Ethereum wallet, some testnet ETH, the private key for that testnet eth, and then create some ERC20 and ERC875 tokens in the account.
+
+Originally forked https://github.com/kopanitsa/web3-arduino but with almost a complete re-write it is a new framework entirely.
 
 Libraries used:
 - Web3 Arduino https://github.com/kopanitsa/web3-arduino - skeleton of framework.
