@@ -4,7 +4,10 @@ Version 0.9
 
 Web3E is a functional but still in development Web3 framework for Embedded devices running Arduino. Tested mainly on ESP32 and working on ESP8266. Also included is a rapid development DApp injector to convert your embedded server into a fully integrated Ethereum DApp. 
 
-Starting from a simple requirement - write a DApp capable of running on an ESP32 which can serve as a security door entry system. There was an existing Web3 for Arduino which was an excellent start but seems to have been neglected. It is possible that as Ethereum runs natively on embedded devices a new revolution in the blockchain saga will begin.
+Starting from a simple requirement - write a DApp capable of running on an ESP32 which can serve as a security door entry system. Some brave attempts can be found in scattered repos but ultimately even the best are just dapp veneers or have ingeneous and clunky hand-rolled communication systems like the Arduino wallet attempts.
+
+What is required is a method to write simple, fully embedded DApps which give you a zero infrastucture and total security solution.
+It is possible that as Ethereum runs natively on embedded devices a new revolution in the blockchain saga will begin. Now you have the ability to write a fully embedded DApp that gives you the seurity and flexibility of Ethereum in an embedded device.
 
 - Web3E has a Ready-to-Go DApp injection system that turns any device hosted site instantly into an Ethereum DApp with ECDSA crypto!
 - Cryptography has been overhauled to use a cut-down version of Trezor Wallet's heavily optimised and production proven library.
@@ -18,6 +21,16 @@ Included in the package are three samples.
 - Push transactions, showing token transfer of ERC20 and ERC875 tokens.
 
 The push transaction sample requires a little work to get running. You have to have an Ethereum wallet, some testnet ETH, the private key for that testnet eth, and then create some ERC20 and ERC875 tokens in the account.
+
+Example Web3E DApp flow:
+
+- Device creates a challenge string, lets say 'Oranges 22853'. 
+- Sign button containing a JavaScript Web3 call will instruct the wallet browser to ask the user to use their private key to sign 'Oranges 22853'. 
+- After user signs, the signature and the user's address are passed back into the code running on the firmware.
+- Web3E can perform ECRecover on the signature and the challenge string it created.
+- The device code compares the recovered address with the address from the user. If they match then we have verified the user holds the private key for that address.
+- Web3E can now check for specific permission tokens held by that address. If the tokens are present the user has permission to operate whatever is connected to the device, could be a security door, safe, the office printer, a shared bitcoin hardware wallet, anything you can think of.
+- All operations are offchain, but using on-chain attestations which an owner can issue at will.
 
 Originally forked https://github.com/kopanitsa/web3-arduino but with almost a complete re-write it is a new framework entirely.
 
