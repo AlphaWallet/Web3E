@@ -16,7 +16,7 @@ It is possible that as Ethereum runs natively on embedded devices a new revoluti
 - Transaction system is fully optimised and has been tested on ERC20 and ERC875 contracts.
 - Usability has been a priority.
 
-# Included in the package are four samples.
+## Included in the package are four samples
 
 - Simple DApp. Shows the power of the library to create a DApp server truly embedded in the device. The on-board cryptography engine can fully interact with user input. Signing, recovery/verification takes milliseconds on ESP32.
 - Query Wallet balances, Token balances and for the first time Non-Fungible-Token (NFT) balances.
@@ -25,7 +25,7 @@ It is possible that as Ethereum runs natively on embedded devices a new revoluti
 
 The push transaction sample requires a little work to get running. You have to have an Ethereum wallet, some testnet ETH, the private key for that testnet eth, and then create some ERC20 and ERC875 tokens in the account.
 
-# Example Web3E DApp flow
+## Example Web3E DApp flow
 
 - Device creates a challenge string, lets say 'Oranges 22853'. 
 - Sign button containing a JavaScript Web3 call will instruct the wallet browser to ask the user to use their private key to sign 'Oranges 22853'. 
@@ -35,7 +35,7 @@ The push transaction sample requires a little work to get running. You have to h
 - Web3E can now check for specific permission tokens held by the user address. If the tokens are present the user has permission to operate whatever is connected to the device, could be a security door, safe, the office printer, a shared bitcoin hardware wallet etc.
 - All operations are offchain ie gasless, but using on-chain attestations which an owner can issue at will.
 
-# Transaction usage
+## Usage
 
 ## Ethereum transaction (ie send ETH to address):
 
