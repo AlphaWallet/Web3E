@@ -1,6 +1,6 @@
 # Web3E Ethereum for Embedded devices
 
-![alt text](https://raw.githubusercontent.com/JamesSmartCell/Release-Test/master/Web3-Esmall.png)
+<img align="right" src="https://raw.githubusercontent.com/JamesSmartCell/Release-Test/master/Web3-Esmall.png">
 
 ## Version 0.9
 
