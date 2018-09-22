@@ -1,4 +1,4 @@
-# Web3E Ethereum for Embedded devices running Arduino framework
+# Web3E Ethereum for Embedded devices
 
 ## Version 0.9
 
