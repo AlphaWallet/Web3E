@@ -17,14 +17,25 @@ using namespace std;
 Crypto::Crypto(Web3* _web3) 
 {
     web3 = _web3;
+    memset(privateKey, 0, ETHERS_PRIVATEKEY_LENGTH);
 }
 
 bool Crypto::Sign(BYTE* digest, BYTE* result) 
 {
     const ecdsa_curve *curve = &secp256k1;
     uint8_t pby;
-    int res = ecdsa_sign_digest(curve, privateKey, digest, result, &pby, NULL);
-    result[64] = pby;
+    int res = 0;
+    bool allZero = true;
+    for (int i = 0; i < ETHERS_PRIVATEKEY_LENGTH; i++) if (privateKey[i] != 0) allZero = false;
+    if (allZero == true)
+    {
+        Serial.println("Private key not set, generate a private key (eg use Metamask) and call Contract::SetPrivateKey with it.");
+    }
+    else
+    {
+        res = ecdsa_sign_digest(curve, privateKey, digest, result, &pby, NULL);
+        result[64] = pby;
+    }
 
 	return (res == 1);
 }
@@ -32,7 +43,6 @@ bool Crypto::Sign(BYTE* digest, BYTE* result)
 void Crypto::SetPrivateKey(const char *key) 
 {
     Util::ConvertHexToBytes(privateKey, key, ETHERS_PRIVATEKEY_LENGTH);
-    LOG(Util::ConvertBytesToHex(privateKey, ETHERS_PRIVATEKEY_LENGTH).c_str());
 }
 
 void Crypto::ECRecover(BYTE* signature, BYTE *public_key, BYTE *message_hash)
