@@ -1,5 +1,7 @@
 # Web3E Ethereum for Embedded devices
 
+![alt text](https://raw.githubusercontent.com/JamesSmartCell/Release-Test/master/Web3-Esmall.png)
+
 ## Version 0.9
 
 Web3E is a functional but still in development Web3 framework for Embedded devices running Arduino. Tested mainly on ESP32 and working on ESP8266. Also included is a rapid development DApp injector to convert your embedded server into a fully integrated Ethereum DApp. 
