@@ -112,13 +112,7 @@ string Contract::Call(const string *param)
     const string from = string(options.from);
     const long gasPrice = strtol(options.gasPrice, nullptr, 10);
     const string value = "";
-#if 0
-    printf("from: %s\n", from.c_str());
-    printf("to: %s\n", contractAddress->c_str());
-    printf("value: %s\n", value.c_str());
-    printf("data: %s\n", param->c_str());
-    printf(param->c_str());
-#endif
+
     string result = web3->EthCall(&from, contractAddress, options.gas, gasPrice, &value, param);
     return result;
 }
@@ -136,18 +130,12 @@ string Contract::SendTransaction(uint32_t nonceVal, unsigned long long gasPriceV
                                                        toStr, valueStr, dataStr,
                                                        signature, recid[0]);
 
-    string paramStr = Util::VectorToString(param);
-
 #if 0
-    printf("\nGenerated Transaction--------\n ");
-    printf("len:%d\n", (int)param.size());
-    for (int i = 0; i<param.size(); i++) {
-        printf("%02x ", param[i]);
-    }
-    printf("\nparamStr: %s\n", paramStr.c_str());
-    printf("\n\n");
+    Serial.println("RLP RawTrans Encode:");
+    Serial.println(Util::ConvertBytesToHex(param.data(), param.size()).c_str());
 #endif
 
+    string paramStr = Util::VectorToString(param);
     return web3->EthSendSignedTransaction(&paramStr, param.size());
 }
 
@@ -161,15 +149,26 @@ void Contract::GenerateSignature(uint8_t *signature, int *recid, uint32_t nonceV
     vector<uint8_t> encoded = RlpEncode(nonceVal, gasPriceVal, gasLimitVal, toStr, valueStr, dataStr);
     // hash
     string t = Util::VectorToString(encoded);
-    //Serial.println(t.c_str());
+
     uint8_t *hash = new uint8_t[ETHERS_KECCAK256_LENGTH];
     size_t encodedTxBytesLength = (t.length()-2)/2;
     uint8_t *bytes = new uint8_t[encodedTxBytesLength];
     Util::ConvertHexToBytes(bytes, t.c_str(), encodedTxBytesLength);
 
     Crypto::Keccak256((uint8_t*)bytes, encodedTxBytesLength, hash);
+
+#if 0
+    Serial.print("Digest: ");
+    Serial.println(Util::ConvertBytesToHex(hash, ETHERS_KECCAK256_LENGTH).c_str());
+#endif
+
     // sign
     Sign((uint8_t *)hash, signature, recid);
+
+#if 0
+    Serial.print("Sig: ");
+    Serial.println(Util::ConvertBytesToHex(signature, SIGNATURE_LENGTH).c_str());
+#endif
 }
 
 string Contract::GenerateContractBytes(const char *func)
@@ -336,11 +335,8 @@ vector<uint8_t> Contract::RlpEncode(
     encoded.insert(encoded.end(), outputData.begin(), outputData.end());
 
 #if 0
-    printf("\nRLP encoded--------\n ");
-    printf("\nlength : %d\n", p);
-    for (int i = 0; i<p; i++) {
-        printf("%02x ", i, encoded[i]);
-    }
+    Serial.println("RLP Encode:");
+    Serial.println(Util::ConvertBytesToHex(encoded.data(), encoded.size()).c_str());
 #endif
 
     return encoded;
