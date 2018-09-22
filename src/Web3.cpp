@@ -182,8 +182,6 @@ string Web3::generateJson(const string* method, const string* params) {
 string Web3::exec(const string* data) {
     string result;
 
-    // start connection
-    LOG("\nStarting call to Ethereum node.");
     int connected = client.connect(host, 443);
     if (!connected) {
         LOG("Unable to connect to Host");
@@ -191,7 +189,6 @@ string Web3::exec(const string* data) {
         return "";
     }
 
-    //LOG("Connected to server!");
     // Make a HTTP request:
     int l = data->size();
     stringstream ss;
@@ -212,7 +209,6 @@ string Web3::exec(const string* data) {
 
     while (client.connected()) {
         String line = client.readStringUntil('\n');
-        //LOG(line.c_str());
         if (line == "\r") {
             break;
         }
@@ -289,17 +285,21 @@ bool Web3::getBool(const string* json) {
     return ret;
 }
 
-string Web3::getString(const string* json) {
+string Web3::getString(const string *json)
+{
     cJSON *root, *value;
-    root = cJSON_Parse(json->c_str());
-    value = cJSON_GetObjectItem(root, "result");
-    if (cJSON_IsString(value)) 
+    if (json->find("result") >= 0)
     {
+        root = cJSON_Parse(json->c_str());
+        value = cJSON_GetObjectItem(root, "result");
+        if (value != NULL && cJSON_IsString(value))
+        {
+            cJSON_free(root);
+            return string(value->valuestring);
+        }
         cJSON_free(root);
-        return string(value->valuestring);
     }
-    cJSON_free(root);
-    return nullptr;
+    return string("");
 }
 
 // TODO: Support more functionality other than signing
