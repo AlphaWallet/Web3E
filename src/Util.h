@@ -43,7 +43,11 @@ public:
     static void PadForward(string *target, int targetSize);
 
     static vector<string>* ConvertCharStrToVector32(const char *resultPtr, size_t resultSize, vector<string> *result);
-    //static string  BytesToHexString(uint8_t *_dst, const char *_src, int length);
+
+    static string  ConvertEthToWei(double eth);
+
+private:
+    static uint8_t ConvertCharToByte(const uint8_t* ptr);
 
 };
 

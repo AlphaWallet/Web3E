@@ -194,25 +194,36 @@ uint32_t Util::ConvertNumberToUintArray(uint8_t *str, uint32_t val) {
     return ret+1;
 }
 
+uint8_t Util::ConvertCharToByte(const uint8_t* ptr)
+{
+	char c[3];
+	c[0] = *(ptr);
+	c[1] = *(ptr + 1);
+	c[2] = 0x00;
+	return strtol(c, nullptr, 16);
+}
+
 vector<uint8_t> Util::ConvertHexToVector(const uint8_t *in) 
 {
-    uint32_t ret = 0;
     const uint8_t *ptr = in;
     vector<uint8_t> out;
-    if (in[0] == '0' && in[1] == 'x') ptr += 2;
+    if (ptr[0] == '0' && ptr[1] == 'x') ptr += 2;
 
-    size_t lenstr = strlen((const char*)ptr);
-    for (int i=0; i<lenstr; i+=2) 
-    {
-        char c[3];
-        c[0] = *(ptr+i);
-        c[1] = *(ptr+i+1);
-        c[2] = 0x00;
-        uint8_t val = strtol(c, nullptr, 16);
-        out.push_back(val);
-        ret++;
-    }
-    return out;
+	size_t lenstr = strlen((const char*)ptr);
+	int i = 0;
+	if ((lenstr % 2) == 1) //deal with odd sized hex strings
+	{
+		char c[2];
+		c[0] = *ptr;
+		c[1] = 0;
+		out.push_back(ConvertCharToByte((const uint8_t*)c));
+		i = 1;
+	}
+	for (; i<lenstr; i += 2)
+	{
+		out.push_back(ConvertCharToByte(ptr + i));
+	}
+	return out;
 }
 
 vector<uint8_t> Util::ConvertHexToVector(const string* str) {
@@ -613,4 +624,19 @@ void Util::PadForward(string *target, int targetSize)
     memset(buffer, '0', remain);
     buffer[remain] = 0;
     *target = buffer + *target;
+}
+
+string Util::ConvertEthToWei(double eth)
+{
+	//wei is eth x 10^18.
+	double weiValue = eth * pow(10.0, 18.0);
+	char buffer[32];
+	snprintf(buffer, sizeof(buffer), "%0.1f", weiValue);
+	string weiStr = buffer;
+	//prune decimal
+	int index = weiStr.find_last_of('.');
+	if (index > 0) weiStr = weiStr.substr(0, index);
+
+	//now convert this to base 16
+	return ConvertBase(10, 16, weiStr.c_str());
 }
