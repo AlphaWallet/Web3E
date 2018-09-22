@@ -1,6 +1,6 @@
 # Web3E Ethereum for Embedded devices running Arduino framework
 
-Version 0.9
+# Version 0.9
 
 Web3E is a functional but still in development Web3 framework for Embedded devices running Arduino. Tested mainly on ESP32 and working on ESP8266. Also included is a rapid development DApp injector to convert your embedded server into a fully integrated Ethereum DApp. 
 
@@ -14,23 +14,59 @@ It is possible that as Ethereum runs natively on embedded devices a new revoluti
 - Transaction system is fully optimised and has been tested on ERC20 and ERC875 contracts.
 - Usability has been a priority.
 
-Included in the package are three samples.
+# Included in the package are four samples.
 
 - Simple DApp. Shows the power of the library to create a DApp server truly embedded in the device. The on-board cryptography engine can fully interact with user input. Signing, recovery/verification takes milliseconds on ESP32.
 - Query Wallet balances, Token balances and for the first time Non-Fungible-Token (NFT) balances.
 - Push transactions, showing token transfer of ERC20 and ERC875 tokens.
+- Send Eth, showing how to send native eth.
 
 The push transaction sample requires a little work to get running. You have to have an Ethereum wallet, some testnet ETH, the private key for that testnet eth, and then create some ERC20 and ERC875 tokens in the account.
 
-Example Web3E DApp flow:
+# Example Web3E DApp flow
 
 - Device creates a challenge string, lets say 'Oranges 22853'. 
 - Sign button containing a JavaScript Web3 call will instruct the wallet browser to ask the user to use their private key to sign 'Oranges 22853'. 
 - After user signs, the signature and the user's address are passed back into the code running on the firmware.
 - Web3E can perform ECRecover on the signature and the challenge string it created.
 - The device code compares the recovered address with the address from the user. If they match then we have verified the user holds the private key for that address.
-- Web3E can now check for specific permission tokens held by that address. If the tokens are present the user has permission to operate whatever is connected to the device, could be a security door, safe, the office printer, a shared bitcoin hardware wallet, anything you can think of.
-- All operations are offchain, but using on-chain attestations which an owner can issue at will.
+- Web3E can now check for specific permission tokens held by the user address. If the tokens are present the user has permission to operate whatever is connected to the device, could be a security door, safe, the office printer, a shared bitcoin hardware wallet etc.
+- All operations are offchain ie gasless, but using on-chain attestations which an owner can issue at will.
+
+# Transaction usage
+
+. Ethereum transaction (ie send ETH to address):
+
+```
+// Setup Web3 and Contract with Private Key
+...
+
+uint32_t nonceVal = (uint32_t)web3.EthGetTransactionCount(&address); //obtain the next nonce
+string result = contract.SendTransaction(nonceVal, <gas price>, <gas limit>, &toAddress, &weiValue, &emptyString);
+```
+
+. Query ETH balance:
+```
+long long int balance = web3.EthGetBalance(&userAddress); //obtain balance in Wei
+char tmp[32];
+sprintf(tmp, "%lld", balance);
+string val = string(tmp);
+string accountBalanceValue = Util::ConvertDecimal(18, &val); //Convert to Eth, Wei is eth * 10^18.
+double bal = atof(accountBalanceValue.c_str());
+```
+
+. Send ERC20 Token:
+```
+string contractAddr = "<ERC20 Contract address>";
+Contract contract(&web3, contractAddr.c_str());
+contract.SetPrivateKey(<Your private key>);
+uint32_t nonceVal = (uint32_t)web3.EthGetTransactionCount(&addr);
+string toAddress = "<address to send to>";
+string valueStr = "0x00";
+string p = contract.SetupContractData("transfer(address,uint256)", &toAddress, 500); //ERC20 function plus params
+result = contract.SendTransaction(nonceVal, <gas price>, <gas limit>, &contractAddr, &valueStr, &p);
+```
+
 
 Originally forked https://github.com/kopanitsa/web3-arduino but with almost a complete re-write it is a new framework entirely.
 
