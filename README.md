@@ -1,6 +1,6 @@
 # Web3E Ethereum for Embedded devices running Arduino framework
 
-# Version 0.9
+## Version 0.9
 
 Web3E is a functional but still in development Web3 framework for Embedded devices running Arduino. Tested mainly on ESP32 and working on ESP8266. Also included is a rapid development DApp injector to convert your embedded server into a fully integrated Ethereum DApp. 
 
@@ -35,7 +35,7 @@ The push transaction sample requires a little work to get running. You have to h
 
 # Transaction usage
 
-. Ethereum transaction (ie send ETH to address):
+## Ethereum transaction (ie send ETH to address):
 
 ```
 // Setup Web3 and Contract with Private Key
@@ -45,7 +45,7 @@ uint32_t nonceVal = (uint32_t)web3.EthGetTransactionCount(&address); //obtain th
 string result = contract.SendTransaction(nonceVal, <gas price>, <gas limit>, &toAddress, &weiValue, &emptyString);
 ```
 
-. Query ETH balance:
+## Query ETH balance:
 ```
 long long int balance = web3.EthGetBalance(&userAddress); //obtain balance in Wei
 char tmp[32];
@@ -55,7 +55,7 @@ string accountBalanceValue = Util::ConvertDecimal(18, &val); //Convert to Eth, W
 double bal = atof(accountBalanceValue.c_str());
 ```
 
-. Send ERC20 Token:
+## Send ERC20 Token:
 ```
 string contractAddr = "<ERC20 Contract address>";
 Contract contract(&web3, contractAddr.c_str());
