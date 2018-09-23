@@ -16,14 +16,28 @@ It is possible that as Ethereum runs natively on embedded devices a new revoluti
 - Transaction system is fully optimised and has been tested on ERC20 and ERC875 contracts.
 - Usability has been a priority.
 
-## Included in the package are four samples
+## Installation
 
-- Simple DApp. Shows the power of the library to create a DApp server truly embedded in the device. The on-board cryptography engine can fully interact with user input. Signing, recovery/verification takes milliseconds on ESP32.
-- Query Wallet balances, Token balances and for the first time Non-Fungible-Token (NFT) balances.
-- Push transactions, showing token transfer of ERC20 and ERC875 tokens.
-- Send Eth, showing how to send native eth.
+- It is recommended to use Platformio for best experience. Web3E has been submitted to the Platformio team for moderation, status is currently pending.
+- Current installation method: 
+    1. copy the repo URL from the 'Clone or download' button. 
+    2. Change directory to your Platformio data directory (on Windows this is typically C:\users\<username>\.platformio\lib, or ~home/.platformio/lib on other OS)
+    3. Clone the repo into this directory: git clone https://github.com/alpha-wallet/Web3E.git
+    4. Create a new project in Platformio and edit the platformio.ini so it looks similar to:
 
-The push transaction sample requires a little work to get running. You have to have an Ethereum wallet, some testnet ETH, the private key for that testnet eth, and then create some ERC20 and ERC875 tokens in the account.
+```
+[env:esp32dev]
+platform = espressif32
+board = esp32dev
+framework = arduino
+
+; Serial Monitor options
+monitor_speed = 115200
+
+lib_deps =
+  # Using a library name
+  Web3E
+```
 
 ## Example Web3E DApp flow
 
@@ -34,6 +48,15 @@ The push transaction sample requires a little work to get running. You have to h
 - The device code compares the recovered address with the address from the user. If they match then we have verified the user holds the private key for that address.
 - Web3E can now check for specific permission tokens held by the user address. If the tokens are present the user has permission to operate whatever is connected to the device, could be a security door, safe, the office printer, a shared bitcoin hardware wallet etc.
 - All operations are offchain ie gasless, but using on-chain attestations which an owner can issue at will.
+
+## Included in the package are four samples
+
+- Simple DApp. Shows the power of the library to create a DApp server truly embedded in the device. The on-board cryptography engine can fully interact with user input. Signing, recovery/verification takes milliseconds on ESP32.
+- Query Wallet balances, Token balances and for the first time Non-Fungible-Token (NFT) balances.
+- Push transactions, showing token transfer of ERC20 and ERC875 tokens.
+- Send Eth, showing how to send native eth.
+
+The push transaction sample requires a little work to get running. You have to have an Ethereum wallet, some testnet ETH, the private key for that testnet eth, and then create some ERC20 and ERC875 tokens in the account.
 
 ## Usage
 
