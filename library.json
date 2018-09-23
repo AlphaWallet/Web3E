@@ -16,7 +16,7 @@
             "email": "james.brown@awallet.io"
         }
     ], 
-    "frameworks": "mbed",
+    "frameworks": "arduino",
     "keywords": [
         "Web3",
         "Web3E",
