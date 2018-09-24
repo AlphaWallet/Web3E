@@ -18,12 +18,11 @@ It is possible that as Ethereum runs natively on embedded devices a new revoluti
 
 ## Installation
 
-- It is recommended to use Platformio for best experience. Web3E has been submitted to the Platformio team for moderation, status is currently pending.
+- It is recommended to use [Platformio](https://platformio.org/install/) for best experience. Web3E has been submitted to the Platformio team for moderation, status is currently pending.
 - Current installation method: 
-    1. copy the repo URL from the 'Clone or download' button. 
-    2. Change directory to your Platformio data directory (on Windows this is typically: ```C:\users\<username>\.platformio\lib```, or ```~home/.platformio/lib``` on other OS)
-    3. Clone the repo into this directory: ``` git clone https://github.com/alpha-wallet/Web3E.git ```
-    4. Create a new project in Platformio and edit the platformio.ini so it looks similar to:
+    1. Change directory to your Platformio data directory (on Windows this is typically: `C:\users\<username>\.platformio\lib`, or `~/.platformio/lib`` o n other OS)
+    2. Clone the repo i nto this directory. i.e on Windows: `git clone https://github.com/alpha-wallet/Web3E.git C:\users\<username>\.platformio\lib\Web3E` or on others: `git clone https://github.com/alpha-wallet/Web3E.git ~/.platformio/lib/Web3E`.
+    3. Create a new project in Platformio and edit the platformio.ini so it looks similar to:
 
 ```
 [env:esp32dev]
