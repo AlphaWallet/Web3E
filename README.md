@@ -50,6 +50,15 @@ lib_deps =
 
 https://github.com/alpha-wallet/Web3E-Application
 
+Full source code for the system active at the AlphaWallet office. To get it working you need:
+- Metamask (install Chrome extension). 
+- Export Metamask private key to AlphaWallet.
+- [Testnet Eth](https://faucet.kovan.network).
+- [Mint some ERC875 tokens](https://alpha-wallet.github.io/ERC875-token-factory/index.html). Use AlphaWallet DApp browser.
+- Take a note of the contract address. Copy/paste contract address into source code
+- Run the sample.
+- Anyone you transfer the ERC875 tokens to have access to the device operation.
+
 ## Included in the package are four samples
 
 - Simple DApp. Shows the power of the library to create a DApp server truly embedded in the device. The on-board cryptography engine can fully interact with user input. Signing, recovery/verification takes milliseconds on ESP32.
