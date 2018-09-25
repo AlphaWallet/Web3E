@@ -50,7 +50,7 @@ lib_deps =
 
 https://github.com/alpha-wallet/Web3E-Application
 
-Full source code for the system active at the AlphaWallet office. To get it working you need:
+Full source code for the [system active at the AlphaWallet office](https://www.youtube.com/watch?v=D_pMOMxXrYY). To get it working you need:
 - Metamask (install Chrome extension). 
 - Export Metamask private key to AlphaWallet.
 - [Testnet Eth](https://faucet.kovan.network).
