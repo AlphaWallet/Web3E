@@ -54,7 +54,7 @@ Full source code for the system active at the AlphaWallet office. To get it work
 - Metamask (install Chrome extension). 
 - Export Metamask private key to AlphaWallet.
 - [Testnet Eth](https://faucet.kovan.network).
-- [Mint some ERC875 tokens](https://alpha-wallet.github.io/ERC875-token-factory/index.html). Use AlphaWallet DApp browser.
+- [Mint some ERC875 tokens](https://alpha-wallet.github.io/ERC875-token-factory/index.html). Use AlphaWallet DApp browser or Metamask.
 - Take a note of the contract address. Copy/paste contract address into source code
 - Run the sample.
 - Anyone you transfer the ERC875 tokens to have access to the device operation.
