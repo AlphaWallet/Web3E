@@ -46,6 +46,10 @@ lib_deps =
 - Web3E can now check for specific permission tokens held by the user address. If the tokens are present the user has permission to operate whatever is connected to the device, could be a security door, safe, the office printer, a shared bitcoin hardware wallet etc.
 - All operations are offchain ie gasless, but using on-chain attestations which an owner can issue at will.
 
+## AlphaWallet Security Door
+
+https://github.com/alpha-wallet/Web3E-Application
+
 ## Included in the package are four samples
 
 - Simple DApp. Shows the power of the library to create a DApp server truly embedded in the device. The on-board cryptography engine can fully interact with user input. Signing, recovery/verification takes milliseconds on ESP32.
