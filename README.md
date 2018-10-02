@@ -18,11 +18,9 @@ It is possible that as Ethereum runs natively on embedded devices a new revoluti
 
 ## Installation
 
-- It is recommended to use [Platformio](https://platformio.org/install/) for best experience. Web3E has been submitted to the Platformio team for moderation, status is currently pending.
-- Current installation method: 
-    1. Change directory to your Platformio data directory (on Windows this is typically: `C:\users\<username>\.platformio\lib`, or `~/.platformio/lib`` o n other OS)
-    2. Clone the repo i nto this directory. i.e on Windows: `git clone https://github.com/alpha-wallet/Web3E.git C:\users\<username>\.platformio\lib\Web3E` or on others: `git clone https://github.com/alpha-wallet/Web3E.git ~/.platformio/lib/Web3E`.
-    3. Create a new project in Platformio and edit the platformio.ini so it looks similar to:
+- It is recommended to use Platformio for best experience. Web3E is now part of the Platformio libraries so no need to clone the repo.
+- Using Web3E is a one step process:
+    1. Create a new project in Platformio and edit the platformio.ini so it looks similar to:
 
 ```
 [env:esp32dev]
@@ -47,6 +45,19 @@ lib_deps =
 - The device code compares the recovered address with the address from the user. If they match then we have verified the user holds the private key for that address.
 - Web3E can now check for specific permission tokens held by the user address. If the tokens are present the user has permission to operate whatever is connected to the device, could be a security door, safe, the office printer, a shared bitcoin hardware wallet etc.
 - All operations are offchain ie gasless, but using on-chain attestations which an owner can issue at will.
+
+## AlphaWallet Security Door
+
+https://github.com/alpha-wallet/Web3E-Application
+
+Full source code for the [system active at the AlphaWallet office](https://www.youtube.com/watch?v=D_pMOMxXrYY). To get it working you need:
+- [Platformio](https://platformio.org/)
+- [AlphaWallet](https://www.awallet.io)
+- [Testnet Eth](https://faucet.kovan.network). Visit this site on the DApp browser.
+- [Mint some ERC875 tokens](https://alpha-wallet.github.io/ERC875-token-factory/index.html). Visit here on your DApp browser.
+- Take a note of the contract address. Copy/paste contract address into source code inside the 'STORMBIRD_CONTRACT' define.
+- Build and deploy the sample to your Arduino framework device.
+- Use the transfer or MagicLink on AlphaWallet to give out the tokens.
 
 ## Included in the package are four samples
 
