@@ -18,7 +18,7 @@ It is possible that as Ethereum runs natively on embedded devices a new revoluti
 
 ## Installation
 
-- It is recommended to use Platformio for best experience. Web3E is now part of the Platformio libraries so no need to clone the repo.
+- It is recommended to use [Platformio](https://platformio.org/install/) for best experience. Web3E is now part of the Platformio libraries so no need to clone the repo.
 - Using Web3E is a one step process:
     1. Create a new project in Platformio and edit the platformio.ini so it looks similar to:
 
