@@ -115,3 +115,8 @@ Coming soon:
 - Security door using NFT access (currently live at AlphaWallet office!).
 - ERC1155 balance enquiry.
 - Use Templates in library code for more flexible development.
+
+# Donations
+If you support the cause, we could certainly use donations to help fund development:
+
+0xbc8dAfeacA658Ae0857C80D8Aa6dE4D487577c63
