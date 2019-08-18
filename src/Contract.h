@@ -10,6 +10,7 @@
 #include "Web3.h"
 #include <vector>
 #include <Crypto.h>
+#include "uint256/uint256_t.h"
 
 using namespace std;
 
@@ -31,7 +32,7 @@ public:
     string Call(const string* param);
     string ViewCall(const string *param);
     string SendTransaction(uint32_t nonceVal, unsigned long long gasPriceVal, uint32_t gasLimitVal,
-                           string *toStr, string *valueStr, string *dataStr);
+                           string *toStr, uint256_t *valueStr, string *dataStr);
 
 private:
     Log Debug;
@@ -44,20 +45,20 @@ private:
 private:
     string GenerateContractBytes(const char *func);
     string GenerateBytesForInt(const int32_t value);
-    string GenerateBytesForUint(const uint32_t value);
+    string GenerateBytesForUint(const uint256_t *value);
     string GenerateBytesForAddress(const string *value);
     string GenerateBytesForString(const string *value);
     string GenerateBytesForBytes(const char* value, const int len);
     string GenerateBytesForUIntArray(const vector<uint32_t> *v);
 
     void GenerateSignature(uint8_t* signature, int* recid, uint32_t nonceVal, unsigned long long gasPriceVal, uint32_t  gasLimitVal,
-                           string* toStr, string* valueStr, string* dataStr);
+                           string* toStr, uint256_t* valueStr, string* dataStr);
     vector<uint8_t> RlpEncode(
             uint32_t nonceVal, unsigned long long gasPriceVal, uint32_t  gasLimitVal,
-            string* toStr, string* valueStr, string* dataStr);
+            string* toStr, uint256_t* valueStr, string* dataStr);
     vector<uint8_t> RlpEncodeForRawTransaction(
             uint32_t nonceVal, unsigned long long gasPriceVal, uint32_t  gasLimitVal,
-            string* toStr, string* valueStr, string* dataStr, uint8_t* sig, uint8_t recid);
+            string* toStr, uint256_t* valueStr, string* dataStr, uint8_t* sig, uint8_t recid);
     void Sign(uint8_t* hash, uint8_t* sig, int* recid);
 };
 

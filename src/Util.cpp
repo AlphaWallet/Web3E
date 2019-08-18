@@ -273,6 +273,20 @@ string Util::VectorToString(const vector<uint8_t> buf)
     return ConvertBytesToHex((const uint8_t*)buf.data(), buf.size());
 }
 
+string Util::PlainVectorToString(const vector<uint8_t> *buf)
+{
+	char *buffer = (char*) alloca(buf->size() * 2 + 1);
+	const char * hex = "0123456789ABCDEF";
+	char *pout = buffer;
+	for (int i = 0; i < buf->size(); i++)
+	{
+		*pout++ = hex[((*buf)[i] >> 4) & 0xF];
+		*pout++ = hex[(*buf)[i] & 0xF];
+	}
+	*pout = 0;
+	return string(buffer);
+}
+
 string Util::ConvertBytesToHex(const uint8_t *bytes, int length)
 {
     size_t chSz = length*2 + 3;
@@ -304,161 +318,152 @@ void Util::ConvertHexToBytes(uint8_t *_dst, const char *_src, int length)
     }
 }
 
-string  Util::ConvertBase(int from, int to, const char *s)
+string Util::ConvertBase(int from, int to, const char *s)
 {
-    if ( s == NULL )
-    return NULL;
+	if (s == NULL)
+		return NULL;
 
-    if (from < 2 || from > 36 || to < 2 || to > 36) { return NULL; }
+	if (from < 2 || from > 36 || to < 2 || to > 36) { return NULL; }
 
-    if (s[0] == '0' && s[1] == 'x') s += 2;
+	if (s[0] == '0' && s[1] == 'x') s += 2;
 
-    int il = strlen(s);
+	int il = strlen(s);
 
-    int *fs = new int[il];
-    int k = 0;
-    int i,j;
+	int *fs = new (alloca(sizeof(int)*il)) int[il];
+	int k = 0;
+	int i, j;
 
-    for (i = il - 1; i >=0; i-- )
-    {
-        if (s[i] >= '0' && s[i] <= '9') 
-        {
-            fs[k] = (int)(s[i] - '0'); 
-        }
-        else
-        {
-            if (s[i] >= 'A' && s[i] <= 'Z') 
-            {
-                fs[k] = 10 + (int)(s[i] - 'A'); 
-            }
-            else if (s[i] >= 'a' && s[i] <= 'z') 
-            {
-                fs[k] = 10 + (int)(s[i] - 'a'); 
-            }
-            else
-            {
-                delete[]fs;
-                return NULL; 
-            } //only allow 0-9 A-Z characters
-        }
-        k++;
-    }
+	for (i = il - 1; i >= 0; i--)
+	{
+		if (s[i] >= '0' && s[i] <= '9')
+		{
+			fs[k] = (int)(s[i] - '0');
+		}
+		else
+		{
+			if (s[i] >= 'A' && s[i] <= 'Z')
+			{
+				fs[k] = 10 + (int)(s[i] - 'A');
+			}
+			else if (s[i] >= 'a' && s[i] <= 'z')
+			{
+				fs[k] = 10 + (int)(s[i] - 'a');
+			}
+			else
+			{
+				return NULL;
+			} //only allow 0-9 A-Z characters
+		}
+		k++;
+	}
 
-    for (i=0;i<il;i++)
-    {
-        if ( fs[i] >= from ) 
-            return NULL;
-    }
+	for (i = 0; i<il; i++)
+	{
+		if (fs[i] >= from)
+			return NULL;
+	}
 
-    double x = ceil(log( from )  / log (to));
-    int ol = 1+( il * x );
+	double x = ceil(log(from) / log(to));
+	int ol = 1 + (il * x);
 
-    int * ts = new int[ol];
-    int * cums = new int [ol];
+	int *ts = new (alloca(sizeof(int)*ol)) int[ol];
+	int *cums = new (alloca(sizeof(int)*ol)) int[ol];
 
-    for (i=0;i<ol;i++)
-    {
-        ts[i]=0;
-        cums[i]=0;
-    }
-    ts[0]=1;
+	for (i = 0; i<ol; i++)
+	{
+		ts[i] = 0;
+		cums[i] = 0;
+	}
+	ts[0] = 1;
 
-    //evaluate the output
-    for (i = 0; i < il; i++) //for each input digit
-    {
-        for (j = 0; j < ol; j++) //add the input digit times (base:to from^i) to the output cumulator
-        {
-            cums[j] += ts[j] * fs[i];
-            int temp = cums[j];
-            int rem = 0;
-            int ip = j;
-            do // fix up any remainders in base:to
-            {
-                rem = temp / to;
-                cums[ip] = temp - rem * to; 
-                ip++;
-                if (ip >= ol)
-                {
-                    if ( rem > 0 )
-                    {
-                        delete[]ts;
-                        delete[]cums;
-                        delete[]fs;
-                        return NULL;
-                    }
-                    break;
-                }
-                cums[ip] += rem;
-                temp = cums[ip];
-            }
-            while (temp >= to);
-        }
+	//evaluate the output
+	for (i = 0; i < il; i++) //for each input digit
+	{
+		for (j = 0; j < ol; j++) //add the input digit times (base:to from^i) to the output cumulator
+		{
+			cums[j] += ts[j] * fs[i];
+			int temp = cums[j];
+			int rem = 0;
+			int ip = j;
+			do // fix up any remainders in base:to
+			{
+				rem = temp / to;
+				cums[ip] = temp - rem * to;
+				ip++;
+				if (ip >= ol)
+				{
+					if (rem > 0)
+					{
+						return NULL;
+					}
+					break;
+				}
+				cums[ip] += rem;
+				temp = cums[ip];
+			} while (temp >= to);
+		}
 
-        for (j = 0; j < ol; j++)
-        {
-            ts[j] = ts[j] * from;
-        }
+		for (j = 0; j < ol; j++)
+		{
+			ts[j] = ts[j] * from;
+		}
 
-        for (j = 0; j < ol; j++) //check for any remainders
-        {
-            int temp = ts[j];
-            int rem = 0;
-            int ip = j;
-            do  //fix up any remainders
-            {
-                rem = temp / to;
-                ts[ip] = temp - rem * to; 
-                ip++;
-                if (ip >= ol)
-                {          
-                    if ( rem > 0 )
-                    {
-                        delete[]ts;
-                        delete[]cums;
-                        delete[]fs;
-                        return NULL;
-                    }
-                    break;
-                }
-                ts[ip] += rem;
-                temp = ts[ip];
-            }
-            while (temp >= to);
-        }
-    }
+		for (j = 0; j < ol; j++) //check for any remainders
+		{
+			int temp = ts[j];
+			int rem = 0;
+			int ip = j;
+			do  //fix up any remainders
+			{
+				rem = temp / to;
+				ts[ip] = temp - rem * to;
+				ip++;
+				if (ip >= ol)
+				{
+					if (rem > 0)
+					{
+						return NULL;
+					}
+					break;
+				}
+				ts[ip] += rem;
+				temp = ts[ip];
+			} while (temp >= to);
+		}
+	}
 
-    char out[sizeof(char) * (ol + 1)];
+	char *out = (char*)alloca(sizeof(char) * (ol + 1));
 
-    int spos = 0;
-    bool first = false; //leading zero flag
-    for (i = ol-1; i >= 0; i--)
-    {
-        if (cums[i] != 0) 
-        { 
-            first = true; 
-        }
-        if (!first) 
-        { 
-            continue; 
-        }
+	int spos = 0;
+	bool first = false; //leading zero flag
+	for (i = ol - 1; i >= 0; i--)
+	{
+		if (cums[i] != 0)
+		{
+			first = true;
+		}
+		if (!first)
+		{
+			continue;
+		}
 
-        if (cums[i] < 10) 
-        { 			
-            out[spos] = (char)(cums[i] + '0'); 
-        }
-        else 
-        { 			
-            out[spos] = (char)(cums[i] + 'A' - 10); 
-        }
-        spos ++;
-    }
-    out[spos]=0;
-
-    delete[]ts;
-    delete[]cums;
-    delete[]fs;
-
-    return string(out);
+		if (cums[i] < 10)
+		{
+			out[spos] = (char)(cums[i] + '0');
+		}
+		else
+		{
+			out[spos] = (char)(cums[i] + 'A' - 10);
+		}
+		spos++;
+	}
+	out[spos] = 0;
+    
+	int length = (64 - strlen(out));
+	char *test = (char *)alloca(length + 1);
+	memset(test, '0', length);
+	test[length] = 0;
+    return string(test) + string(out);
 }
 
 string Util::ConvertDecimal(int decimals, string *result)
@@ -624,6 +629,18 @@ void Util::PadForward(string *target, int targetSize)
     memset(buffer, '0', remain);
     buffer[remain] = 0;
     *target = buffer + *target;
+}
+
+uint256_t Util::ConvertToWei(double val, int decimals)
+{
+    char buffer[32];
+	snprintf(buffer, sizeof(buffer), "%0.1f", val * pow(10.0, decimals));
+	string weiStr = string(buffer);
+	int index = weiStr.find_last_of('.');
+	if (index > 0) weiStr = weiStr.substr(0, index);
+    weiStr = ConvertBase(10, 16, weiStr.c_str());
+    //PadForward(&weiStr, 64);
+    return uint256_t(weiStr.c_str());
 }
 
 string Util::ConvertEthToWei(double eth)

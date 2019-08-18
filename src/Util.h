@@ -5,9 +5,9 @@
 #ifndef WEB3_UTIL_H
 #define WEB3_UTIL_H
 
-#include <WiFi.h>
 #include <stdint.h>
 #include <vector>
+#include "uint256/uint256_t.h"
 
 using namespace std;
 
@@ -32,6 +32,7 @@ public:
     static uint8_t HexToInt(uint8_t s);
     static void    VectorToCharStr(char* str, const vector<uint8_t> buf);
     static string  VectorToString(const vector<uint8_t> buf);
+    static string  PlainVectorToString(const vector<uint8_t> *buf);
     static string  ConvertBytesToHex(const uint8_t *bytes, int length);
     static void    ConvertHexToBytes(uint8_t *_dst, const char *_src, int length);
     static string  ConvertBase(int from, int to, const char *s);
@@ -41,6 +42,7 @@ public:
     static string  InterpretStringResult(const char *result);
     static vector<string>* InterpretVectorResult(string *result);
     static void PadForward(string *target, int targetSize);
+    static uint256_t ConvertToWei(double val, int decimals);
 
     static vector<string>* ConvertCharStrToVector32(const char *resultPtr, size_t resultSize, vector<string> *result);
 

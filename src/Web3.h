@@ -13,6 +13,7 @@ typedef unsigned char BYTE;
 #define ETHERS_SIGNATURE_LENGTH        65
 
 #include "stdint.h"
+#include <string.h>
 #include <string>
 
 using namespace std;

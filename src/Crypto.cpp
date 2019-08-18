@@ -2,6 +2,7 @@
 // Created by James on 2018/09/13.
 //
 
+#include <Arduino.h>
 #include "Crypto.h"
 #include "Web3.h"
 #include "Util.h"
@@ -9,6 +10,7 @@
 #include "Trezor/secp256k1.h"
 #include "Trezor/ecdsa.h"
 #include <vector>
+#include <string.h>
 
 #define SIGNATURE_LENGTH 64
 

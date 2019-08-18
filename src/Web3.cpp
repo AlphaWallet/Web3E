@@ -207,12 +207,17 @@ string Web3::exec(const string* data) {
     client.println();
     client.println(data->c_str());
 
-    while (client.connected()) {
+
+    while (client.connected()) 
+    {
         String line = client.readStringUntil('\n');
         if (line == "\r") {
             break;
         }
     }
+
+    
+
     // if there are incoming bytes available
     // from the server, read them and print them:
     while (client.available()) {
