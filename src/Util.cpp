@@ -657,3 +657,10 @@ string Util::ConvertEthToWei(double eth)
 	//now convert this to base 16
 	return ConvertBase(10, 16, weiStr.c_str());
 }
+
+string Util::toString(int value)
+{
+    std::ostringstream oss;
+    oss << value;
+    return oss.str();
+}

@@ -188,7 +188,8 @@ string Contract::GenerateContractBytes(const char *func)
         in = in + intmp;
     }
     //get the hash of the input
-    string out = Crypto::Keccak256(Util::ConvertHexToVector(&in));
+    vector<uint8_t> contractBytes = Util::ConvertHexToVector(&in);
+    string out = Crypto::Keccak256(&contractBytes);
     out.resize(10);
     return out;
 }

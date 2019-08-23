@@ -11,6 +11,8 @@
 
 using namespace std;
 
+extern const char * PERSONAL_MESSAGE_PREFIX;
+
 class Crypto {
 
 public:
@@ -23,8 +25,11 @@ public:
     static void PrivateKeyToPublic(const uint8_t *privateKey, uint8_t *publicKey);
     static void PublicKeyToAddress(const uint8_t *publicKey, uint8_t *address);
     static void Keccak256(const uint8_t *data, uint16_t length, uint8_t *result);
+    static string ECRecoverFromPersonalMessage(string *signature, string *message);
+    static string ECRecoverFromHexMessage(string *signature, string *hex);
+    static string ECRecoverFromHash(string *signature, BYTE *digest);
 
-    static string Keccak256(vector<uint8_t> bytes);
+    static string Keccak256(vector<uint8_t> *bytes);
 
 
 private:

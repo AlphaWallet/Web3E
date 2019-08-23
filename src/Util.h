@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 #include <vector>
+#include <sstream>
 #include "uint256/uint256_t.h"
 
 using namespace std;
@@ -47,6 +48,7 @@ public:
     static vector<string>* ConvertCharStrToVector32(const char *resultPtr, size_t resultSize, vector<string> *result);
 
     static string  ConvertEthToWei(double eth);
+    static string toString(int value);
 
 private:
     static uint8_t ConvertCharToByte(const uint8_t* ptr);
