@@ -130,7 +130,7 @@ string Contract::SendTransaction(uint32_t nonceVal, unsigned long long gasPriceV
                                                        toStr, valueStr, dataStr,
                                                        signature, recid[0]);
 
-#if 0
+#if 1
     Serial.println("RLP RawTrans Encode:");
     Serial.println(Util::ConvertBytesToHex(param.data(), param.size()).c_str());
 #endif
@@ -301,7 +301,7 @@ vector<uint8_t> Contract::RlpEncode(
     vector<uint8_t> gasPrice = Util::ConvertNumberToVector(gasPriceVal);
     vector<uint8_t> gasLimit = Util::ConvertNumberToVector(gasLimitVal);
     vector<uint8_t> to = Util::ConvertHexToVector(toStr);
-    vector<uint8_t> value = val->export_bits();
+    vector<uint8_t> value = val->export_bits_truncate();
     vector<uint8_t> data = Util::ConvertHexToVector(dataStr);
 
     vector<uint8_t> outputNonce = Util::RlpEncodeItemWithVector(nonce);
@@ -326,7 +326,7 @@ vector<uint8_t> Contract::RlpEncode(
     encoded.insert(encoded.end(), outputValue.begin(), outputValue.end());
     encoded.insert(encoded.end(), outputData.begin(), outputData.end());
 
-#if 0
+#if 1
     Serial.println("RLP Encode:");
     Serial.println(Util::ConvertBytesToHex(encoded.data(), encoded.size()).c_str());
 #endif
@@ -356,7 +356,7 @@ vector<uint8_t> Contract::RlpEncodeForRawTransaction(
     vector<uint8_t> gasPrice = Util::ConvertNumberToVector(gasPriceVal);
     vector<uint8_t> gasLimit = Util::ConvertNumberToVector(gasLimitVal);
     vector<uint8_t> to = Util::ConvertHexToVector(toStr);
-    vector<uint8_t> value = val->export_bits();
+    vector<uint8_t> value = val->export_bits_truncate();
     vector<uint8_t> data = Util::ConvertHexToVector(dataStr);
 
     vector<uint8_t> outputNonce = Util::RlpEncodeItemWithVector(nonce);

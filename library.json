@@ -13,7 +13,7 @@
             "maintainer": true, 
             "name": "James Brown", 
             "url": "https://github.com/JamesSmartCell", 
-            "email": "james.brown@awallet.io"
+            "email": "james.brown@alphawallet.com"
         }
     ], 
     "frameworks": "arduino",
@@ -25,6 +25,6 @@
         "TokenScript"
     ],
     "name": "Web3E", 
-    "version": "1.0", 
+    "version": "1.01", 
     "homepage": "https://alphawallet.com"
 }

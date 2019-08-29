@@ -491,6 +491,21 @@ std::vector<uint8_t> uint256_t::export_bits() const
 	return ret;
 }
 
+std::vector<uint8_t> uint256_t::export_bits_truncate() const
+{
+	std::vector<uint8_t> ret;
+	ret.reserve(32);
+	UPPER.export_bits(&ret);
+	LOWER.export_bits(&ret);
+
+	//prune the zeroes
+	int i = 0;
+	while (ret[i] == 0) i++;
+	ret.erase(ret.begin(), ret.begin() + i);
+
+	return ret;
+}
+
 uint16_t uint256_t::bits() const{
     uint16_t out = 0;
     if (UPPER){

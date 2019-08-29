@@ -72,6 +72,7 @@ class uint256_t{
 
         //  RHS input args only
 		std::vector<uint8_t> export_bits() const;
+        std::vector<uint8_t> export_bits_truncate() const;
 
         // Assignment Operator
         uint256_t & operator=(const uint256_t & rhs);
