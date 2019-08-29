@@ -130,7 +130,7 @@ string Contract::SendTransaction(uint32_t nonceVal, unsigned long long gasPriceV
                                                        toStr, valueStr, dataStr,
                                                        signature, recid[0]);
 
-#if 1
+#if 0
     Serial.println("RLP RawTrans Encode:");
     Serial.println(Util::ConvertBytesToHex(param.data(), param.size()).c_str());
 #endif
@@ -326,7 +326,7 @@ vector<uint8_t> Contract::RlpEncode(
     encoded.insert(encoded.end(), outputValue.begin(), outputValue.end());
     encoded.insert(encoded.end(), outputData.begin(), outputData.end());
 
-#if 1
+#if 0
     Serial.println("RLP Encode:");
     Serial.println(Util::ConvertBytesToHex(encoded.data(), encoded.size()).c_str());
 #endif
