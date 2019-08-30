@@ -51,15 +51,18 @@ int wificounter = 0;
 Web3 web3(INFURA_HOST, INFURA_PATH);
 
 void setup_wifi();
-void PushERC20Transaction();
 void PushERC875Transaction(); 
 void queryERC875Balance(const char *userAddress);
+void sendEthToAddress(double eth, const char *destination);
+void PushERC20Transaction(double tokens, const char *toAddr, const char *contractAddr);
 
 void setup() {
     Serial.begin(115200);
 
     setup_wifi();
 
+    sendEthToAddress(0.1, TARGETADDRESS);
+	PushERC20Transaction(0.1, TARGETADDRESS, ERC20CONTRACT);
     queryERC875Balance(MY_ADDRESS);
     PushERC20Transaction();
     PushERC875Transaction();
@@ -69,40 +72,68 @@ void loop() {
 
 }
 
-void PushERC20Transaction() 
+void sendEthToAddress(double eth, const char *destination)
 {
-    Contract contract(&web3, ERC20CONTRACT);
-    contract.SetPrivateKey(PRIVATE_KEY);
-    string addr = MY_ADDRESS;
+	//obtain a contract object, for just sending eth doesn't need a contract address
+	Contract contract(&web3, "");
+	contract.SetPrivateKey(PRIVATE_KEY);
+	unsigned long long gasPriceVal = 22000000000ULL;
+	uint32_t  gasLimitVal = 90000;
+	string address = MY_ADDRESS;
 
-    string param = contract.SetupContractData("name()", &addr);
-    string result = contract.ViewCall(&param);
-    Serial.println("NAME: ");
+	//convert eth value to Wei
+	uint256_t weiValue = Util::ConvertToWei(eth, 18);
+	string emptyString = "";
+	string destinationAddress = destination;
 
-    // recover actual string name
-    string interpreted = Util::InterpretStringResult(web3.getString(&result).c_str());
-    Serial.println(interpreted.c_str());
+	Serial.print("Get Nonce: ");
+	uint32_t nonceVal = (uint32_t)web3.EthGetTransactionCount(&address);
+	Serial.println(nonceVal);
+	Serial.println("Send TX");
+	string result = contract.SendTransaction(nonceVal, gasPriceVal, gasLimitVal, &destinationAddress, &weiValue, &emptyString);
+	Serial.println(result.c_str());
 
-    uint32_t nonceVal = (uint32_t)web3.EthGetTransactionCount(&addr);
+	string transactionHash = web3.getString(&result);
+	Serial.println("TX on Etherscan:");
+	Serial.print(ETHERSCAN_TX);
+	Serial.println(transactionHash.c_str()); //you can go straight to etherscan and see the pending transaction
+}
 
-    Serial.println(nonceVal);
+void PushERC20Transaction(double tokens, const char *toAddr, const char *contractAddr) 
+{
+	string contractAddrStr = contractAddr;
+	Contract contract(&web3, contractAddr);
+	contract.SetPrivateKey(<Your private key>);
 
-    unsigned long long gasPriceVal = 22000000000ULL;
-    uint32_t  gasLimitVal = 4300000;
-    uint8_t dataStr[100];
-    memset(dataStr, 0, 100);
-    string address = TARGETADDRESS;
-    string p = contract.SetupContractData("transfer(address,uint256)", &address, 500);
-    string contractAddr = ERC20CONTRACT;
-    string valueStrThis = "0x00";
+	//Get contract name (This isn't needed to push the transaction)
+	string param = contract.SetupContractData("name()", &addr);
+	string result = contract.ViewCall(&param);
+	string interpreted = Util::InterpretStringResult(web3.getString(&result).c_str());
+	Serial.println(interpreted.c_str());
 
-    result = contract.SendTransaction(nonceVal, gasPriceVal, gasLimitVal, &contractAddr, &valueStrThis, &p);
-    Serial.println(result.c_str());
+	//Get Contract decimals
+	param = contract.SetupContractData("decimals()", &addr);
+	result = contract.ViewCall(&param);
+	int decimals = web3.getInt(&result);
+	Serial.println(decimals);
 
-    string transactionHash = web3.getString(&result);
-    Serial.println("TX on Etherscan:");
-    Serial.print(ETHERSCAN_TX);
-    Serial.println(transactionHash.c_str()); //you can go straight to etherscan and see the pending transaction
+	unsigned long long gasPriceVal = 22000000000ULL;
+	uint32_t  gasLimitVal = 4300000;
+
+	//amount of erc20 token to send, note we use decimal value obtained earlier
+	uint256_t weiValue = Util::ConvertToWei(tokens, decimals);
+
+	//get nonce
+	uint32_t nonceVal = (uint32_t)web3.EthGetTransactionCount(&addr);
+	string toAddress = toAddr;
+	string valueStr = "0x00";
+
+	//Setup contract function call
+	string p = contract.SetupContractData("transfer(address,uint256)", &toAddress, &weiValue); //ERC20 function plus params
+
+	//push transaction to ethereum
+	result = contract.SendTransaction(nonceVal, gasPriceVal, gasLimitVal, &contractAddrStr, &valueStr, &p);
+	string transactionHash = web3.getString(&result);
 }
 
 
@@ -163,7 +194,7 @@ void PushERC875Transaction()
     string address = TARGETADDRESS;
     vector<uint32_t> indices;
     indices.push_back(1); // transfer NFT index 1 (ie the second token, since index 0 is the first token)
-    string p = contract.SetupContractData("transfer(address,uint16[])", &address, &indices);
+    string p = contract.SetupContractData("transfer(address,uint256[])", &address, &indices);
     string contractAddr = ERC875CONTRACT;
     string valueStrThis = "0x00";
 
