@@ -98,10 +98,11 @@ The push transaction sample requires a little work to get running. You have to h
 
 - Set upi API routes
 ```
-	const char *apiRoute = "api/";
-	enum APIRoutes {    api_getChallenge, 
-						api_checkSignature, 
-						api_End };
+    const char *apiRoute = "api/";
+    enum APIRoutes {   
+        api_getChallenge, 
+        api_checkSignature, 
+        api_End };
 					
     s_apiRoutes["getChallenge"] = api_getChallenge;
     s_apiRoutes["checkSignature"] = api_checkSignature;
@@ -109,7 +110,7 @@ The push transaction sample requires a little work to get running. You have to h
 ```
 - Listen for API call:
 ```
-	WiFiClient c = server.available(); // Listen for incoming clients
+    WiFiClient c = server.available(); // Listen for incoming clients
     ScriptClient *client = (ScriptClient*) &c;
 
     if (*client)
@@ -143,7 +144,7 @@ The push transaction sample requires a little work to get running. You have to h
                 }
             }
             break;
-	}
+    }
 ```
 
 ## Ethereum transaction (ie send ETH to address):
