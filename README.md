@@ -47,6 +47,19 @@ lib_deps =
   Web3E
 ```
 
+## Example TokenScript flow
+
+- Two API end points are exposed on the embedded device, '/api/getChallenge' and 'api/checkSignature?sig=<sig>'
+- Device creates a challenge string, lets say 'Oranges 22853'.
+- Tokenscript enabled phone runs embedded JavaScript that does a 'fetch' on 'getChallenge', returning 'Oranges 22853'.
+- User is asked to sign this message using Ethereum SignPersonalMessage, with the same key that owns an entry token.
+- Signature is sent back to embedded device using 'fetch' on 'api/checkSignature?sig=<signature of 'Oranges 22853'>'.
+- Device ECRecover's an Ethereum Address from the signature using the current challenge.
+- If address from ECRecover holds a token then open the door.
+- Report pass/fail to callee.
+
+The advantage of using TokenScript rather than a dapp is evident from looking at the code example. You will have a very nice user interface defined with html/css with the calling code written in small JavaScript functions. The user would quickly find the entry token in their wallet.
+
 ## Example Web3E DApp flow
 
 - Device creates a challenge string, lets say 'Oranges 22853'. 
