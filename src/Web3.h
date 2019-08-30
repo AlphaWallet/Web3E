@@ -15,6 +15,7 @@ typedef unsigned char BYTE;
 #include "stdint.h"
 #include <string.h>
 #include <string>
+#include "uint256/uint256_t.h"
 
 using namespace std;
 
@@ -33,7 +34,7 @@ public:
     long long int EthGasPrice();
     void EthAccounts(char** array, int size);
     int EthBlockNumber();
-    long long int EthGetBalance(const string* address);
+    uint256_t EthGetBalance(const string* address);
     int EthGetTransactionCount(const string* address);
     string EthViewCall(const string* data, const char* to);
 
@@ -45,6 +46,7 @@ public:
     long long int getLongLong(const string* json);
     string getString(const string* json);
     int getInt(const string* json);
+    uint256_t getUint256(const string* json);
 
 private:
     string exec(const string* data);

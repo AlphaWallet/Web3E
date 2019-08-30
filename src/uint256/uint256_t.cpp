@@ -29,14 +29,25 @@ uint256_t::uint256_t(uint256_t && rhs)
 uint256_t::uint256_t(const char * s)
 {
 	//create from string
-	if (s == NULL || strlen(s) < 64) { uint256_t(); } //0x 0000 - 64 hex chars
+	char buffer[64];
+	if (s == NULL) { uint256_t(); return; }
 	if (s[1] == 'x')
 		s += 2;
 	else if (*s == 'x')
 		s++;
 
-	UPPER = uint128_t(s);
-	LOWER = uint128_t(s + 32);
+	int len = strlen(s);
+	int padLength = 0;
+	if (len < 64)
+	{
+		padLength = 64 - len;
+		memset(buffer, '0', padLength);
+	}
+
+	memcpy(buffer + padLength, s, len);
+
+	UPPER = uint128_t(buffer);
+	LOWER = uint128_t(buffer + 32);
 }
 
 uint256_t & uint256_t::operator=(const uint256_t & rhs){
@@ -500,7 +511,7 @@ std::vector<uint8_t> uint256_t::export_bits_truncate() const
 
 	//prune the zeroes
 	int i = 0;
-	while (ret[i] == 0) i++;
+	while (ret[i] == 0 && i < 64) i++;
 	ret.erase(ret.begin(), ret.begin() + i);
 
 	return ret;

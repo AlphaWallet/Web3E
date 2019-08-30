@@ -124,12 +124,12 @@ int Web3::EthBlockNumber() {
     return getInt(&output);
 }
 
-long long int Web3::EthGetBalance(const string* address) {
+uint256_t Web3::EthGetBalance(const string* address) {
     string m = "eth_getBalance";
     string p = "[\"" + *address + "\",\"latest\"]";
     string input = generateJson(&m, &p);
     string output = exec(&input);
-    return getLongLong(&output);
+    return getUint256(&output);
 }
 
 string Web3::EthViewCall(const string* data, const char* to)
@@ -260,6 +260,18 @@ long long int Web3::getLongLong(const string* json) {
     value = cJSON_GetObjectItem(root, "result");
     if (cJSON_IsString(value)) {
         ret = strtoll(value->valuestring, nullptr, 16);
+    }
+    cJSON_free(root);
+    return ret;
+}
+
+uint256_t Web3::getUint256(const string* json) {
+    uint256_t ret = 0;
+    cJSON *root, *value;
+    root = cJSON_Parse(json->c_str());
+    value = cJSON_GetObjectItem(root, "result");
+    if (cJSON_IsString(value)) {
+        ret = uint256_t(value->valuestring);
     }
     cJSON_free(root);
     return ret;

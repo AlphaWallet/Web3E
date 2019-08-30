@@ -459,11 +459,11 @@ string Util::ConvertBase(int from, int to, const char *s)
 	}
 	out[spos] = 0;
     
-	int length = (64 - strlen(out));
-	char *test = (char *)alloca(length + 1);
-	memset(test, '0', length);
-	test[length] = 0;
-    return string(test) + string(out);
+	// int length = (64 - strlen(out));
+	// char *test = (char *)alloca(length + 1);
+	// memset(test, '0', length);
+	// test[length] = 0;
+    return string(out);
 }
 
 string Util::ConvertDecimal(int decimals, string *result)
@@ -639,8 +639,44 @@ uint256_t Util::ConvertToWei(double val, int decimals)
 	int index = weiStr.find_last_of('.');
 	if (index > 0) weiStr = weiStr.substr(0, index);
     weiStr = ConvertBase(10, 16, weiStr.c_str());
-    //PadForward(&weiStr, 64);
     return uint256_t(weiStr.c_str());
+}
+
+string Util::ConvertWeiToEthString(uint256_t *weiVal, int decimals)
+{
+	char buffer[65];
+	vector<uint8_t> bytes = weiVal->export_bits_truncate();
+	string hex = ConvertBytesToHex(bytes.data(), bytes.size());
+	string amount = ConvertBase(16, 10, hex.c_str());
+	int padLength = 0;
+	if (amount.length() < 64)
+	{
+		padLength = 64 - amount.length();
+		memset(buffer, '0', padLength);
+	}
+	memcpy(buffer + padLength, amount.c_str(), amount.length());
+	buffer[64] = 0;
+
+	amount = string(buffer);
+
+	//now place the decimal at the right spot
+	amount.insert(64 - decimals, ".");
+
+	//crawl along from the other side to find the first character or the last zero
+	for (std::string::size_type i = 0; i < amount.size(); i++) {
+		if (amount[i] == '.')
+		{
+			amount = amount.substr(i - 1);
+			break;
+		}
+		else if (amount[i] != '0')
+		{
+			amount = amount.substr(i);
+			break;
+		}
+	}
+
+	return amount;
 }
 
 string Util::ConvertEthToWei(double eth)
