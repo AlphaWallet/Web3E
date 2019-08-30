@@ -2,15 +2,26 @@
 
 <img align="right" src="https://raw.githubusercontent.com/JamesSmartCell/Release-Test/master/Web3-Esmall.png">
 
-## Version 0.9
+## Version 1.02
 
-Web3E is a functional but still in development Web3 framework for Embedded devices running Arduino. Tested mainly on ESP32 and working on ESP8266. Also included is a rapid development DApp injector to convert your embedded server into a fully integrated Ethereum DApp. 
+Web3E is a fully functional Web3 framework for Embedded devices running Arduino. Tested mainly on ESP32 and working on ESP8266. Also included is a rapid development DApp injector to convert your embedded server into a fully integrated Ethereum DApp. 
 
 Starting from a simple requirement - write a DApp capable of running on an ESP32 which can serve as a security door entry system. Some brave attempts can be found in scattered repos but ultimately even the best are just dapp veneers or have ingeneous and clunky hand-rolled communication systems like the Arduino wallet attempts.
 
 What is required is a method to write simple, fully embedded DApps which give you a zero infrastucture and total security solution.
 It is possible that as Ethereum runs natively on embedded devices a new revolution in the blockchain saga will begin. Now you have the ability to write a fully embedded DApp that gives you the seurity and flexibility of Ethereum in an embedded device.
 
+## New Features
+
+- uint256 class added to correctly handle Ethereum types.
+- usability methods added for converting between doubles and Wei values.
+- usability methods added for displaying Wei values as doubles.
+- random number generation uses Mersenne Twister.
+- memory usage improved.
+
+## Features
+
+- Web3E now has a streamlined [TokenScript](https://tokenscript.org) interface for smooth integration with AlphaWallet, and other TokenScript powered wallet.
 - Web3E has a Ready-to-Go DApp injection system that turns any device hosted site instantly into an Ethereum DApp with ECDSA crypto!
 - Cryptography has been overhauled to use a cut-down version of Trezor Wallet's heavily optimised and production proven library.
 - Transaction system is fully optimised and has been tested on ERC20 and ERC875 contracts.
@@ -76,30 +87,69 @@ The push transaction sample requires a little work to get running. You have to h
 // Setup Web3 and Contract with Private Key
 ...
 
+Contract contract(&web3, "");
+contract.SetPrivateKey(PRIVATE_KEY);
 uint32_t nonceVal = (uint32_t)web3.EthGetTransactionCount(&address); //obtain the next nonce
-string result = contract.SendTransaction(nonceVal, <gas price>, <gas limit>, &toAddress, &weiValue, &emptyString);
+uint256_t weiValue = Util::ConvertToWei(0.25, 18); //send 0.25 eth
+unsigned long long gasPriceVal = 1000000000ULL;
+uint32_t  gasLimitVal = 90000;
+string emptyString = "";
+string toAddress = "0xC067A53c91258ba513059919E03B81CF93f57Ac7";
+string result = contract.SendTransaction(nonceVal, gasPriceVal, gasLimitVal, &toAddress, &weiValue, &emptyString);
 ```
 
 ## Query ETH balance:
 ```
-long long int balance = web3.EthGetBalance(&userAddress); //obtain balance in Wei
-char tmp[32];
-sprintf(tmp, "%lld", balance);
-string val = string(tmp);
-string accountBalanceValue = Util::ConvertDecimal(18, &val); //Convert to Eth, Wei is eth * 10^18.
-double bal = atof(accountBalanceValue.c_str());
+uint256_t balance = web3.EthGetBalance(&address); //obtain balance in Wei
+string balanceStr = Util::ConvertWeiToEthString(&balance, 18); //get string balance as Eth (18 decimals)
+```
+
+## Query ERC20 Balance:
+```
+string address = string("0x007bee82bdd9e866b2bd114780a47f2261c684e3");
+Contract contract(&web3, "0x20fe562d797a42dcb3399062ae9546cd06f63280"); //contract is on Ropsten
+string param = contract.SetupContractData("balanceOf(address)", &address);
+string result = contract.ViewCall(&param);
+
+uint256_t baseBalance = web3.getUint256(&result);
+string balanceStr = Util::ConvertWeiToEthString(&baseBalance, 18);
 ```
 
 ## Send ERC20 Token:
 ```
-string contractAddr = "<ERC20 Contract address>";
+string contractAddr = "0x20fe562d797a42dcb3399062ae9546cd06f63280";
 Contract contract(&web3, contractAddr.c_str());
 contract.SetPrivateKey(<Your private key>);
+
+//Get contract name
+string param = contract.SetupContractData("name()", &addr);
+string result = contract.ViewCall(&param);
+string interpreted = Util::InterpretStringResult(web3.getString(&result).c_str());
+Serial.println(interpreted.c_str());
+
+//Get Contract decimals
+param = contract.SetupContractData("decimals()", &addr);
+result = contract.ViewCall(&param);
+int decimals = web3.getInt(&result);
+Serial.println(decimals);
+
+unsigned long long gasPriceVal = 22000000000ULL;
+uint32_t  gasLimitVal = 4300000;
+
+//amount of erc20 token to send, note we use decimal value obtained earlier
+uint256_t weiValue = Util::ConvertToWei(0.1, decimals);
+
+//get nonce
 uint32_t nonceVal = (uint32_t)web3.EthGetTransactionCount(&addr);
-string toAddress = "<address to send to>";
+string toAddress = "0x007bee82bdd9e866b2bd114780a47f2261c684e3";
 string valueStr = "0x00";
-string p = contract.SetupContractData("transfer(address,uint256)", &toAddress, 500); //ERC20 function plus params
-result = contract.SendTransaction(nonceVal, <gas price>, <gas limit>, &contractAddr, &valueStr, &p);
+
+//Setup contract function call
+string p = contract.SetupContractData("transfer(address,uint256)", &toAddress, &weiValue); //ERC20 function plus params
+
+//push transaction to ethereum
+result = contract.SendTransaction(nonceVal, gasPriceVal, gasLimitVal, &contractAddr, &valueStr, &p);
+string transactionHash = web3.getString(&result);
 ```
 
 
@@ -109,6 +159,8 @@ Libraries used:
 - Web3 Arduino https://github.com/kopanitsa/web3-arduino - skeleton of framework.
 - Trezor Crypto https://github.com/trezor/trezor-crypto - ECDSA sign, recover, verify, keccak256
 - cJSON https://github.com/DaveGamble/cJSON
+- uint256 https://github.com/calccrypto/uint256_t.git - Adapted to be more usable
+- Mersenne Twister https://github.com/MersenneTwister-Lab/TinyMT.git - For the most optimal random number generation for embedded
 
 Coming soon:
 
