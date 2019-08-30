@@ -94,6 +94,58 @@ The push transaction sample requires a little work to get running. You have to h
 
 ## Usage
 
+## TokenScript interface:
+
+- Set upi API routes
+```
+	const char *apiRoute = "api/";
+	enum APIRoutes {    api_getChallenge, 
+						api_checkSignature, 
+						api_End };
+					
+    s_apiRoutes["getChallenge"] = api_getChallenge;
+    s_apiRoutes["checkSignature"] = api_checkSignature;
+    s_apiRoutes["end"] = api_End;
+```
+- Listen for API call:
+```
+	WiFiClient c = server.available(); // Listen for incoming clients
+    ScriptClient *client = (ScriptClient*) &c;
+
+    if (*client)
+    {
+        Serial.println("New Client.");
+        client->checkClientAPI(apiRoute, &handleAPI); //method handles connection close etc.
+    }
+```
+- Handle API return:
+```
+    switch(s_apiRoutes[apiReturn->apiName.c_str()])
+    {
+        case api_getChallenge:
+            client->print(currentChallenge.c_str());
+            break;
+        case api_checkSignature:
+            {
+				//EC-Recover address from signature and challenge
+                string address = Crypto::ECRecoverFromPersonalMessage(&apiReturn->params["sig"], &currentChallenge);  
+				//Check if this address has our entry token
+                boolean hasToken = QueryBalance(&address);
+                updateChallenge(); //generate a new challenge after each check
+                if (hasToken)
+                {
+                    client->print("pass");
+                    OpenDoor(); //Call your code that opens a door or performs the required 'pass' action
+                }
+                else
+                {
+                    client->print("fail: doesn't have token");
+                }
+            }
+            break;
+	}
+```
+
 ## Ethereum transaction (ie send ETH to address):
 
 ```
@@ -164,7 +216,6 @@ string p = contract.SetupContractData("transfer(address,uint256)", &toAddress, &
 result = contract.SendTransaction(nonceVal, gasPriceVal, gasLimitVal, &contractAddr, &valueStr, &p);
 string transactionHash = web3.getString(&result);
 ```
-
 
 Originally forked https://github.com/kopanitsa/web3-arduino but with almost a complete re-write it is a new framework entirely.
 
