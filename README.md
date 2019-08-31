@@ -97,7 +97,7 @@ The push transaction sample requires a little work to get running. You have to h
 
 ## TokenScript interface:
 
-- Set upi API routes
+- Set up API routes
 ```
     const char *apiRoute = "api/";
     enum APIRoutes {   
