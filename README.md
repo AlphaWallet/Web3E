@@ -4,7 +4,7 @@
 
 ## Version 1.02
 
-Web3E is a fully functional Web3 framework for Embedded devices running Arduino. Tested mainly on ESP32 and working on ESP8266. Also included is a rapid development DApp injector to convert your embedded server into a fully integrated Ethereum DApp. 
+Web3E is a fully functional Web3 framework for Embedded devices running Arduino. Web3E now has methods which allow you to use TokenScript in your IoT solution for rapid deployment. Tested mainly on ESP32 and working on ESP8266. Also included is a rapid development DApp injector to convert your embedded server into a fully integrated Ethereum DApp. 
 
 Starting from a simple requirement - write a DApp capable of running on an ESP32 which can serve as a security door entry system. Some brave attempts can be found in scattered repos but ultimately even the best are just dapp veneers or have ingeneous and clunky hand-rolled communication systems like the Arduino wallet attempts.
 
@@ -13,6 +13,7 @@ It is possible that as Ethereum runs natively on embedded devices a new revoluti
 
 ## New Features
 
+- TokenScript/API interface.
 - uint256 class added to correctly handle Ethereum types.
 - usability methods added for converting between doubles and Wei values.
 - usability methods added for displaying Wei values as doubles.
