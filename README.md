@@ -223,10 +223,10 @@ Originally forked https://github.com/kopanitsa/web3-arduino but with almost a co
 
 Libraries used:
 - Web3 Arduino https://github.com/kopanitsa/web3-arduino - skeleton of framework.
-- Trezor Crypto https://github.com/trezor/trezor-crypto - ECDSA sign, recover, verify, keccak256
+- Trezor Crypto https://github.com/trezor/trezor-crypto - ECDSA sign, recover, verify, keccak256.
 - cJSON https://github.com/DaveGamble/cJSON
-- uint256 https://github.com/calccrypto/uint256_t.git - Adapted to be more usable
-- Mersenne Twister https://github.com/MersenneTwister-Lab/TinyMT.git - For the most optimal random number generation for embedded
+- uint256 https://github.com/calccrypto/uint256_t - Lightweight uint256 implementation perfect for embedded devices.
+- Mersenne Twister https://github.com/MersenneTwister-Lab/TinyMT.git - For the most optimal random number generation for embedded.
 
 Coming soon:
 
