@@ -1,6 +1,6 @@
-﻿#include "uint256_t.h"
+#include "uint256_t.build"
 #include <vector>
-#include <string.h>
+#include <cstring>
 
 const uint128_t uint128_64(64);
 const uint128_t uint128_128(128);
@@ -26,28 +26,34 @@ uint256_t::uint256_t(uint256_t && rhs)
     }
 }
 
-uint256_t::uint256_t(const char * s)
-{
-	//create from string
-	char buffer[64];
-	if (s == NULL) { uint256_t(); return; }
-	if (s[1] == 'x')
-		s += 2;
-	else if (*s == 'x')
-		s++;
+uint256_t::uint256_t(const std::string & s) {
+    init(s.c_str());
+}
 
-	int len = strlen(s);
-	int padLength = 0;
-	if (len < 64)
-	{
-		padLength = 64 - len;
-		memset(buffer, '0', padLength);
-	}
+uint256_t::uint256_t(const char * s) {
+    init(s);
+}
 
-	memcpy(buffer + padLength, s, len);
+void uint256_t::init(const char * s) {
+    //create from string
+    char buffer[64];
+    if (s == NULL) { uint256_t(); return; }
+    if (s[1] == 'x')
+        s += 2;
+    else if (*s == 'x')
+        s++;
 
-	UPPER = uint128_t(buffer);
-	LOWER = uint128_t(buffer + 32);
+    int len = strlen(s);
+    int padLength = 0;
+    if (len < 64) {
+        padLength = 64 - len;
+        memset(buffer, '0', padLength);
+    }
+
+    memcpy(buffer + padLength, s, len);
+
+    UPPER = uint128_t(buffer);
+    LOWER = uint128_t(buffer + 32);
 }
 
 uint256_t & uint256_t::operator=(const uint256_t & rhs){
@@ -493,21 +499,16 @@ const uint128_t & uint256_t::lower() const {
     return LOWER;
 }
 
-std::vector<uint8_t> uint256_t::export_bits() const
-{
-	std::vector<uint8_t> ret;
-	ret.reserve(32);
-	UPPER.export_bits(&ret);
-	LOWER.export_bits(&ret);
-	return ret;
+std::vector<uint8_t> uint256_t::export_bits() const {
+    std::vector<uint8_t> ret;
+    ret.reserve(32);
+    UPPER.export_bits(ret);
+    LOWER.export_bits(ret);
+    return ret;
 }
 
-std::vector<uint8_t> uint256_t::export_bits_truncate() const
-{
-	std::vector<uint8_t> ret;
-	ret.reserve(32);
-	UPPER.export_bits(&ret);
-	LOWER.export_bits(&ret);
+std::vector<uint8_t> uint256_t::export_bits_truncate() const {
+    std::vector<uint8_t> ret = export_bits();
 
 	//prune the zeroes
 	int i = 0;
