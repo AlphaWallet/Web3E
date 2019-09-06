@@ -44,13 +44,12 @@ private:
 
 private:
     string GenerateContractBytes(const char *func);
-    string GenerateBytesForInt(const int32_t value);
+    template <typename I> string GenerateBytesForInt(const I value);
     string GenerateBytesForUint(const uint256_t *value);
     string GenerateBytesForAddress(const string *value);
     string GenerateBytesForString(const string *value);
     string GenerateBytesForBytes(const char* value, const int len);
     string GenerateBytesForUIntArray(const vector<uint32_t> *v);
-    string GenerateBytesForUint2(const uint32_t value);
 
     void GenerateSignature(uint8_t* signature, int* recid, uint32_t nonceVal, unsigned long long gasPriceVal, uint32_t  gasLimitVal,
                            string* toStr, uint256_t* valueStr, string* dataStr);

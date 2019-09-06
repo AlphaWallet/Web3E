@@ -100,7 +100,7 @@ string Crypto::Keccak256(vector<uint8_t> *bytes)
     vector<uint8_t> resultVector;
     for (int i = 0; i < ETHERS_KECCAK256_LENGTH; i++) resultVector.push_back(result[i]);
 
-    return Util::VectorToString(resultVector);
+    return Util::VectorToString(&resultVector);
 }
 
 string Crypto::ECRecoverFromHexMessage(string *signature, string *message)

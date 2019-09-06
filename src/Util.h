@@ -31,8 +31,7 @@ public:
     static char *          ConvertToString(const uint8_t *in);
 
     static uint8_t HexToInt(uint8_t s);
-    static void    VectorToCharStr(char* str, const vector<uint8_t> buf);
-    static string  VectorToString(const vector<uint8_t> buf);
+    static string  VectorToString(const vector<uint8_t> *buf);
     static string  PlainVectorToString(const vector<uint8_t> *buf);
     static string  ConvertBytesToHex(const uint8_t *bytes, int length);
     static void    ConvertHexToBytes(uint8_t *_dst, const char *_src, int length);
