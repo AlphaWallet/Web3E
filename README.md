@@ -2,7 +2,7 @@
 
 <img align="right" src="https://raw.githubusercontent.com/JamesSmartCell/Release-Test/master/Web3-Esmall.png">
 
-## Version 1.02
+## Version 1.03
 
 Web3E is a fully functional Web3 framework for Embedded devices running Arduino. Web3E now has methods which allow you to use TokenScript in your IoT solution for rapid deployment. Tested mainly on ESP32 and working on ESP8266. Also included is a rapid development DApp injector to convert your embedded server into a fully integrated Ethereum DApp. 
 
@@ -175,11 +175,18 @@ string balanceStr = Util::ConvertWeiToEthString(&balance, 18); //get string bala
 ```
 string address = string("0x007bee82bdd9e866b2bd114780a47f2261c684e3");
 Contract contract(&web3, "0x20fe562d797a42dcb3399062ae9546cd06f63280"); //contract is on Ropsten
-string param = contract.SetupContractData("balanceOf(address)", &address);
+
+//Obtain decimals to correctly display ERC20 balance (if you already know this you can skip this step)
+string param = contract.SetupContractData("decimals()", &address);
 string result = contract.ViewCall(&param);
+int decimals = web3.getInt(&result);
+
+//Fetch the balance in base units
+param = contract.SetupContractData("balanceOf(address)", &address);
+result = contract.ViewCall(&param);
 
 uint256_t baseBalance = web3.getUint256(&result);
-string balanceStr = Util::ConvertWeiToEthString(&baseBalance, 18);
+string balanceStr = Util::ConvertWeiToEthString(&baseBalance, decimals); //convert balance to double style using decimal places
 ```
 
 ## Send ERC20 Token:
