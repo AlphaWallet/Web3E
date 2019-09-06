@@ -10,7 +10,6 @@
 #include "TagReader/TagReader.h"
 
 static const char * _web3e_hexStr = "0123456789ABCDEF";
-
 // returns output (header) length
 uint32_t Util::RlpEncodeWholeHeader(uint8_t* header_output, uint32_t total_len) {
     if (total_len < 55) {
@@ -266,6 +265,17 @@ uint8_t Util::HexToInt(uint8_t s) {
 string Util::VectorToString(const vector<uint8_t> *buf) 
 {
     return ConvertBytesToHex((const uint8_t*)buf->data(), buf->size());
+}
+
+string Util::ConvertIntegerToBytes(const int32_t value)
+{
+    size_t hex_len = 4 << 1;
+    std::string rc(hex_len, '0');
+    for (size_t i = 0, j = (hex_len - 1) * 4; i<hex_len; ++i, j -= 4)
+    {
+        rc[i] = _web3e_hexStr[(value >> j) & 0x0f];
+    }
+    return rc;
 }
 
 string Util::PlainVectorToString(const vector<uint8_t> *buf)
@@ -619,10 +629,12 @@ void Util::PadForward(string *target, int targetSize)
 
 uint256_t Util::ConvertToWei(double val, int decimals)
 {
-    std::string weiStr = std::to_string(val * pow(10.0, decimals));
-    int index = weiStr.find_last_of('.');
-    if (index > 0) weiStr = weiStr.substr(0, index);
-
+    char buffer[36]; //allow extra 4 chars for gcvt
+    if (val < 0) val = 0;
+    gcvt(val * pow(10.0, decimals), 32, buffer);
+    std::string weiStr = std::string(buffer);
+    std::size_t index = weiStr.find_last_of('.');
+    if (index != std::string::npos) weiStr = weiStr.substr(0, index);
     weiStr = ConvertBase(10, 16, weiStr.c_str());
     return uint256_t(weiStr.c_str());
 }
@@ -667,13 +679,12 @@ string Util::ConvertWeiToEthString(uint256_t *weiVal, int decimals)
 string Util::ConvertEthToWei(double eth)
 {
     char buffer[36]; //allow extra 4 chars for gcvt
-    if (eth < 0) val = 0;
-    _gcvt(eth * pow(10.0, 18), 32, buffer);
+    if (eth < 0) eth = 0;
+    gcvt(eth * pow(10.0, 18), 32, buffer);
     std::string weiStr = std::string(buffer);
     std::size_t index = weiStr.find_last_of('.');
     if (index != std::string::npos) weiStr = weiStr.substr(0, index);
-    weiStr = ConvertBase(10, 16, weiStr.c_str());
-    return uint256_t(weiStr.c_str());
+    return ConvertBase(10, 16, weiStr.c_str());
 }
 
 string Util::toString(int value)

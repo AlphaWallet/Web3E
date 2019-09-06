@@ -156,8 +156,6 @@ void Contract::GenerateSignature(uint8_t *signature, int *recid, uint32_t nonceV
     Sign((uint8_t *)hash, signature, recid);
 }
 
-extern char *_web3e_hexStr;
-
 std::string Contract::GenerateContractBytes(const char *func)
 {
     std::string in = Util::ConvertBytesToHex((const uint8_t *)func, strlen(func));
@@ -174,23 +172,17 @@ string Contract::GenerateBytesForUint(const uint256_t *value)
     return Util::PlainVectorToString(&bits);
 }
 
-template <typename I> std::string Contract::GenerateBytesForInt(const I value)
+string Contract::GenerateBytesForInt(const int32_t value)
 {
-    size_t hex_len = 4 << 1;
-    std::string rc(hex_len, '0');
-    for (size_t i = 0, j = (hex_len - 1) * 4; i<hex_len; ++i, j -= 4)
-        rc[i] = hexStr[(value >> j) & 0x0f];
-    return string(56, '0') + rc;
+    return string(56, '0') + Util::ConvertIntegerToBytes(value);
 }
 
 string Contract::GenerateBytesForUIntArray(const vector<uint32_t> *v)
 {
-    string output;
-    char numstr[21];
     string dynamicMarker = std::string(64, '0');
     dynamicMarker.at(62) = '4'; //0x000...40 Array Designator
     string arraySize = GenerateBytesForInt(v->size());
-    output = dynamicMarker + arraySize;
+    string output = dynamicMarker + arraySize;
     for (auto itr = v->begin(); itr != v->end(); itr++)
     {
         output += GenerateBytesForInt(*itr);

@@ -146,7 +146,7 @@ string Web3::EthViewCall(const string* data, const char* to)
 
 int Web3::EthGetTransactionCount(const string* address) {
     string m = "eth_getTransactionCount";
-    string p = "[\"" + *address + "\",\"latest\"]";
+    string p = "[\"" + *address + "\",\"pending\"]"; //in case we need to push several transactions in a row
     string input = generateJson(&m, &p);
     string output = exec(&input);
     return getInt(&output);

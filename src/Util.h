@@ -50,6 +50,8 @@ public:
     static string  ConvertEthToWei(double eth);
     static string toString(int value);
 
+    static string ConvertIntegerToBytes(const int32_t value);
+
 private:
     static uint8_t ConvertCharToByte(const uint8_t* ptr);
 

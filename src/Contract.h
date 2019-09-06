@@ -44,7 +44,7 @@ private:
 
 private:
     string GenerateContractBytes(const char *func);
-    template <typename I> string GenerateBytesForInt(const I value);
+    string GenerateBytesForInt(const int32_t value);
     string GenerateBytesForUint(const uint256_t *value);
     string GenerateBytesForAddress(const string *value);
     string GenerateBytesForString(const string *value);
