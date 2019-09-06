@@ -50,7 +50,6 @@ private:
     string GenerateBytesForString(const string *value);
     string GenerateBytesForBytes(const char* value, const int len);
     string GenerateBytesForUIntArray(const vector<uint32_t> *v);
-    string GenerateBytesForUint2(const uint32_t value);
 
     void GenerateSignature(uint8_t* signature, int* recid, uint32_t nonceVal, unsigned long long gasPriceVal, uint32_t  gasLimitVal,
                            string* toStr, uint256_t* valueStr, string* dataStr);

@@ -9,6 +9,7 @@
 #include <vector>
 #include "TagReader/TagReader.h"
 
+static const char * _web3e_hexStr = "0123456789ABCDEF";
 // returns output (header) length
 uint32_t Util::RlpEncodeWholeHeader(uint8_t* header_output, uint32_t total_len) {
     if (total_len < 55) {
@@ -261,27 +262,30 @@ uint8_t Util::HexToInt(uint8_t s) {
     return ret;
 }
 
-void Util::VectorToCharStr(char* str, const vector<uint8_t> buf) {
-    sprintf(str, "0x");
-    for (int i = 0; i < buf.size(); i++) {
-        sprintf(str, "%s%02x", str, buf[i]);
-    }
+string Util::VectorToString(const vector<uint8_t> *buf) 
+{
+    return ConvertBytesToHex((const uint8_t*)buf->data(), buf->size());
 }
 
-string Util::VectorToString(const vector<uint8_t> buf) 
+string Util::ConvertIntegerToBytes(const int32_t value)
 {
-    return ConvertBytesToHex((const uint8_t*)buf.data(), buf.size());
+    size_t hex_len = 4 << 1;
+    std::string rc(hex_len, '0');
+    for (size_t i = 0, j = (hex_len - 1) * 4; i<hex_len; ++i, j -= 4)
+    {
+        rc[i] = _web3e_hexStr[(value >> j) & 0x0f];
+    }
+    return rc;
 }
 
 string Util::PlainVectorToString(const vector<uint8_t> *buf)
 {
 	char *buffer = (char*) alloca(buf->size() * 2 + 1);
-	const char * hex = "0123456789ABCDEF";
 	char *pout = buffer;
 	for (int i = 0; i < buf->size(); i++)
 	{
-		*pout++ = hex[((*buf)[i] >> 4) & 0xF];
-		*pout++ = hex[(*buf)[i] & 0xF];
+		*pout++ = _web3e_hexStr[((*buf)[i] >> 4) & 0xF];
+		*pout++ = _web3e_hexStr[(*buf)[i] & 0xF];
 	}
 	*pout = 0;
 	return string(buffer);
@@ -289,19 +293,17 @@ string Util::PlainVectorToString(const vector<uint8_t> *buf)
 
 string Util::ConvertBytesToHex(const uint8_t *bytes, int length)
 {
-    size_t chSz = length*2 + 3;
-    char hexString[chSz];
-    char *hexPtr = hexString;
-    *hexPtr++= '0';
-    *hexPtr++= 'x';
+    char *buffer = (char*)alloca(length * 2 + 3);
+    char *pout = buffer;
+    *pout++ = '0';
+    *pout++ = 'x';
     for (int i = 0; i < length; i++)
     {
-        sprintf(hexPtr, "%02x", bytes[i]);
-        hexPtr += 2;
+        *pout++ = _web3e_hexStr[((bytes)[i] >> 4) & 0xF];
+        *pout++ = _web3e_hexStr[(bytes)[i] & 0xF];
     }
-    *hexPtr = 0;
-
-    return string(hexString);
+    *pout = 0;
+    return std::string(buffer);
 }
 
 void Util::ConvertHexToBytes(uint8_t *_dst, const char *_src, int length)
@@ -310,10 +312,9 @@ void Util::ConvertHexToBytes(uint8_t *_dst, const char *_src, int length)
 
     for (int i = 0; i < length; i++)
     {
-        byte extract;
         char a = _src[2 * i];
         char b = _src[2 * i + 1];
-        extract = HexToInt(a) << 4 | HexToInt(b);
+        byte extract = HexToInt(a) << 4 | HexToInt(b);
         _dst[i] = extract;
     }
 }
@@ -458,11 +459,6 @@ string Util::ConvertBase(int from, int to, const char *s)
 		spos++;
 	}
 	out[spos] = 0;
-    
-	// int length = (64 - strlen(out));
-	// char *test = (char *)alloca(length + 1);
-	// memset(test, '0', length);
-	// test[length] = 0;
     return string(out);
 }
 
@@ -633,11 +629,12 @@ void Util::PadForward(string *target, int targetSize)
 
 uint256_t Util::ConvertToWei(double val, int decimals)
 {
-    char buffer[32];
-	snprintf(buffer, sizeof(buffer), "%0.1f", val * pow(10.0, decimals));
-	string weiStr = string(buffer);
-	int index = weiStr.find_last_of('.');
-	if (index > 0) weiStr = weiStr.substr(0, index);
+    char buffer[36]; //allow extra 4 chars for gcvt
+    if (val < 0) val = 0;
+    gcvt(val * pow(10.0, decimals), 32, buffer);
+    std::string weiStr = std::string(buffer);
+    std::size_t index = weiStr.find_last_of('.');
+    if (index != std::string::npos) weiStr = weiStr.substr(0, index);
     weiStr = ConvertBase(10, 16, weiStr.c_str());
     return uint256_t(weiStr.c_str());
 }
@@ -681,17 +678,13 @@ string Util::ConvertWeiToEthString(uint256_t *weiVal, int decimals)
 
 string Util::ConvertEthToWei(double eth)
 {
-	//wei is eth x 10^18.
-	double weiValue = eth * pow(10.0, 18.0);
-	char buffer[32];
-	snprintf(buffer, sizeof(buffer), "%0.1f", weiValue);
-	string weiStr = buffer;
-	//prune decimal
-	int index = weiStr.find_last_of('.');
-	if (index > 0) weiStr = weiStr.substr(0, index);
-
-	//now convert this to base 16
-	return ConvertBase(10, 16, weiStr.c_str());
+    char buffer[36]; //allow extra 4 chars for gcvt
+    if (eth < 0) eth = 0;
+    gcvt(eth * pow(10.0, 18), 32, buffer);
+    std::string weiStr = std::string(buffer);
+    std::size_t index = weiStr.find_last_of('.');
+    if (index != std::string::npos) weiStr = weiStr.substr(0, index);
+    return ConvertBase(10, 16, weiStr.c_str());
 }
 
 string Util::toString(int value)
