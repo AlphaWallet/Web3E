@@ -130,12 +130,7 @@ string Contract::SendTransaction(uint32_t nonceVal, unsigned long long gasPriceV
                                                        toStr, valueStr, dataStr,
                                                        signature, recid[0]);
 
-#if 0
-    Serial.println("RLP RawTrans Encode:");
-    Serial.println(Util::ConvertBytesToHex(param.data(), param.size()).c_str());
-#endif
-
-    string paramStr = Util::VectorToString(param);
+    string paramStr = Util::VectorToString(&param);
     return web3->EthSendSignedTransaction(&paramStr, param.size());
 }
 
@@ -148,7 +143,7 @@ void Contract::GenerateSignature(uint8_t *signature, int *recid, uint32_t nonceV
 {
     vector<uint8_t> encoded = RlpEncode(nonceVal, gasPriceVal, gasLimitVal, toStr, valueStr, dataStr);
     // hash
-    string t = Util::VectorToString(encoded);
+    string t = Util::VectorToString(&encoded);
 
     uint8_t *hash = new uint8_t[ETHERS_KECCAK256_LENGTH];
     size_t encodedTxBytesLength = (t.length()-2)/2;
@@ -157,39 +152,16 @@ void Contract::GenerateSignature(uint8_t *signature, int *recid, uint32_t nonceV
 
     Crypto::Keccak256((uint8_t*)bytes, encodedTxBytesLength, hash);
 
-#if 0
-    Serial.print("Digest: ");
-    Serial.println(Util::ConvertBytesToHex(hash, ETHERS_KECCAK256_LENGTH).c_str());
-#endif
-
     // sign
     Sign((uint8_t *)hash, signature, recid);
-
-#if 0
-    Serial.print("Sig: ");
-    Serial.println(Util::ConvertBytesToHex(signature, SIGNATURE_LENGTH).c_str());
-#endif
 }
 
-string Contract::GenerateContractBytes(const char *func)
+std::string Contract::GenerateContractBytes(const char *func)
 {
-    string in = "0x";
-    char intmp[8];
-    memset(intmp, 0, 8);
-
-    for (int i = 0; i < 128; i++)
-    {
-        char c = func[i];
-        if (c == '\0')
-        {
-            break;
-        }
-        sprintf(intmp, "%x", c);
-        in = in + intmp;
-    }
+    std::string in = Util::ConvertBytesToHex((const uint8_t *)func, strlen(func));
     //get the hash of the input
-    vector<uint8_t> contractBytes = Util::ConvertHexToVector(&in);
-    string out = Crypto::Keccak256(&contractBytes);
+    std::vector<uint8_t> contractBytes = Util::ConvertHexToVector(&in);
+    std::string out = Crypto::Keccak256(&contractBytes);
     out.resize(10);
     return out;
 }
@@ -202,45 +174,18 @@ string Contract::GenerateBytesForUint(const uint256_t *value)
 
 string Contract::GenerateBytesForInt(const int32_t value)
 {
-    char output[70];
-    memset(output, 0, sizeof(output));
-
-    // check number of digits
-    char dummy[64];
-    int digits = sprintf(dummy, "%x", value);
-
-    // fill 0 and copy number to string
-    char fill[2];
-    if (value >= 0)
-    {
-        sprintf(fill, "%s", "0");
-    }
-    else
-    {
-        sprintf(fill, "%s", "f");
-    }
-    for (int i = 2; i < 2 + 64 - digits; i++)
-    {
-        sprintf(output, "%s%s", output, fill);
-    }
-    sprintf(output, "%s%x", output, value);
-    return string(output);
+    return string(56, '0') + Util::ConvertIntegerToBytes(value);
 }
 
 string Contract::GenerateBytesForUIntArray(const vector<uint32_t> *v)
 {
-    string output;
-    char numstr[21];
-    string dynamicMarker = "40";
-    Util::PadForward(&dynamicMarker, 32);
-    string arraySize = itoa(v->size(), numstr, 16);
-    Util::PadForward(&arraySize, 32);
-    output = dynamicMarker + arraySize;
+    string dynamicMarker = std::string(64, '0');
+    dynamicMarker.at(62) = '4'; //0x000...40 Array Designator
+    string arraySize = GenerateBytesForInt(v->size());
+    string output = dynamicMarker + arraySize;
     for (auto itr = v->begin(); itr != v->end(); itr++)
     {
-        string element = itoa(*itr, numstr, 16);
-        Util::PadForward(&element, 32);
-        output += element;
+        output += GenerateBytesForInt(*itr);
     }
 
     return output;
@@ -248,49 +193,25 @@ string Contract::GenerateBytesForUIntArray(const vector<uint32_t> *v)
 
 string Contract::GenerateBytesForAddress(const string *v)
 {
-    const char *value = v->c_str();
-    size_t digits = strlen(value) - 2;
-    Serial.println(digits);
-
-    string zeros = "";
-    for (int i = 2; i < 2 + 64 - digits; i++)
-    {
-        zeros = zeros + "0";
-    }
-    string tester = zeros + string(value + 2);
-    Serial.println(tester.c_str());
-    return zeros + string(value + 2);
+    string cleaned = *v;
+    if (v->at(0) == 'x') cleaned = v->substr(1);
+    else if (v->at(1) == 'x') cleaned = v->substr(2);
+    size_t digits = cleaned.length();
+    return string(64 - digits, '0') + cleaned;
 }
 
 string Contract::GenerateBytesForString(const string *value)
 {
     const char *valuePtr = value->c_str(); //don't fail if given a 'String'
-    string zeros = "";
-    size_t remain = 32 - ((strlen(valuePtr) - 2) % 32);
-    for (int i = 0; i < remain + 32; i++)
-    {
-        zeros = zeros + "0";
-    }
-
-    return string(valuePtr + zeros);
+    size_t length = strlen(valuePtr);
+    return GenerateBytesForBytes(valuePtr, length);
 }
 
 string Contract::GenerateBytesForBytes(const char *value, const int len)
 {
-    char output[70];
-    memset(output, 0, sizeof(output));
-
-    for (int i = 0; i < len; i++)
-    {
-        sprintf(output, "%s%x", output, value[i]);
-    }
-    size_t remain = 32 - ((strlen(output) - 2) % 32);
-    for (int i = 0; i < remain + 32; i++)
-    {
-        sprintf(output, "%s%s", output, "0");
-    }
-
-    return string(output);
+    string bytesStr = Util::ConvertBytesToHex((const uint8_t *)value, len);
+    size_t digits = bytesStr.length();
+    return bytesStr + string(64 - digits, '0');
 }
 
 vector<uint8_t> Contract::RlpEncode(
@@ -325,11 +246,6 @@ vector<uint8_t> Contract::RlpEncode(
     encoded.insert(encoded.end(), outputTo.begin(), outputTo.end());
     encoded.insert(encoded.end(), outputValue.begin(), outputValue.end());
     encoded.insert(encoded.end(), outputData.begin(), outputData.end());
-
-#if 0
-    Serial.println("RLP Encode:");
-    Serial.println(Util::ConvertBytesToHex(encoded.data(), encoded.size()).c_str());
-#endif
 
     return encoded;
 }
@@ -375,29 +291,6 @@ vector<uint8_t> Contract::RlpEncodeForRawTransaction(
     vector<uint8_t> outputR = Util::RlpEncodeItemWithVector(R);
     vector<uint8_t> outputS = Util::RlpEncodeItemWithVector(S);
     vector<uint8_t> outputV = Util::RlpEncodeItemWithVector(V);
-
-#if 0
-    printf("\noutputNonce--------\n ");
-    for (int i = 0; i<outputNonce.size(); i++) { printf("%02x ", outputNonce[i]); }
-    printf("\noutputGasPrice--------\n ");
-    for (int i = 0; i<outputGasPrice.size(); i++) {printf("%02x ", outputGasPrice[i]); }
-    printf("\noutputGasLimit--------\n ");
-    for (int i = 0; i<outputGasLimit.size(); i++) {printf("%02x ", outputGasLimit[i]); }
-    printf("\noutputTo--------\n ");
-    for (int i = 0; i<outputTo.size(); i++) {printf("%02x ", outputTo[i]); }
-    printf("\noutputValue--------\n ");
-    for (int i = 0; i<outputValue.size(); i++) { printf("%02x ", outputValue[i]); }
-    printf("\noutputData--------\n ");
-    for (int i = 0; i<outputData.size(); i++) { printf("%02x ", outputData[i]); }
-    printf("\nR--------\n ");
-    for (int i = 0; i<outputR.size(); i++) { printf("%02x ", outputR[i]); }
-    printf("\nS--------\n ");
-    for (int i = 0; i<outputS.size(); i++) { printf("%02x ", outputS[i]); }
-    printf("\nV--------\n ");
-    for (int i = 0; i<outputV.size(); i++) { printf("%02x ", outputV[i]); }
-    printf("\n");
-#endif
-
     vector<uint8_t> encoded = Util::RlpEncodeWholeHeaderWithVector(
         outputNonce.size() +
         outputGasPrice.size() +
