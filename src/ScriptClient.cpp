@@ -38,7 +38,7 @@ void ScriptClient::checkClientAPI(const char *route, APICallback callback)
         else
         {
             delay(1);
-            if (timeout++ > 500)
+            if (timeout++ > 300)
                 break;
         }
     }
@@ -63,6 +63,9 @@ void ScriptClient::scanAPI(const char *route, APICallback callback)
 	if (endParseIndex == std::string::npos) endParseIndex = sc_data->find(" HTTPS/");
 	sc_data->erase(endParseIndex, sc_data->size() - endParseIndex);
 	parseIndex += strlen(route);
+
+    if (parseIndex > endParseIndex)
+        return;
 
 	if (parseIndex != std::string::npos)
 	{
