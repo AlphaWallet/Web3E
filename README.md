@@ -87,12 +87,15 @@ Choose NonFungible token standard ERC721 or ERC875. Note the samples are written
 - Build and deploy the sample to your Arduino framework device.
 - Use the transfer or MagicLink on AlphaWallet to give out the tokens.
 
-## Included in the package are four samples
+## Included in the package are seven samples
 
 - Simple DApp. Shows the power of the library to create a DApp server truly embedded in the device. The on-board cryptography engine can fully interact with user input. Signing, recovery/verification takes milliseconds on ESP32.
 - Query Wallet balances, Token balances and for the first time Non-Fungible-Token (NFT) balances.
 - Push transactions, showing token transfer of ERC20 and ERC875 tokens.
 - Send Eth, showing how to send native eth.
+- Wallet Bridge 1: Introduction to simple TokenScript connection to wallet.
+- Wallet Bridge 2: Use simple authentication to check pre-defined addresses.
+- Wallet Bridge 3: Use Ethereum Tokens as security attestations to interct with your IoT directly via the wallet.
 
 The push transaction sample requires a little work to get running. You have to have an Ethereum wallet, some testnet ETH, the private key for that testnet eth, and then create some ERC20 and ERC875 tokens in the account.
 
@@ -144,30 +147,30 @@ Handle API call in the callback:
 ```
 void handleAPI(APIReturn *apiReturn, UdpBridge *udpBridge, int methodId)
 {
-	switch (s_apiRoutes[apiReturn->apiName.c_str()])
+    switch (s_apiRoutes[apiReturn->apiName.c_str()])
     {
-		case api_getChallenge:
-			Serial.println(currentChallenge.c_str());
-			udpBridge->sendResponse(currentChallenge, methodId);
-			break;
-		case api_checkSignature:
+	case api_getChallenge:
+		Serial.println(currentChallenge.c_str());
+		udpBridge->sendResponse(currentChallenge, methodId);
+		break;
+	case api_checkSignature:
+		{
+			//EC-Recover address from signature and challenge
+			string address = Crypto::ECRecoverFromPersonalMessage(&apiReturn->params["sig"], &currentChallenge);  
+			//Check if this address has our entry token
+			boolean hasToken = QueryBalance(&address);
+			updateChallenge(); //generate a new challenge after each check
+			if (hasToken)
 			{
-				//EC-Recover address from signature and challenge
-				string address = Crypto::ECRecoverFromPersonalMessage(&apiReturn->params["sig"], &currentChallenge);  
-				//Check if this address has our entry token
-				boolean hasToken = QueryBalance(&address);
-				updateChallenge(); //generate a new challenge after each check
-				if (hasToken)
-				{
-					udpBridge->sendResponse("pass", methodId);
-					OpenDoor(); //Call your code that opens a door or performs the required 'pass' action
-				}
-				else
-				{
-					udpBridge->sendResponse("fail: doesn't have token", methodId);
-				}
+				udpBridge->sendResponse("pass", methodId);
+				OpenDoor(); //Call your code that opens a door or performs the required 'pass' action
 			}
-            break;	
+			else
+			{
+				udpBridge->sendResponse("fail: doesn't have token", methodId);
+			}
+		}
+                break;	
 ```
 
 
