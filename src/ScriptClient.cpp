@@ -1,4 +1,4 @@
-#include "ScriptClient.h"
+#include <ScriptClient.h>
 
 static std::string *sc_data = NULL;
 static APIReturn *apiReturn = NULL;
@@ -54,6 +54,11 @@ void ScriptClient::scanAPI(const char *route, APICallback callback)
     println("Access-Control-Allow-Origin: *");
     println("Connection: close");
     println();
+
+    if (sc_data->find("favicon") != std::string::npos)
+    {
+        return;
+    }
 
     if (apiReturn == NULL) apiReturn = new APIReturn();
     apiReturn->clear();

@@ -1,11 +1,9 @@
 //
-// Created by James on 2018/09/13.
+// Created by James Brown on 2018/09/13.
 //
 
 #ifndef ARDUINO_WEB3_CRYPTO_H
 #define ARDUINO_WEB3_CRYPTO_H
-
-#include "Log.h"
 #include "Web3.h"
 #include <vector>
 
@@ -33,9 +31,6 @@ public:
 
 
 private:
-    Log Debug;
-    #define LOG(x) Debug.println(x)
-
     Web3* web3;
     uint8_t privateKey[ETHERS_PRIVATEKEY_LENGTH];
 

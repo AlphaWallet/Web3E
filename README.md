@@ -2,7 +2,7 @@
 
 <img align="right" src="https://raw.githubusercontent.com/JamesSmartCell/Release-Test/master/Web3-Esmall.png">
 
-## Version 1.03
+## Version 1.10
 
 Web3E is a fully functional Web3 framework for Embedded devices running Arduino. Web3E now has methods which allow you to use TokenScript in your IoT solution for rapid deployment. Tested mainly on ESP32 and working on ESP8266. Also included is a rapid development DApp injector to convert your embedded server into a fully integrated Ethereum DApp. 
 
@@ -13,7 +13,7 @@ It is possible that as Ethereum runs natively on embedded devices a new revoluti
 
 ## New Features
 
-- TokenScript/API interface.
+- TokenScript/API interface [TokenScript](https://tokenscript.org)
 - uint256 class added to correctly handle Ethereum types.
 - usability methods added for converting between doubles and Wei values.
 - usability methods added for displaying Wei values as doubles.
@@ -77,9 +77,12 @@ https://github.com/alpha-wallet/Web3E-Application
 
 Full source code for the [system active at the AlphaWallet office](https://www.youtube.com/watch?v=D_pMOMxXrYY). To get it working you need:
 - [Platformio](https://platformio.org/)
-- [AlphaWallet](https://www.awallet.io)
-- [Testnet Eth](https://faucet.kovan.network). Visit this site on the DApp browser.
-- [Mint some ERC875 tokens](https://alpha-wallet.github.io/ERC875-token-factory/index.html). Visit here on your DApp browser.
+- [AlphaWallet](https://www.alphawallet.com)
+- [Testnet Eth Kovan](https://faucet.kovan.network). Visit this site on the DApp browser.
+- [Testnet Eth Goerli](https://goerli-faucet.slock.it/). Visit this site on your DApp browser.
+Choose NonFungible token standard ERC721 or ERC875. Note the samples are written for ERC875 so you may need to adapt them for the ERC721 balance check.
+- [Mint some ERC721 tokens](https://mintable.app/create) Visit here on your DApp browser.
+- [Mint some ERC875 tokens](https://tf.alphawallet.com) Visit here on your DApp browser.
 - Take a note of the contract address. Copy/paste contract address into source code inside the 'STORMBIRD_CONTRACT' define.
 - Build and deploy the sample to your Arduino framework device.
 - Use the transfer or MagicLink on AlphaWallet to give out the tokens.
@@ -94,8 +97,97 @@ Full source code for the [system active at the AlphaWallet office](https://www.y
 The push transaction sample requires a little work to get running. You have to have an Ethereum wallet, some testnet ETH, the private key for that testnet eth, and then create some ERC20 and ERC875 tokens in the account.
 
 ## Usage
+See Wallet Bridge 1, 2 and 3 examples for complete source
 
-## TokenScript interface:
+## Standard: Using ScriptProxy Bridge
+### This style of connection will work in almost every situation, from inside or outside of the WiFi connection
+In this usage pattern, your IoT device will connect to a proxy server which provides a bridge to the TokenScript running on your wallet. 
+The source code for the proxy server can be found here: [Script Proxy](https://github.com/AlphaWallet/Web3E-Application/tree/master/ScriptProxy)
+
+- Set up API routes
+```
+    const char *apiRoute = "api/";
+    enum APIRoutes {   
+        api_getChallenge, 
+        api_checkSignature, 
+        api_End };
+					
+    s_apiRoutes["getChallenge"] = api_getChallenge;
+    s_apiRoutes["checkSignature"] = api_checkSignature;
+    s_apiRoutes["end"] = api_End;
+```
+
+Declare UdpBridge, KeyID and Web3 in globals:
+
+```
+UdpBridge *udpConnection;
+Web3 *web3;
+KeyID *keyID;
+```
+
+Start UDP bridge after connecting to WiFi:
+
+```
+    udpConnection = new UdpBridge();
+    udpConnection->setKey(keyID, web3);
+    udpConnection->startConnection();
+```
+
+Within your loop() check for API call:
+
+```
+	udpConnection->checkClientAPI(&handleAPI);
+```
+
+Handle API call in the callback:
+
+```
+void handleAPI(APIReturn *apiReturn, UdpBridge *udpBridge, int methodId)
+{
+	switch (s_apiRoutes[apiReturn->apiName.c_str()])
+    {
+		case api_getChallenge:
+			Serial.println(currentChallenge.c_str());
+			udpBridge->sendResponse(currentChallenge, methodId);
+			break;
+		case api_checkSignature:
+			{
+				//EC-Recover address from signature and challenge
+				string address = Crypto::ECRecoverFromPersonalMessage(&apiReturn->params["sig"], &currentChallenge);  
+				//Check if this address has our entry token
+				boolean hasToken = QueryBalance(&address);
+				updateChallenge(); //generate a new challenge after each check
+				if (hasToken)
+				{
+					udpBridge->sendResponse("pass", methodId);
+					OpenDoor(); //Call your code that opens a door or performs the required 'pass' action
+				}
+				else
+				{
+					udpBridge->sendResponse("fail: doesn't have token", methodId);
+				}
+			}
+            break;	
+```
+
+
+## Advanced: Direct TCP connection
+### Use this if you have admin control of your WiFi Router, as you need to set up port forwarding to access the unit from outside your WiFi
+In this usage pattern, the TokenScript running on the wallet will connect directly to the IoT device. Notice that this means your IoT is directly accessible to the internet, which may be susceptible to exploit.
+
+- Declare the TCP server in globals:
+```
+WiFiServer server(8082);
+```
+- Ensure your Device is locked to a fixed IP Address for port forwarding (adjust local IP address as required):
+```
+IPAddress ipStat(192, 168, 1, 100);
+IPAddress gateway(192, 168, 1, 1);
+IPAddress subnet(255, 255, 255, 0);
+IPAddress dns(192, 168, 1, 1);
+WiFi.config(ipStat, gateway, subnet, dns, dns);
+```
+
 
 - Set up API routes
 ```
@@ -122,6 +214,8 @@ The push transaction sample requires a little work to get running. You have to h
 ```
 - Handle API return:
 ```
+void handleAPI(APIReturn *apiReturn, ScriptClient *client)
+{
     switch(s_apiRoutes[apiReturn->apiName.c_str()])
     {
         case api_getChallenge:

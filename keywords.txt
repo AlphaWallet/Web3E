@@ -37,6 +37,8 @@ EthBlockNumber	KEYWORD2
 EthGetBalance	KEYWORD2
 EthGetTransactionCount	KEYWORD2
 EthViewCall				KEYWORD2
+UdpBridge	KEYWORD2
+ScriptClient	KEYWORD2
 
 EthCall		KEYWORD2
 EthSendSignedTransaction	KEYWORD2

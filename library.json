@@ -22,9 +22,10 @@
         "Web3E",
         "Ethereum",
         "DApp",
-        "TokenScript"
+        "TokenScript",
+		"AlphaWallet"
     ],
     "name": "Web3E", 
-    "version": "1.03", 
+    "version": "1.10", 
     "homepage": "https://alphawallet.com"
 }

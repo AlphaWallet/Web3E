@@ -1,12 +1,16 @@
+// Web3E Contract handling code
 //
-// Created by Okada, Takahiro on 2018/02/05.
+// By James Brown Githubs: @JamesSmartCell @AlphaWallet
+// Twitters: @TallyDigital @AlphaWallet
+//
+// Based on Web3 Arduino by Okada, Takahiro.
+//
 //
 
 #ifndef ARDUINO_WEB3_CONTRACT_H
 #define ARDUINO_WEB3_CONTRACT_H
 
 #include "Arduino.h"
-#include "Log.h"
 #include "Web3.h"
 #include <vector>
 #include <Crypto.h>
@@ -35,9 +39,6 @@ public:
                            string *toStr, uint256_t *valueStr, string *dataStr);
 
 private:
-    Log Debug;
-    #define LOG(x) Debug.println(x)
-
     Web3* web3;
     const char * contractAddress;
     Crypto* crypto;
