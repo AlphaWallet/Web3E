@@ -1,12 +1,11 @@
 //
-// Created by James on 2018/09/13.
+// Created by James Brown on 2018/09/13.
 //
 
 #include <Arduino.h>
 #include "Crypto.h"
 #include "Web3.h"
 #include "Util.h"
-#include "Log.h"
 #include "Trezor/secp256k1.h"
 #include "Trezor/ecdsa.h"
 #include <vector>

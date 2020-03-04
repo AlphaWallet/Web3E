@@ -31,8 +31,10 @@
 extern "C" {
 #endif
 
+uint32_t random32v(uint32_t randm);
 uint32_t random32(void);
 void random_buffer(uint8_t *buf, size_t len);
+void randomInitFromBuffer(uint32_t *buffer, int elements);
 
 uint32_t random_uniform(uint32_t n);
 void random_permute(char *buf, size_t len);

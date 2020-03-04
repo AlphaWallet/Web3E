@@ -1,3 +1,9 @@
+// Web3E Contract handling code
+//
+// By James Brown Githubs: @JamesSmartCell @AlphaWallet
+// Twitters: @TallyDigital @AlphaWallet
+//
+// Based on Web3 Arduino by Okada, Takahiro.
 //
 //
 
@@ -5,7 +11,6 @@
 #include "Web3.h"
 #include <WiFi.h>
 #include "Util.h"
-#include "Log.h"
 #include "cJSON/cJSON.h"
 #include <vector>
 
@@ -61,7 +66,7 @@ string Contract::SetupContractData(const char* func, ...)
     }
 
     va_list args;
-    va_start(args, paramCount);
+    va_start(args, func);
     for( int i = 0; i < paramCount; ++i ) {
         if (strstr(params[i].c_str(), "uint") != NULL && strstr(params[i].c_str(), "[]") != NULL)
         {

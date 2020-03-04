@@ -1,5 +1,10 @@
+// Web3E main header
 //
-// Created by Okada, Takahiro on 2018/02/04.
+// By James Brown Githubs: @JamesSmartCell @AlphaWallet 
+// Twitters: @TallyDigital @AlphaWallet
+//
+// Based on Web3 Arduino by Okada, Takahiro.
+//
 //
 
 #ifndef ARDUINO_WEB3_WEB3_H
@@ -12,10 +17,20 @@ typedef unsigned char BYTE;
 #define ETHERS_KECCAK256_LENGTH        32
 #define ETHERS_SIGNATURE_LENGTH        65
 
+class Web3;
+class Crypto;
+class KeyID;
+
 #include "stdint.h"
+#include "uint256/uint256_t.h"
+#include <Contract.h>
+#include <Crypto.h>
+#include <KeyID.h>
+#include <ScriptClient.h>
+#include <UdpBridge.h>
+#include <Util.h>
 #include <string.h>
 #include <string>
-#include "uint256/uint256_t.h"
 
 using namespace std;
 

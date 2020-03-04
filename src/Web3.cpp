@@ -1,20 +1,21 @@
+// Web3E main header
 //
-// Created by Okada, Takahiro on 2018/02/04.
+// By James Brown Githubs: @JamesSmartCell @AlphaWallet 
+// Twitters: @TallyDigital @AlphaWallet
+//
+// Based on Web3 Arduino by Okada, Takahiro.
+//
 //
 
 #include "Web3.h"
 #include <WiFiClientSecure.h>
 #include "CaCert.h"
-#include "Log.h"
 #include "Util.h"
 #include "cJSON/cJSON.h"
 #include <iostream>
 #include <sstream>
 
 WiFiClientSecure client;
-Log debug;
-#define LOG(x) debug.println(x)
-
 Web3::Web3(const char* _host, const char* _path) {
     client.setCACert(infura_ca_cert);
     host = _host;
@@ -184,8 +185,8 @@ string Web3::exec(const string* data) {
 
     int connected = client.connect(host, 443);
     if (!connected) {
-        LOG("Unable to connect to Host");
-        LOG(host);
+        Serial.print("Unable to connect to Host: ");
+        Serial.print(host);
         return "";
     }
 
@@ -207,7 +208,6 @@ string Web3::exec(const string* data) {
     client.println();
     client.println(data->c_str());
 
-
     while (client.connected()) 
     {
         String line = client.readStringUntil('\n');
@@ -215,8 +215,6 @@ string Web3::exec(const string* data) {
             break;
         }
     }
-
-    
 
     // if there are incoming bytes available
     // from the server, read them and print them:
@@ -283,7 +281,6 @@ double Web3::getDouble(const string* json) {
     root = cJSON_Parse(json->c_str());
     value = cJSON_GetObjectItem(root, "result");
     if (cJSON_IsString(value)) {
-        LOG(value->valuestring);
         ret = strtof(value->valuestring, nullptr);
     }
     cJSON_free(root);

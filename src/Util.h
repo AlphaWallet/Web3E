@@ -1,5 +1,10 @@
+// Web3E Utilities
 //
-// Created by Okada, Takahiro on 2018/02/11.
+// By James Brown Githubs: @JamesSmartCell @AlphaWallet 
+// Twitters: @TallyDigital @AlphaWallet
+//
+// Based on Web3 Arduino by Okada, Takahiro.
+//
 //
 
 #ifndef WEB3_UTIL_H

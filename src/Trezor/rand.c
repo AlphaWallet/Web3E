@@ -26,6 +26,7 @@
 #define TINYMT32_MUL (1.0f / 16777216.0f)
 
 extern unsigned long millis();
+extern unsigned long micros();
 
 
 /**
@@ -360,9 +361,20 @@ uint32_t random32(void)
 {
 	static int initialized = 0;
 	if (!initialized) {
-		tinymt32_init(&tinymt, (uint32_t)millis());
+		tinymt32_init(&tinymt, (uint32_t)micros());
 		initialized = 1;
 	}
+	return tinymt32_generate_uint32(&tinymt);
+}
+
+void randomInitFromBuffer(uint32_t *buffer, int elements)
+{
+	tinymt32_init_by_array(&tinymt, buffer, elements);
+}
+
+uint32_t random32v(uint32_t randm)
+{
+	tinymt32_init(&tinymt, ((uint32_t)micros()) * ((uint32_t)micros() + randm)); //ensure passing 0 as randm doesn't result in predictable init
 	return tinymt32_generate_uint32(&tinymt);
 }
 
