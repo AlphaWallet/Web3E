@@ -5,8 +5,7 @@
         "type": "git"
     }, 
     "platforms": [ 
-        "espressif32", 
-        "espressif8266"
+        "espressif32"
     ], 
     "authors": [
         {
@@ -23,9 +22,10 @@
         "Ethereum",
         "DApp",
         "TokenScript",
-		"AlphaWallet"
+		"AlphaWallet",
+		"Smart Tokens"
     ],
     "name": "Web3E", 
-    "version": "1.10", 
-    "homepage": "https://alphawallet.com"
+    "version": "1.20", 
+    "homepage": "https://www.smarttokenlabs.com/"
 }
