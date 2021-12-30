@@ -1,4 +1,5 @@
 #include "uint128_t.build"
+#include <Arduino.h>
 
 const uint128_t uint128_0(0);
 const uint128_t uint128_1(1);
@@ -320,7 +321,8 @@ void uint128_t::export_bits(std::vector<uint8_t> &ret) const {
 std::pair <uint128_t, uint128_t> uint128_t::divmod(const uint128_t & lhs, const uint128_t & rhs) const{
     // Save some calculations /////////////////////
     if (rhs == uint128_0){
-        throw std::domain_error("Error: division or modulus by 0");
+        //throw std::domain_error("Error: division or modulus by 0");
+        Serial.println("Error: division or modulus by 0");
     }
     else if (rhs == uint128_1){
         return std::pair <uint128_t, uint128_t> (lhs, uint128_0);
@@ -425,7 +427,9 @@ uint8_t uint128_t::bits() const{
 
 std::string uint128_t::str(uint8_t base, const unsigned int & len) const{
     if ((base < 2) || (base > 16)){
-        throw std::invalid_argument("Base must be in the range [2, 16]");
+        //throw std::invalid_argument("Base must be in the range [2, 16]");
+        Serial.println("Base must be in the range [2, 16]");
+        return 0;
     }
     std::string out = "";
     if (!(*this)){

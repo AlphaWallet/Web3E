@@ -1,6 +1,7 @@
 #include "uint256_t.build"
 #include <vector>
 #include <cstring>
+#include <Arduino.h>
 
 const uint128_t uint128_64(64);
 const uint128_t uint128_128(128);
@@ -397,7 +398,8 @@ uint256_t & uint256_t::operator*=(const uint256_t & rhs){
 std::pair <uint256_t, uint256_t> uint256_t::divmod(const uint256_t & lhs, const uint256_t & rhs) const{
     // Save some calculations /////////////////////
     if (rhs == uint256_0){
-        throw std::domain_error("Error: division or modulus by 0");
+        //throw std::domain_error("Error: division or modulus by 0");
+        Serial.println("Error: division or modulus by 0");
     }
     else if (rhs == uint256_1){
         return std::pair <uint256_t, uint256_t> (lhs, uint256_0);
@@ -540,7 +542,8 @@ uint16_t uint256_t::bits() const{
 
 std::string uint256_t::str(uint8_t base, const unsigned int & len) const{
     if ((base < 2) || (base > 36)){
-        throw std::invalid_argument("Base must be in the range 2-36");
+        Serial.println("Base must be in the range [2, 16]");
+        return 0;
     }
     std::string out = "";
     if (!(*this)){
