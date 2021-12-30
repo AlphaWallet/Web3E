@@ -53,15 +53,15 @@ void KeyID::generatePrivateKey(Web3* web3)
   initPrivateKey(privateKey, web3);
 }
 
-void KeyID::getSignature(uint8_t* signature, BYTE *msgBytes)
+void KeyID::getSignature(uint8_t* signature, BYTE *msgBytes, int length)
 {
     if (recoveredKey == false) return;
     //need to convert uint32_t to byte
     uint8_t hash[ETHERS_KECCAK256_LENGTH];
 
-    Serial.println(Util::ConvertBytesToHex(msgBytes, 8).c_str());
+    Serial.println(Util::ConvertBytesToHex(msgBytes, length).c_str());
 
-    Crypto::Keccak256((uint8_t *)msgBytes, 8, hash);
+    Crypto::Keccak256((uint8_t *)msgBytes, length, hash);
     Serial.print("Got Hash: ");
     Serial.println(Util::ConvertBytesToHex(hash, ETHERS_KECCAK256_LENGTH).c_str());
     crypto->Sign(hash, signature);

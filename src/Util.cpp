@@ -8,11 +8,13 @@
 //
 
 #include <Util.h>
-#include "Arduino.h"
+#include <Arduino.h>
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
 #include "TagReader/TagReader.h"
+
+char *gcvt(double x, int ndigit, char *buf);
 
 static const char * _web3e_hexStr = "0123456789ABCDEF";
 // returns output (header) length

@@ -13,7 +13,7 @@ class KeyID
 public:
     KeyID(Web3* web3);
     void generatePrivateKey(Web3* web3);
-    void getSignature(uint8_t* signature, BYTE *msgBytes);
+    void getSignature(uint8_t* signature, BYTE *msgBytes, int length);
     const std::string getAddress();
     bool hasRecoveredKey() { return recoveredKey; };
 	

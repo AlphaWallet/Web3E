@@ -4,13 +4,16 @@
 #include "KeyID.h"
 
 //Bridge defaults - override these with setupConnection
-static const char *defaultServername = "james.lug.org.cn";
-static const uint16_t defaultPort = 5001;
-static const uint16_t topPort = 5004;
+static const char *defaultServername = "http://james.lug.org.cn";
+static const uint16_t defaultPort = 8003;
+static const uint16_t topPort = 8003;
+static const IPAddress ipAddr(121,37,140,91);
+
+#define PACKET_BUFFER_SIZE 512
 
 UdpBridge::UdpBridge()
 {
-    packetBuffer = new BYTE[256];
+    packetBuffer = new BYTE[PACKET_BUFFER_SIZE];
     currentReturnBytes = new BYTE[96];
     apiReturn = new APIReturn();
     serverName = std::string(defaultServername);
@@ -44,12 +47,13 @@ void UdpBridge::checkClientAPI(BridgeCallback callback)
 {
     maintainComms();
     parsePacket();
-    int len = read(packetBuffer, 256);
+    int len = read(packetBuffer, PACKET_BUFFER_SIZE);
 
     if (len > 0)
     {
         BYTE type = packetBuffer[0];
         int length = (packetBuffer[1] & 0xFF);
+        std::string result;
         lastComms = millis();
         if (length > 0)
         {
@@ -96,7 +100,8 @@ void UdpBridge::checkClientAPI(BridgeCallback callback)
                     currentQueryId = packetBuffer[1];
                     int payloadLength = packetBuffer[2];
                     scanAPI(packetBuffer + 3, apiReturn, payloadLength);
-                    callback(apiReturn, this, currentQueryId);
+                    result = callback(apiReturn);
+                    sendResponse(result, currentQueryId);
                 }
                 break;
 
@@ -149,7 +154,7 @@ std::string UdpBridge::getArg(const BYTE *packet, int &index, int payloadLength)
 
 void UdpBridge::reSendResponse()
 {
-    beginPacket(serverName.c_str(), port);
+    beginPacket(ipAddr, port);
     write(currentReturnBytes, currentReturnBytesLen);
     endPacket();
 }
@@ -162,7 +167,7 @@ void UdpBridge::sendRefreshRequest()
     packetBuffer[10] = 0x00;
     int packetLength = 11;
 
-    beginPacket(serverName.c_str(), port);
+    beginPacket(ipAddr, port);
     write(packetBuffer, packetLength);
     endPacket();
 }
@@ -181,7 +186,7 @@ void UdpBridge::sendResponse(std::string resp, int methodId)
     memcpy(currentReturnBytes, packetBuffer, packetLength);
     currentReturnBytesLen = packetLength;
 
-    beginPacket(serverName.c_str(), port);
+    beginPacket(ipAddr, port);
     write(packetBuffer, packetLength);
     endPacket();
 }
@@ -241,14 +246,14 @@ void UdpBridge::sendSignature()
     //write signature of session token
     memcpy(packetBuffer + 1, sessionBytes, 8);
     packetBuffer[9] = ETHERS_SIGNATURE_LENGTH;
-    keyID->getSignature(packetBuffer + 10, sessionBytes);
+    keyID->getSignature(packetBuffer + 10, sessionBytes, 8);
     //add session token
     packetLength = 10 + ETHERS_SIGNATURE_LENGTH;
 
     memcpy(currentReturnBytes, packetBuffer, packetLength);
     currentReturnBytesLen = packetLength;
 
-    beginPacket(serverName.c_str(), port);
+    beginPacket(ipAddr, port);
     write(packetBuffer, packetLength);
     endPacket();
 }
@@ -274,7 +279,7 @@ void UdpBridge::sendPing()
     packetBuffer[0] = 0x03; //Ping
     //write signature of session token
     memcpy(packetBuffer + 1, verifiedSessionBytes, 8);
-    beginPacket(serverName.c_str(), port);
+    beginPacket(ipAddr, port);
     write(packetBuffer, 9);
     endPacket();
 }

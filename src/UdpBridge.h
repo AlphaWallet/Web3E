@@ -14,7 +14,7 @@ enum ConnectionStage
 
 class UdpBridge;
 //Format for API handler is void YourAPIHandler(APIReturn *apiReturn, UdpBridge *client, int methodId) { ... }
-typedef void (*BridgeCallback)(APIReturn *, UdpBridge *, int methodId);
+typedef std::string (*BridgeCallback)(APIReturn *);
 
 class UdpBridge : public WiFiUDP
 {
@@ -24,7 +24,6 @@ public:
     void setKey(KeyID *keyId, Web3 *w3);
     void checkClientAPI(BridgeCallback callback);
     void setupConnection(std::string& serverName, uint16_t port);
-    void sendResponse(std::string resp, int methodId);
 
     int getConnectionStatus() { return connectionValidCountdown; }
     int getConnectionPongs() { return (int) pongCount; }
@@ -41,6 +40,7 @@ private:
     void initRandomSeed(BYTE* randm); 
     inline boolean isNewSession();
     void sendPing();
+    void sendResponse(std::string resp, int methodId);
 
     Web3 *web3;
     KeyID *keyID;
