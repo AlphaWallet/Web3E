@@ -21,6 +21,7 @@
 #include <functional>
 #include <string>
 #include <Ticker.h>
+#include <TcpBridge.h>
 
 const char *ssid = "<your SSID>";
 const char *password = "<your password";
@@ -33,7 +34,7 @@ const char *INFURA_PATH = "/v3/c7df4c29472d4d54a39f7aa78f146853";
 
 #define BLUE_LED 22 // Little blue LED on the ESP32 TTGO
 
-UdpBridge *udpConnection;
+TcpBridge *tcpConnection;
 Web3 web3(INFURA_HOST, INFURA_PATH);
 KeyID *keyID;
 std::string challenge;
@@ -42,11 +43,11 @@ boolean blinkLEDOn = false;
 void resetChallenge();
 void blink();
 void setupWifi();
-void handleUDPAPI(APIReturn *apiReturn, UdpBridge *udpBridge, int methodId);
+std::string handleTCPAPI(APIReturn *apiReturn);
 bool hasToken(const std::string& userAddress);
 bool hasValue(BYTE *value, int length);
 
-Ticker blinkTicker(blink, 500, 6); //ticker to blink the LED
+Ticker blinkTicker(blink, 500, 6, MILLIS); //ticker to blink the LED
 
 //define API routes
 enum APIRoutes
@@ -79,9 +80,9 @@ void setup()
   setupWifi();
   Initialize(); //init after wifi setup to change startup delay
 
-  udpConnection = new UdpBridge();
-  udpConnection->setKey(keyID, &web3);
-  udpConnection->startConnection();
+  tcpConnection = new TcpBridge();
+  tcpConnection->setKey(keyID, &web3);
+  tcpConnection->startConnection();
   resetChallenge();
 }
 
@@ -89,7 +90,7 @@ void loop()
 {
   setupWifi();
   delay(1);
-  udpConnection->checkClientAPI(&handleUDPAPI);
+  tcpConnection->checkClientAPI(&handleTCPAPI);
   blinkTicker.update();
 }
 
@@ -140,7 +141,7 @@ void setupWifi()
 
 // Handle API call from tokenscript
 // NB: every path must return a response to the server via udpBridge->sendResponse(<msg>, methodId);
-void handleUDPAPI(APIReturn *apiReturn, UdpBridge *udpBridge, int methodId)
+std::string handleTCPAPI(APIReturn *apiReturn)
 {
   std::string address;
   //handle the returned API call
@@ -151,8 +152,7 @@ void handleUDPAPI(APIReturn *apiReturn, UdpBridge *udpBridge, int methodId)
   case api_getChallenge:
     resetChallenge(); //generate a new challenge after each check. Advantage is that we've done a full refresh of the mersenne twister
     Serial.println(challenge.c_str());
-    udpBridge->sendResponse(challenge, methodId);
-    break;
+    return challenge;
   case api_checkSignature:
   {
     address = Crypto::ECRecoverFromPersonalMessage(&apiReturn->params["sig"], &challenge);
@@ -165,19 +165,17 @@ void handleUDPAPI(APIReturn *apiReturn, UdpBridge *udpBridge, int methodId)
       if (intervalTime > 0)
         blinkTicker.interval(intervalTime);
       blinkTicker.start(); //Perform PASS action
-      udpBridge->sendResponse("pass", methodId);
+      return std::string("pass");
     }
     else
     {
-      udpBridge->sendResponse("fail : Invalid account", methodId);
+      return std::string("fail : Invalid account");
     }
   }
-  break;
   default:
     Serial.println("Unknown API route: ");
     Serial.println(apiReturn->apiName.c_str());
-    udpBridge->sendResponse("fail", methodId);
-    break;
+    return std::string("fail");
   }
 }
 

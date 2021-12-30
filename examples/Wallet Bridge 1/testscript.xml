@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<ts:token xmlns:ts="http://tokenscript.org/2020/06/tokenscript"
+          xmlns:xhtml="http://www.w3.org/1999/xhtml"
+          xmlns:xml="http://www.w3.org/XML/1998/namespace"
+          xsi:schemaLocation="http://tokenscript.org/2020/06/tokenscript http://tokenscript.org/2020/06/tokenscript.xsd"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xmlns:asnx="urn:ietf:params:xml:ns:asnx"
+          xmlns:ethereum="urn:ethereum:constantinople"
+          custodian="false">  
+   <ts:label>
+    <ts:plurals xml:lang="en">
+      <ts:string quantity="one">Test Token</ts:string>
+      <ts:string quantity="other">Test Tokens</ts:string>
+    </ts:plurals>
+    <ts:plurals xml:lang="es">
+      <ts:string quantity="one">Boleto de message</ts:string>
+      <ts:string quantity="other">Boleto de messages</ts:string>
+    </ts:plurals>
+    <ts:plurals xml:lang="zh">
+      <ts:string quantity="one">入場券</ts:string>
+      <ts:string quantity="other">入場券</ts:string>
+    </ts:plurals>
+  </ts:label>
+  <ts:contract interface="erc721" name="MessageToken">
+    <ts:address network="4">0x0000000000000000000000000000000000000000</ts:address>  <!-- Your ERC721 Token address goes here, don't forget to set the networkId -->
+  </ts:contract>
+  <ts:origins>
+    <!-- Define the contract which holds the token that the user will use -->
+    <ts:ethereum contract="MessageToken">
+    </ts:ethereum>
+  </ts:origins>
+  <ts:cards>
+    
+    <ts:card type="action">
+      <!-- this action is of the model confirm-back.
+      window.onConfirm is called if user hit "confirm";
+      window.close() causes the back button to be pressed.
+      -->
+      <ts:label>
+        <ts:string xml:lang="en">Test Sign</ts:string>
+        <ts:string xml:lang="zh">入場</ts:string>
+        <ts:string xml:lang="es">Entrar</ts:string>
+      </ts:label>
+	  <ts:view xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+      <style type="text/css">.ts-count {
+  font-family: "SourceSansPro";
+  font-weight: bolder;
+  font-size: 21px;
+  color: rgb(117, 185, 67);
+}
+.ts-category {
+  font-family: "SourceSansPro";
+  font-weight: lighter;
+  font-size: 21px;
+  color: rgb(67, 67, 67);
+}
+.ts-venue {
+  font-family: "SourceSansPro";
+  font-weight: lighter;
+  font-size: 16px;
+  color: rgb(67, 67, 67);
+}
+.ts-date {
+  font-family: "SourceSansPro";
+  font-weight: bold;
+  font-size: 14px;
+  color: rgb(112, 112, 112);
+  margin-left: 7px;
+  margin-right: 7px;
+}
+.ts-time {
+  font-family: "SourceSansPro";
+  font-weight: lighter;
+  font-size: 16px;
+  color: rgb(112, 112, 112);
+}
+html {
+}
+
+body {
+padding: 0px;
+margin: 0px;
+}
+
+div {
+margin: 0px;
+padding: 0px;
+}
+
+.data-icon {
+height:16px;
+vertical-align: middle
+}
+
+.tbml-count {   font-family: "SourceSansPro";   font-weight: bolder;   font-size: 21px;   color: rgb(117, 185, 67); } .tbml-category {   font-family: "SourceSansPro";   font-weight: lighter;   font-size: 21px;   color: rgb(67, 67, 67); } .tbml-venue {   font-family: "SourceSansPro";   font-weight: lighter;   font-size: 16px;   color: rgb(67, 67, 67); } .tbml-date {   font-family: "SourceSansPro";   font-weight: bold;   font-size: 14px;   color: rgb(112, 112, 112);   margin-left: 7px;   margin-right: 7px; } .tbml-time {   font-family: "SourceSansPro";   font-weight: lighter;   font-size: 16px;   color: rgb(112, 112, 112); }    html {    }        body {    padding: 0px;    margin: 0px;    }        div {    margin: 0px;    padding: 0px;    }     .data-icon {    height:16px;    vertical-align: middle    } 
+#inputBox {
+  text-align: center;
+}
+input {
+  position: relative;
+  font-weight: normal;
+  font-style: normal;
+  font-size: 12px;
+  display: -ms-inline-flexbox;
+  display: inline-flex;
+  color: rgba(0, 0, 0, 0.87);
+  padding: 9.5px 14px;
+  width: 300px;
+  border-color: #D8D8D8;
+}
+input[type=text]:focus {
+  border-color: #D8D8D8;
+  background: #FAFAFA;
+  color: rgba(0, 0, 0, 0.87);
+  -webkit-box-shadow: none;
+  box-shadow: none;
+}
+
+</style>
+        <script type="text/javascript">
+class Token {
+    constructor(tokenInstance) {
+        this.props = tokenInstance
+    }
+	
+	render() {
+	return`
+	    <h3>Welcome to the IoT Sign Challenge ...</h3>
+		<div id="msg">Preparing to test IoT connection.</div>
+		<div id="inputBox">
+                 <h3>Door open time</h3>
+                 <input id="openTime" type="number" value='120' />
+              </div>
+		<div id="contractAddress">${this.props.contractAddress}</div>
+		<div id="status"/>`;
+	}
+}
+
+web3.tokens.dataChanged = (oldTokens, updatedTokens, cardId) =&gt; {
+    const currentTokenInstance = updatedTokens.currentInstance;
+    document.getElementById(cardId).innerHTML = new Token(currentTokenInstance).render();
+};
+
+    function handleErrors(response) {
+        if (!response.ok) {
+            throw Error(response.statusText);
+        }
+        return response.text();
+    }
+
+    var iotAddr = "0x0000000000000000000000000000000000000000"; //Address which your IoT device generates for itself
+    var serverAddr = "http://121.37.140.91"; // Our free-to-use TokenScript bridge for IoT. It's opensource so you can run your own if you wish
+
+    document.addEventListener("DOMContentLoaded", function() {
+        window.onload = function startup() {
+            // 1. call API to fetch challenge james.lug.org.cn
+            fetch(`${serverAddr}:8080/api/${iotAddr}/getChallenge`)
+                .then(handleErrors)
+                .then(function (response) {
+                    document.getElementById('msg').innerHTML = 'Challenge: ' + response
+                    window.challenge = response
+                })
+        }
+
+        window.onConfirm = function onConfirm(signature) {
+            if (window.challenge === undefined || window.challenge.length == 0) return
+            const challenge = window.challenge
+            document.getElementById('status').innerHTML = 'Wait for signature...'
+            // 2. sign challenge to generate response
+            web3.personal.sign({ data: challenge }, function (error, value) {
+                if (error != null) {
+                    document.getElementById('status').innerHTML = error
+                    //window.onload();
+                    //return
+                }
+                else
+                {
+
+                document.getElementById('status').innerHTML = 'Verifying credentials ...'
+                // 3. open door
+                let contractAddress = document.getElementById("contractAddress").textContent;
+                fetch(`${serverAddr}:8080/api/${iotAddr}/checkSignature?openTime=120&amp;sig=${value}`)
+                    .then(function (response) {
+                      if (!response.ok) {
+                        document.getElementById('status').innerHTML = response.statusText;
+                        throw Error(response.statusText);
+                      }
+                      else
+                      {
+                        return response.text()
+                      }
+                    })
+                    .then(function (response) {
+                        if (response == "pass") {
+                            document.getElementById('status').innerHTML = 'Entrance granted!'
+                            window.close()
+                        } else {
+                            document.getElementById('status').innerHTML = 'Failed with: ' + response
+                        }
+                    }).catch(function() {
+                      console.log("error blah");
+                    });
+                }
+            });
+            window.challenge = '';
+            document.getElementById('msg').innerHTML = '';
+        }
+    })
+</script>
+      </ts:view>
+   </ts:card>
+  </ts:cards>
+</ts:token>
