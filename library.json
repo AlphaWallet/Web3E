@@ -21,11 +21,12 @@
         "Web3E",
         "Ethereum",
         "DApp",
+        "NFT",
         "TokenScript",
 		"AlphaWallet",
 		"Smart Tokens"
     ],
     "name": "Web3E", 
-    "version": "1.20", 
+    "version": "1.21", 
     "homepage": "https://www.smarttokenlabs.com/"
 }
