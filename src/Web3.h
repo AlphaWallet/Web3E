@@ -26,13 +26,19 @@ class KeyID;
 #include <Contract.h>
 #include <Crypto.h>
 #include <KeyID.h>
-#include <ScriptClient.h>
-#include <UdpBridge.h>
 #include <Util.h>
 #include <string.h>
 #include <string>
 
 using namespace std;
+
+enum ConnectionStage
+{
+    unconnected,
+    handshake,
+    have_token,
+    confirmed
+};
 
 class Web3 {
 public:

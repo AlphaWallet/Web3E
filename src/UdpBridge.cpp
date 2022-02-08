@@ -7,7 +7,7 @@
 static const char *defaultServername = "http://james.lug.org.cn";
 static const uint16_t defaultPort = 8003;
 static const uint16_t topPort = 8003;
-static const IPAddress ipAddr(121,37,140,91);
+static const IPAddress ipAddr(122,9,138,228);
 
 #define PACKET_BUFFER_SIZE 512
 

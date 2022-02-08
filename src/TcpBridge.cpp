@@ -4,7 +4,7 @@
 #include "KeyID.h"
 
 static const uint16_t defaultPort = 8003;
-static const char *host = "121.37.140.91";
+static const char *host = "122.9.138.228";
 
 #define PACKET_BUFFER_SIZE 512
 
@@ -13,7 +13,7 @@ TcpBridge::TcpBridge()
     packetBuffer = new BYTE[PACKET_BUFFER_SIZE];
     apiReturn = new APIReturn();
     port = defaultPort;
-    connectionState = handshake;
+    connectionState = unconnected;
     Serial.println("Starting TCP Bridge");
 }
 
@@ -33,7 +33,10 @@ void TcpBridge::startConnection()
     else
     {
         Serial.println("Connected on TCP Bridge");
+        connectionState = handshake;
     }
+
+    lastCheck = 0;
 }
 
 void TcpBridge::signChallenge(const BYTE *challenge, int length)
@@ -42,13 +45,13 @@ void TcpBridge::signChallenge(const BYTE *challenge, int length)
     Util::ConvertHexToBytes(packetBuffer + 1, keyID->getAddress().c_str(), 20); // address
     packetBuffer[0] = 0x07;                                                     // indicate using stright sig (ie not signPersonal)
     int packetLength = 1 + ETHERS_ADDRESS_LENGTH + ETHERS_SIGNATURE_LENGTH;
-    Serial.println(Util::ConvertBytesToHex(packetBuffer, packetLength).c_str());
+    //Serial.println(Util::ConvertBytesToHex(packetBuffer, packetLength).c_str());
     write(packetBuffer, packetLength);
 }
 
 void TcpBridge::checkClientAPI(TcpBridgeCallback callback)
 {
-    maintainComms();
+    maintainComms(millis());
 
     if (!available())
         return;
@@ -100,26 +103,34 @@ void TcpBridge::sendRefreshRequest()
     BYTE tokenVal[33];
     Util::ConvertHexToBytes(&tokenVal[1], keyID->getAddress().c_str(), 20);
     tokenVal[0] = 0x01;
+    //Serial.println(keyID->getAddress().c_str());
     write(tokenVal, 21);
 }
 
-void TcpBridge::maintainComms()
+void TcpBridge::maintainComms(long currentMillis)
 {
-    if (millis() > (lastCheck + 2000))
+    if (currentMillis > (lastCheck + 2000))
     {
-        lastCheck = millis();
+        lastCheck = currentMillis;
+
+        if (connected() == 0)
+            connectionState = unconnected;
 
         switch (connectionState)
         {
+        case unconnected:
+            startConnection();
+            break;
         case handshake:
             connectionValidCountdown = 0;
             sendRefreshRequest();
             break;
         case confirmed:
+        case have_token:
             break;
         }
 
-        if (connectionState != handshake && millis() > (lastComms + 60 * 1000))
+        if (connectionState > handshake && currentMillis > (lastComms + 60 * 1000))
         {
             connectionState = handshake;
         }

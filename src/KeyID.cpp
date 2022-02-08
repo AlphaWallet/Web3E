@@ -59,7 +59,7 @@ void KeyID::getSignature(uint8_t* signature, BYTE *msgBytes, int length)
     //need to convert uint32_t to byte
     uint8_t hash[ETHERS_KECCAK256_LENGTH];
 
-    Serial.println(Util::ConvertBytesToHex(msgBytes, length).c_str());
+    //Serial.println(Util::ConvertBytesToHex(msgBytes, length).c_str());
 
     Crypto::Keccak256((uint8_t *)msgBytes, length, hash);
     Serial.print("Got Hash: ");
@@ -74,7 +74,8 @@ void KeyID::initPrivateKey(const std::string& privateKey, Web3* web3)
     crypto = new Crypto(web3);
     crypto->SetPrivateKey(privateKey.c_str());
     recoveredKey = true;
-    getAddress();
+    Serial.print("Device Address: ");
+    Serial.println(getAddress().c_str());
 }
 
 const std::string KeyID::getAddress()
@@ -84,8 +85,8 @@ const std::string KeyID::getAddress()
 
     Crypto::PrivateKeyToPublic(privateKeyBytes, publicKey);
     Crypto::PublicKeyToAddress(publicKey, ethAddressBytes);
-    Serial.print("Address: ");
+    //Serial.print("Address: ");
     std::string address = Util::ConvertBytesToHex(ethAddressBytes, ETHERS_ADDRESS_LENGTH);
-    Serial.println(address.c_str());
+    //Serial.println(address.c_str());
     return address;
 }

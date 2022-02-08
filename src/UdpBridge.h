@@ -5,13 +5,6 @@
 #include <WiFiUdp.h>
 #include <string>
 
-enum ConnectionStage
-{
-    handshake,
-    have_token,
-    confirmed
-};
-
 class UdpBridge;
 //Format for API handler is void YourAPIHandler(APIReturn *apiReturn, UdpBridge *client, int methodId) { ... }
 typedef std::string (*BridgeCallback)(APIReturn *);

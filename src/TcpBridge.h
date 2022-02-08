@@ -4,7 +4,6 @@
 #include <Web3.h>
 #include <WiFi.h>
 #include <string>
-#include <UdpBridge.h>
 
 class TcpBridge;
 //Format for API handler is void YourAPIHandler(APIReturn *apiReturn, UdpBridge *client, int methodId) { ... }
@@ -26,7 +25,7 @@ private:
     std::string getArg(const BYTE *packet, int &index, int payloadLength);
     void closeConnection();
     void SendKeepAlive();
-    void maintainComms();
+    void maintainComms(long currentMillis);
     void sendRefreshRequest();
     void signChallenge(const BYTE *challenge, int length);
     inline boolean isNewSession();
