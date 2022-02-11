@@ -2,7 +2,7 @@
 
 <img align="right" src="https://raw.githubusercontent.com/JamesSmartCell/Release-Test/master/Web3-Esmall.png">
 
-## Version 1.10
+## Version 1.22
 
 Web3E is a fully functional Web3 framework for Embedded devices running Arduino. Web3E now has methods which allow you to use TokenScript in your IoT solution for rapid deployment. Tested mainly on ESP32 and working on ESP8266. Also included is a rapid development DApp injector to convert your embedded server into a fully integrated Ethereum DApp. 
 
@@ -13,6 +13,9 @@ It is possible that as Ethereum runs natively on embedded devices a new revoluti
 
 ## New Features
 
+- Add TCP Bridge.
+- improve device key init.
+- add August lock crypto interface sample.
 - TokenScript/API interface [TokenScript](https://tokenscript.org)
 - uint256 class added to correctly handle Ethereum types.
 - usability methods added for converting between doubles and Wei values.
