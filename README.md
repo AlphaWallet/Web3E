@@ -82,7 +82,7 @@ Full source code for the [system active at the AlphaWallet office](https://www.y
 - [Platformio](https://platformio.org/)
 - [AlphaWallet](https://www.alphawallet.com)
 - [Testnet Eth Kovan](https://faucets.chain.link/kovan). Visit this site on the DApp browser, although it's locked down to only use MetaMask.
-- [Testnet Eth Goerli](https://goerli-faucet.slock.it/). Visit this site on your DApp browser.
+- [Testnet Eth Goerli](https://fauceth.komputing.org/?chain=5). Visit this site on your DApp browser - you'll need an ENS name to retrieve.
 Choose NonFungible token standard ERC721 or ERC875. Note the samples are written for ERC875 so you may need to adapt them for the ERC721 balance check.
 - [Mint some ERC721 tokens](https://mintable.app/create) Visit here on your DApp browser.
 - [Mint some ERC875 tokens](https://tf.alphawallet.com) Visit here on your DApp browser.
