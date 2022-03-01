@@ -81,7 +81,7 @@ https://github.com/alpha-wallet/Web3E-Application
 Full source code for the [system active at the AlphaWallet office](https://www.youtube.com/watch?v=D_pMOMxXrYY). To get it working you need:
 - [Platformio](https://platformio.org/)
 - [AlphaWallet](https://www.alphawallet.com)
-- [Testnet Eth Kovan](https://faucet.kovan.network). Visit this site on the DApp browser.
+- [Testnet Eth Kovan](https://faucets.chain.link/kovan). Visit this site on the DApp browser, although it's locked down to only use MetaMask.
 - [Testnet Eth Goerli](https://goerli-faucet.slock.it/). Visit this site on your DApp browser.
 Choose NonFungible token standard ERC721 or ERC875. Note the samples are written for ERC875 so you may need to adapt them for the ERC721 balance check.
 - [Mint some ERC721 tokens](https://mintable.app/create) Visit here on your DApp browser.
