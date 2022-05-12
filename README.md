@@ -2,7 +2,7 @@
 
 <img align="right" src="https://raw.githubusercontent.com/JamesSmartCell/Release-Test/master/Web3-Esmall.png">
 
-## Version 1.22
+## Version 1.3
 
 Web3E is a fully functional Web3 framework for Embedded devices running Arduino. Web3E now has methods which allow you to use TokenScript in your IoT solution for rapid deployment. Tested mainly on ESP32 and working on ESP8266. Also included is a rapid development DApp injector to convert your embedded server into a fully integrated Ethereum DApp. 
 
@@ -13,6 +13,7 @@ It is possible that as Ethereum runs natively on embedded devices a new revoluti
 
 ## New Features
 
+- Simplified Node connection.
 - Add TCP Bridge.
 - improve device key init.
 - add August lock crypto interface sample.
@@ -63,6 +64,24 @@ lib_deps =
 - Report pass/fail to callee.
 
 The advantage of using TokenScript rather than a dapp is evident from looking at the code example. You will have a very nice user interface defined with html/css with the calling code written in small JavaScript functions. The user would quickly find the entry token in their wallet.
+
+## New in Version 1.3 - easy node setup
+
+Web3E now has a series of API key free node endpoints for many EVMs. The full list can be found in ```src/chainIds.h```.
+Supply one of these to the Web3 object in your main sketch to start connecting.
+eg:
+```Web3 *web3 = new Web3(RINKEBY_ID);```
+```Web3 *web3 = new Web3(IOTEX_ID);```
+```Web3 *web3 = new Web3(MUMBAI_TEST_ID);```
+
+Note, if you have an Infura API key and wish to use Infura where possible, edit Web3.h like this:
+
+```
+#define USING_INFURA 1
+#define INFURA_KEY "1234567890abcdef1234567890abcdef" //<--- your Infura key here
+```
+
+Web3E will adjust the node endpoint to use Infura for all Infura supported networks. Note that you will need to enable Infura in the dashboard for all these networks; otherwise use the free connections.
 
 ## Example Web3E DApp flow
 
@@ -129,6 +148,11 @@ Declare UdpBridge, KeyID and Web3 in globals:
 UdpBridge *udpConnection;
 Web3 *web3;
 KeyID *keyID;
+```
+
+Setup your Web node
+```
+web3 = new Web3(MAINNET_ID);
 ```
 
 Start UDP bridge after connecting to WiFi:
@@ -253,10 +277,10 @@ void handleAPI(APIReturn *apiReturn, ScriptClient *client)
 ```
 // Setup Web3 and Contract with Private Key
 ...
-
-Contract contract(&web3, "");
+web3 = new Web3(RINKEBY_ID);
+Contract contract(web3, "");
 contract.SetPrivateKey(PRIVATE_KEY);
-uint32_t nonceVal = (uint32_t)web3.EthGetTransactionCount(&address); //obtain the next nonce
+uint32_t nonceVal = (uint32_t)web3->EthGetTransactionCount(&address); //obtain the next nonce
 uint256_t weiValue = Util::ConvertToWei(0.25, 18); //send 0.25 eth
 unsigned long long gasPriceVal = 1000000000ULL;
 uint32_t  gasLimitVal = 90000;
@@ -267,44 +291,44 @@ string result = contract.SendTransaction(nonceVal, gasPriceVal, gasLimitVal, &to
 
 ## Query ETH balance:
 ```
-uint256_t balance = web3.EthGetBalance(&address); //obtain balance in Wei
+uint256_t balance = web3->EthGetBalance(&address); //obtain balance in Wei
 string balanceStr = Util::ConvertWeiToEthString(&balance, 18); //get string balance as Eth (18 decimals)
 ```
 
 ## Query ERC20 Balance:
 ```
 string address = string("0x007bee82bdd9e866b2bd114780a47f2261c684e3");
-Contract contract(&web3, "0x20fe562d797a42dcb3399062ae9546cd06f63280"); //contract is on Ropsten
+Contract contract(web3, "0x20fe562d797a42dcb3399062ae9546cd06f63280"); //contract is on Ropsten
 
 //Obtain decimals to correctly display ERC20 balance (if you already know this you can skip this step)
 string param = contract.SetupContractData("decimals()", &address);
 string result = contract.ViewCall(&param);
-int decimals = web3.getInt(&result);
+int decimals = web3->getInt(&result);
 
 //Fetch the balance in base units
 param = contract.SetupContractData("balanceOf(address)", &address);
 result = contract.ViewCall(&param);
 
-uint256_t baseBalance = web3.getUint256(&result);
+uint256_t baseBalance = web3->getUint256(&result);
 string balanceStr = Util::ConvertWeiToEthString(&baseBalance, decimals); //convert balance to double style using decimal places
 ```
 
 ## Send ERC20 Token:
 ```
 string contractAddr = "0x20fe562d797a42dcb3399062ae9546cd06f63280";
-Contract contract(&web3, contractAddr.c_str());
+Contract contract(web3, contractAddr.c_str());
 contract.SetPrivateKey(<Your private key>);
 
 //Get contract name
 string param = contract.SetupContractData("name()", &addr);
 string result = contract.ViewCall(&param);
-string interpreted = Util::InterpretStringResult(web3.getString(&result).c_str());
+string interpreted = Util::InterpretStringResult(web3->getString(&result).c_str());
 Serial.println(interpreted.c_str());
 
 //Get Contract decimals
 param = contract.SetupContractData("decimals()", &addr);
 result = contract.ViewCall(&param);
-int decimals = web3.getInt(&result);
+int decimals = web3->getInt(&result);
 Serial.println(decimals);
 
 unsigned long long gasPriceVal = 22000000000ULL;
@@ -314,7 +338,7 @@ uint32_t  gasLimitVal = 4300000;
 uint256_t weiValue = Util::ConvertToWei(0.1, decimals);
 
 //get nonce
-uint32_t nonceVal = (uint32_t)web3.EthGetTransactionCount(&addr);
+uint32_t nonceVal = (uint32_t)web3->EthGetTransactionCount(&addr);
 string toAddress = "0x007bee82bdd9e866b2bd114780a47f2261c684e3";
 string valueStr = "0x00";
 
@@ -323,7 +347,7 @@ string p = contract.SetupContractData("transfer(address,uint256)", &toAddress, &
 
 //push transaction to ethereum
 result = contract.SendTransaction(nonceVal, gasPriceVal, gasLimitVal, &contractAddr, &valueStr, &p);
-string transactionHash = web3.getString(&result);
+string transactionHash = web3->getString(&result);
 ```
 
 Originally forked https://github.com/kopanitsa/web3-arduino but with almost a complete re-write it is a new framework entirely.
