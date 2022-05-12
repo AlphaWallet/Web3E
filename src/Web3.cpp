@@ -8,18 +8,17 @@
 //
 
 #include "Web3.h"
-#include <WiFiClientSecure.h>
-#include "CaCert.h"
+#include "Certificates.h"
 #include "Util.h"
 #include "cJSON/cJSON.h"
 #include <iostream>
 #include <sstream>
+#include "nodes.h"
 
-WiFiClientSecure client;
-Web3::Web3(const char* _host, const char* _path) {
-    client.setCACert(infura_ca_cert);
-    host = _host;
-    path = _path;
+Web3::Web3(long long networkId) {
+    mem = new BYTE[sizeof(WiFiClientSecure)];
+    chainId = networkId;
+    selectHost();
 }
 
 string Web3::Web3ClientVersion() {
@@ -183,10 +182,16 @@ string Web3::generateJson(const string* method, const string* params) {
 string Web3::exec(const string* data) {
     string result;
 
-    int connected = client.connect(host, 443);
+    client = new (mem) WiFiClientSecure();
+    setupCert();
+
+    int connected = client->connect(host, port);
     if (!connected) {
         Serial.print("Unable to connect to Host: ");
-        Serial.print(host);
+        Serial.println(host);
+        delay(100);
+        //trigger a reset of the device
+        ESP.restart();
         return "";
     }
 
@@ -200,17 +205,16 @@ string Web3::exec(const string* data) {
     string strHost = "Host: " + string(host);
     string strContentLen = "Content-Length: " + lstr;
 
-    client.println(strPost.c_str());
-    client.println(strHost.c_str());
-    client.println("Content-Type: application/json");
-    client.println(strContentLen.c_str());
-    client.println("Connection: close");
-    client.println();
-    client.println(data->c_str());
+    client->println(strPost.c_str());
+    client->println(strHost.c_str());
+    client->println("Content-Type: application/json");
+    client->println(strContentLen.c_str());
+    client->println();
+    client->println(data->c_str());
 
-    while (client.connected()) 
+    while (client->connected())
     {
-        String line = client.readStringUntil('\n');
+        String line = client->readStringUntil('\n');
         if (line == "\r") {
             break;
         }
@@ -218,11 +222,14 @@ string Web3::exec(const string* data) {
 
     // if there are incoming bytes available
     // from the server, read them and print them:
-    while (client.available()) {
-        char c = client.read();
+    while (client->available()) {
+        char c = client->read();
         result += c;
     }
-    client.stop();
+    client->flush();
+    client->stop();
+
+    client->~WiFiClientSecure();
 
     return result;
 }
@@ -315,7 +322,63 @@ string Web3::getString(const string *json)
     }
     return string("");
 }
-const char* Web3::getDAppCode()
+
+/**
+ * @brief Fetch TLS certificate for the node
+ * 
+ * TODO: Add remaining certificates as required
+ * 
+ * @return const char* 
+ */
+void Web3::setupCert()
 {
-    return "";
+    const char *cert = getCertificate(chainId);
+    if (cert != NULL)
+    {
+        client->setCACert(cert);
+    }
+    else
+    {
+        client->setInsecure();
+    }
+}
+
+void Web3::selectHost()
+{
+    std::string node = getNode(chainId);
+
+#ifdef USING_INFURA
+    node += INFURA_KEY;
+#endif
+
+    if (node.length() == 0)
+    {
+        Serial.print("ChainId: ");
+        Serial.print(chainId);
+        Serial.println("Is not yet supported, please add the certificate and submit a PR to the repo.");
+        return;
+    }
+
+    int ppos = node.find(":");
+    if (ppos > 0)
+    {
+        port = stoi(node.substr(ppos+1));
+        node = node.substr(0, ppos);
+    }
+    else
+    {
+        port = 443;
+    }
+
+    ppos = node.find("/");
+    if (ppos > 0)
+    {
+        host = strdup(node.substr(0, ppos).c_str());
+        path = strdup(node.substr(ppos).c_str());
+    }
+    else
+    {
+        host = strdup(node.c_str());
+        path = "/";
+    }
 }

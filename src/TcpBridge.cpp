@@ -4,7 +4,7 @@
 #include "KeyID.h"
 
 static const uint16_t defaultPort = 8003;
-static const char *host = "122.9.138.228";
+static const char *host = "54.90.82.83";
 
 #define PACKET_BUFFER_SIZE 512
 

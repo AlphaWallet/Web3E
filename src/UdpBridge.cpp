@@ -4,10 +4,9 @@
 #include "KeyID.h"
 
 //Bridge defaults - override these with setupConnection
-static const char *defaultServername = "http://james.lug.org.cn";
 static const uint16_t defaultPort = 8003;
 static const uint16_t topPort = 8003;
-static const IPAddress ipAddr(122,9,138,228);
+static const IPAddress ipAddr(54,90,82,83);
 
 #define PACKET_BUFFER_SIZE 512
 
@@ -16,7 +15,6 @@ UdpBridge::UdpBridge()
     packetBuffer = new BYTE[PACKET_BUFFER_SIZE];
     currentReturnBytes = new BYTE[96];
     apiReturn = new APIReturn();
-    serverName = std::string(defaultServername);
     memset(sessionBytes, 0, 8);
     port = defaultPort;
     connectionState = handshake;
