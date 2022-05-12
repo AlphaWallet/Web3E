@@ -40,13 +40,10 @@ void Initialize()
   s_apiRoutes["end"] = api_end;
 }
 
-const char *INFURA_HOST = "rinkeby.infura.io";
-const char *INFURA_PATH = "/v3/c7df4c29472d4d54a39f7aa78f146853";
-
 void generateSeed(BYTE *buffer);
 void updateChallenge();
 void setupWifi();
-Web3 web3(INFURA_HOST, INFURA_PATH);
+Web3 *web3;
 KeyID *keyID;
 
 long blueToothTimer = 0;
@@ -101,7 +98,7 @@ bool QueryBalance(const char *contractAddr, std::string *userAddress)
 {
   // transaction
   bool hasToken = false;
-  Contract contract(&web3, contractAddr);
+  Contract contract(web3, contractAddr);
   string func = "balanceOf(address)";
   string param = contract.SetupContractData(func.c_str(), userAddress);
   string result = contract.ViewCall(&param);
@@ -109,7 +106,7 @@ bool QueryBalance(const char *contractAddr, std::string *userAddress)
   Serial.println(result.c_str());
 
   // break down the result
-  uint256_t baseBalance = web3.getUint256(&result);
+  uint256_t baseBalance = web3->getUint256(&result);
 
   if (baseBalance > 0)
   {
@@ -170,11 +167,12 @@ void setup()
   delay(100);
   setupWifi();
   actionHandler = new ActionHandler(6);
-  keyID = new KeyID(&web3);
+  web3 = new Web3(RINKEBY_ID);
+  keyID = new KeyID(web3);
   updateChallenge();
 
   tcpConnection = new TcpBridge();
-  tcpConnection->setKey(keyID, &web3);
+  tcpConnection->setKey(keyID, web3);
   tcpConnection->startConnection();
 }
 

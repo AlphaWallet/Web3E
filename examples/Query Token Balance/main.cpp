@@ -13,14 +13,12 @@
 
 const char *ssid = "<YOUR SSID>";
 const char *password = "<YOUR WiFi PASSWORD>";
-const char *INFURA_HOST = "kovan.infura.io";
-const char *INFURA_PATH = "/v3/<your Infura token>";    //this is an anonymous infura public API key for courtesy testing, please don't use it for production
 #define NATIVE_ETH_TOKENS "Kovan ETH"                                //if you switch chains you might want to change this
 #define ERC875CONTRACT "0x0b70dd9f8ada11eee393c8ab0dd0d3df6a172876"  //an ERC875 token contract on Kovan
 #define ERC20CONTRACT  "0xb06d72a24df50d4e2cac133b320c5e7de3ef94cb"  //and ERC20 token contract on Kovan
 #define USERACCOUNT "0x835bb27deec61e1cd81b3a2feec9fbd76b15971d"     //a user account that holds Kovan ETH and balances of tokens in the two above contracts 
 
-Web3 web3(INFURA_HOST, INFURA_PATH);
+Web3 *web3;
 int wificounter = 0;
 
 void queryERC875Balance(const char* Address, const char* ERC875ContractAddress);
@@ -32,7 +30,9 @@ void QueryEthBalance(const char* Address);
 void setup() 
 {
     Serial.begin(115200); //ensure you set your Arduino IDE port config or platformio.ini with monitor_speed = 115200
-    setup_wifi();
+    setup_wifi(KOVAN_ID);
+
+    web3 = new Web3(KOVAN_ID);
 
     string userAddress = USERACCOUNT;
 
@@ -50,7 +50,7 @@ void loop()
 void queryERC875Balance(const char* ContractAddress, const char *userAddress)
 {
 	// transaction
-	Contract contract(&web3, ContractAddress);
+	Contract contract(web3, ContractAddress);
 
 	String myAddr = userAddress;
 
@@ -82,7 +82,7 @@ void queryERC875Balance(const char* ContractAddress, const char *userAddress)
 	//Call contract name function
 	param = contract.SetupContractData("name()", &userAddress);
 	result = contract.ViewCall(&param);
-	string contractName = web3.getString(&result);
+	string contractName = web3->getString(&result);
 	Serial.println("NAME: ");
 	// recover actual string name
 	string interpreted = Util::InterpretStringResult(contractName.c_str());
@@ -92,16 +92,16 @@ void queryERC875Balance(const char* ContractAddress, const char *userAddress)
 // Query balance of ERC20 token
 void queryERC20Balance(const char* ContractAddress, const char *userAddress)
 {
-    Contract contract(&web3, contractAddr);
+    Contract contract(web3, contractAddr);
     String address = userAddress;
     string param = contract.SetupContractData("balanceOf(address)", &address);
     string result = contract.ViewCall(&param);
 
     param = contract.SetupContractData("decimals()", &address);
     result = contract.ViewCall(&param);
-    int decimals = web3.getInt(&result);
+    int decimals = web3->getInt(&result);
 
-    uint256_t baseBalance = web3.getUint256(&result);
+    uint256_t baseBalance = web3->getUint256(&result);
     string balanceStr = Util::ConvertWeiToEthString(&baseBalance, decimals); //use decimals to calculate value, not all ERC20 use 18 decimals
 
     Serial.print("ERC20 Balance: ");

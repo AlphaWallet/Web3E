@@ -27,8 +27,6 @@
 const char *ssid = "<Your SSID>";
 const char *password = "<Your WiFi password>";
 #define MY_ADDRESS "0xDA358D1547238335Cc666E318c511Fed455Ed77C"      //Put your wallet address here
-#define INFURA_HOST "kovan.infura.io"
-#define INFURA_PATH "/v3/c7df4c29472d4d54a39f7aa78f146853"           //please change this Infura key to your own once you have the sample running
 #define TARGETADDRESS "0x007bEe82BDd9e866b2bd114780a47f2261C684E3"   //put your second address here
 #define ETHERSCAN_TX "https://kovan.etherscan.io/tx/"
 
@@ -36,7 +34,7 @@ const char *password = "<Your WiFi password>";
 const char *PRIVATE_KEY = "DabbaD00DabbaD00DabbaD00DabbaD00DabbaD00DabbaD00DabbaD00DabbaD00"; //32 Byte Private key 
 
 int wificounter = 0;
-Web3 web3(INFURA_HOST, INFURA_PATH);
+Web3 *web3;
 
 void setup_wifi();
 void sendEthToAddress(double eth, const char *destination); 
@@ -44,6 +42,8 @@ double queryAccountBalance(const char *address);
 
 void setup() {
     Serial.begin(115200);
+
+    web3 = new Web3(KOVAN_ID);
 
     setup_wifi();
 
@@ -69,7 +69,7 @@ void setup() {
 
 double queryAccountBalance(const char *address)
 {
-	uint256_t balance = web3.EthGetBalance(&address); //obtain balance in Wei
+	uint256_t balance = web3->EthGetBalance(&address); //obtain balance in Wei
 	string balanceStr = Util::ConvertWeiToEthString(&balance, 18); //Eth uses 18 decimal
 	Serial.print("Balance: ");
 	Serial.println(balanceStr.c_str());
@@ -80,7 +80,7 @@ double queryAccountBalance(const char *address)
 void sendEthToAddress(double eth, const char *destination)
 {
 	//obtain a contract object, for just sending eth doesn't need a contract address
-	Contract contract(&web3, "");
+	Contract contract(web3, "");
 	contract.SetPrivateKey(PRIVATE_KEY);
 	unsigned long long gasPriceVal = 22000000000ULL;
 	uint32_t  gasLimitVal = 90000;
@@ -91,13 +91,13 @@ void sendEthToAddress(double eth, const char *destination)
 	string destinationAddress = destination;
 
 	Serial.print("Get Nonce: ");
-	uint32_t nonceVal = (uint32_t)web3.EthGetTransactionCount(&address);
+	uint32_t nonceVal = (uint32_t)web3->EthGetTransactionCount(&address);
 	Serial.println(nonceVal);
 	Serial.println("Send TX");
 	string result = contract.SendTransaction(nonceVal, gasPriceVal, gasLimitVal, &destinationAddress, &weiValue, &emptyString);
 	Serial.println(result.c_str());
 
-	string transactionHash = web3.getString(&result);
+	string transactionHash = web3->getString(&result);
 	Serial.println("TX on Etherscan:");
 	Serial.print(ETHERSCAN_TX);
 	Serial.println(transactionHash.c_str()); //you can go straight to etherscan and see the pending transaction

@@ -26,16 +26,13 @@
 const char *ssid = "<your SSID>";
 const char *password = "<your password";
 
-const char *INFURA_HOST = "goerli.infura.io";
-const char *INFURA_PATH = "/v3/c7df4c29472d4d54a39f7aa78f146853";
-
 //This is the address of the ERC875 Token Contract you created
 #define TOKEN_CONTRACT "0x0000000000000000000000000000000000000000" 
 
 #define BLUE_LED 22 // Little blue LED on the ESP32 TTGO
 
 TcpBridge *tcpConnection;
-Web3 web3(INFURA_HOST, INFURA_PATH);
+Web3 *web3;
 KeyID *keyID;
 std::string challenge;
 boolean blinkLEDOn = false;
@@ -74,14 +71,15 @@ void Initialize()
 void setup() 
 {
   Serial.begin(115200);
-  keyID = new KeyID(&web3);
+  web3 = new Web3(KOVAN_ID);
+  keyID = new KeyID(web3);
   pinMode(BLUE_LED, OUTPUT);
   digitalWrite(BLUE_LED, 0);
   setupWifi();
   Initialize(); //init after wifi setup to change startup delay
 
   tcpConnection = new TcpBridge();
-  tcpConnection->setKey(keyID, &web3);
+  tcpConnection->setKey(keyID, web3);
   tcpConnection->startConnection();
   resetChallenge();
 }
@@ -197,7 +195,7 @@ bool hasToken(const std::string &userAddress)
 {
     boolean hasToken = false;
     const char *contractAddr = TOKEN_CONTRACT;
-    Contract contract(&web3, contractAddr);
+    Contract contract(web3, contractAddr);
     string func = "balanceOf(address)";
     string param = contract.SetupContractData(func.c_str(), userAddress);
     string result = contract.ViewCall(&param);
