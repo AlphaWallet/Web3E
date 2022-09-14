@@ -12,6 +12,7 @@ class KeyID
 {
 public:
     KeyID(Web3* web3);
+    KeyID(Web3* web3, const std::string& privateKey);
     void generatePrivateKey(Web3* web3);
     void getSignature(uint8_t* signature, BYTE *msgBytes, int length);
     const std::string getAddress();

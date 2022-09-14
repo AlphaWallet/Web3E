@@ -4,7 +4,8 @@
 #include "KeyID.h"
 
 static const uint16_t defaultPort = 8003;
-static const char *host = "54.90.82.83";
+static const char *hostName = "scriptproxy.smarttokenlabs.com";
+//static const char *host = "54.90.82.83";
 
 #define PACKET_BUFFER_SIZE 512
 
@@ -26,7 +27,7 @@ void TcpBridge::setKey(KeyID *key, Web3 *w3)
 void TcpBridge::startConnection()
 {
     // start default port and server
-    if (!connect(host, port))
+    if (!connect(hostName, port))
     {
         Serial.println("connection failed");
     }
