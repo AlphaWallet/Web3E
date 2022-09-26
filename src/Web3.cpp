@@ -16,7 +16,26 @@
 #include "nodes.h"
 
 Web3::Web3(long long networkId) {
+    infura_key = 0;
     mem = new BYTE[sizeof(WiFiClientSecure)];
+    chainId = networkId;
+    selectHost();
+}
+
+Web3::Web3(long long networkId, const char* infura_key_str) {
+    mem = new BYTE[sizeof(WiFiClientSecure)];
+    if (strnlen(infura_key_str, 34) != 32)
+    {
+        Serial.println("Incorrect Infura Key spec, fallback to free node");
+        infura_key = 0;
+    }
+    else
+    {
+        infura_key = infura_key_str;
+        Serial.print("Setting Infura Key: ");
+        Serial.println(infura_key);
+    }
+
     chainId = networkId;
     selectHost();
 }
@@ -332,7 +351,7 @@ string Web3::getString(const string *json)
  */
 void Web3::setupCert()
 {
-    const char *cert = getCertificate(chainId);
+    const char *cert = getCertificate(chainId, infura_key);
     if (cert != NULL)
     {
         client->setCACert(cert);
@@ -345,11 +364,14 @@ void Web3::setupCert()
 
 void Web3::selectHost()
 {
-    std::string node = getNode(chainId);
+    std::string node = getNode(chainId, infura_key);
 
-#ifdef USING_INFURA
-    node += INFURA_KEY;
-#endif
+    if (infura_key != 0)
+    {
+        Serial.print("Setting Infura Key: ");
+        Serial.println(infura_key);
+        node += infura_key;
+    }
 
     if (node.length() == 0)
     {

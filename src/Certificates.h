@@ -3,7 +3,6 @@
 
 #include "chainIds.h"
 
-#ifdef USING_INFURA
 const char* infura_ca_cert = \
 "-----BEGIN CERTIFICATE-----\n" \
 "MIID7zCCAtegAwIBAgIBADANBgkqhkiG9w0BAQsFADCBmDELMAkGA1UEBhMCVVMx\n" \
@@ -31,7 +30,6 @@ const char* infura_ca_cert = \
 "-----END CERTIFICATE-----\n" \
 ;
 
-#else
 const char *linkpool_mainnet_cert = \
 "-----BEGIN CERTIFICATE-----\n" \
 "MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw\n" \
@@ -92,7 +90,6 @@ const char *linkpool_cert = \
 "WQPJIrSPnNVeKtelttQKbfi3QBFGmh95DmK/D5fs4C8fF5Q=\n" \
 "-----END CERTIFICATE-----\n" \
 ;
-#endif
 
 const char* klaytn_cert = \
 "-----BEGIN CERTIFICATE-----\n" \
@@ -155,14 +152,19 @@ const char *iotex_cert = \
  * @param chainId 
  * @return const char* 
  */
-const char* getCertificate(long long chainId)
+const char* getCertificate(long long chainId, const char* infura_key)
 {
     switch (chainId)
     {
-#ifdef USING_INFURA
     case MAINNET_ID:
-    case RINKEBY_ID:
-    case GOERLI_ID:
+        if (infura_key != 0)
+        {
+            return infura_ca_cert;
+        }
+        else
+        {
+            return linkpool_mainnet_cert;
+        }
     case POLYGON_ID:
     case KOVAN_ID:
     case MUMBAI_TEST_ID:
@@ -172,14 +174,25 @@ const char* getCertificate(long long chainId)
     case ARBITRUM_TEST_ID:
     case PALM_ID:
     case PALM_TEST_ID:
-        return infura_ca_cert;
-#else
-    case MAINNET_ID:
-        return linkpool_mainnet_cert;
+        if (infura_key != 0)
+        {
+            return infura_ca_cert;
+        }
+        else
+        {
+            return 0; //currently no cert
+        }
+        
     case RINKEBY_ID:
     case GOERLI_ID:
-        return linkpool_cert;
-#endif
+        if (infura_key != 0)
+        {
+            return infura_ca_cert;
+        }
+        else
+        {
+            return linkpool_cert;
+        }
     case KLAYTN_ID:
     case KLAYTN_BOABAB_ID:
         return klaytn_cert;

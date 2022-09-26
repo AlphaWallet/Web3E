@@ -17,9 +17,6 @@ typedef unsigned char BYTE;
 #define ETHERS_KECCAK256_LENGTH        32
 #define ETHERS_SIGNATURE_LENGTH        65
 
-//#define USING_INFURA 1
-//#define INFURA_KEY "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"  //<--- Your Infura key here, if you use Infura
-
 class Web3;
 class Crypto;
 class KeyID;
@@ -49,6 +46,7 @@ enum ConnectionStage
 class Web3 {
 public:
     Web3(long long chainId);
+    Web3(long long chainId, const char* infura_key);
     string Web3ClientVersion();
     string Web3Sha3(const string* data);
     int NetVersion();
@@ -88,6 +86,7 @@ private:
     BYTE *mem;
     const char* host;
     const char* path;
+    const char* infura_key;
     unsigned short port;
     long long chainId;
 };

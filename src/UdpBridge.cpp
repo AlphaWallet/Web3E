@@ -6,7 +6,7 @@
 //Bridge defaults - override these with setupConnection
 static const uint16_t defaultPort = 8003;
 static const uint16_t topPort = 8003;
-static const IPAddress ipAddr(54,90,82,83);
+static const IPAddress ipAddr(3,95,243,251);
 
 #define PACKET_BUFFER_SIZE 512
 
