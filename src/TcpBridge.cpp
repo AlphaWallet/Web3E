@@ -5,7 +5,6 @@
 
 static const uint16_t defaultPort = 8003;
 static const char *hostName = "scriptproxy.smarttokenlabs.com";
-//static const char *host = "192.168.50.9";
 
 #define PACKET_BUFFER_SIZE 512
 
@@ -65,8 +64,8 @@ void TcpBridge::checkClientAPI(TcpBridgeCallback callback)
         lastComms = millis();
         std::string result;
 
-        Serial.print("RCV: ");
-        Serial.println(len);
+        //Serial.print("RCV: ");
+        //Serial.println(len);
 
         switch (type)
         {

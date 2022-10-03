@@ -2,7 +2,17 @@
 
 <img align="right" src="https://raw.githubusercontent.com/JamesSmartCell/Release-Test/master/Web3-Esmall.png">
 
-## Version 1.32 [![PlatformIO Registry](https://badges.registry.platformio.org/packages/alphawallet/library/Web3E.svg)](https://registry.platformio.org/libraries/alphawallet/Web3E)
+## Version 1.33 [![PlatformIO Registry](https://badges.registry.platformio.org/packages/alphawallet/library/Web3E.svg)](https://registry.platformio.org/libraries/alphawallet/Web3E)
+
+What's New:
+
+v1.33:
+- Fix & simplify node setup - only need to specify numeric ChainID or use the pre-definition eg ```GOERLI_ID```.
+- Fix & update Node certificates.
+- Add Sepolia, Arbirtum and Optimism Goerli. 
+
+For a working demonstation of TokenScript and Web3E please try minting an ERC5169/TokenScript powered ERC721 NFT here: http://smarttokenlabs.duckdns.org
+You will need AlphaWallet on your mobile phone; simply replace the main.cpp in the project here: https://github.com/TokenScript/TokenScriptTestContracts/tree/master/firmware with the generated project which the Token wizard generates.
 
 Web3E is a fully functional Web3 framework for Embedded devices running Arduino. Web3E now has methods which allow you to use TokenScript in your IoT solution for rapid deployment. Tested mainly on ESP32 and working on ESP8266. Also included is a rapid development DApp injector to convert your embedded server into a fully integrated Ethereum DApp. 
 

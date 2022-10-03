@@ -15,19 +15,10 @@
 #define ARBITRUM_INF_TEST_RPC_URL "arbitrum-rinkeby.infura.io/v3/"
 #define PALM_INF_RPC_URL "palm-mainnet.infura.io/v3/"
 #define PALM_INF_TEST_RPC_URL "palm-testnet.infura.io/v3/"
-#define MAINNET_RPC_URL "main-rpc.linkpool.io"
-#define POLYGON_RPC_URL "polygon-rpc.com"
-#define ARBITRUM_RPC_URL "arbitrum.public-rpc.com"
-#define RINKEBY_RPC_URL "rinkeby-light.eth.linkpool.io"
-#define GOERLI_RPC_URL "goerli-light.eth.linkpool.io"
-#define MUMBAI_RPC_URL "rpc-mumbai.maticvigil.com"
-#define OPTIMISM_RPC_URL "mainnet.optimism.io"
-#define ARBITRUM_TEST_RPC_URL "rinkeby.arbitrum.io/rpc"
-#define KOVAN_RPC_URL "kovan.poa.network"
-#define OPTIMISM_TESTRPC_URL "kovan.optimism.io"
-#define PALM_RPC_URL "palm-mainnet.infura.io/v3/3a961d6501e54add9a41aa53f15de99b"
-#define PALM_TEST_RPC_URL "palm-testnet.infura.io/v3/3a961d6501e54add9a41aa53f15de99b"
+#define OPTIMISM_INF_GOERLI_URL "optimism-goerli.infura.io/v3/"
+#define ARBITRUM_INF_GOERLI_URL "arbitrum-goerli.infura.io/v3/"
 
+#define SEPOLIA_URL "rpc.sepolia.org"
 #define CLASSIC_RPC_URL "www.ethercluster.com/etc"
 #define XDAI_RPC_URL "rpc.xdaichain.com"
 #define POA_RPC_URL "core.poa.network"
@@ -48,54 +39,26 @@
 #define KLAYTN_RPC "public-node-api.klaytnapi.com/v1/cypress"
 #define KLAYTN_BAOBAB_RPC "api.baobab.klaytn.net:8651"
 
-const char* getNode(long long chainId, const char *infura_key)
+const char* getNode(long long chainId)
 {
     switch (chainId)
     {
     case MAINNET_ID:
-        if (infura_key != 0)
-        {
-            return MAINNET_INF_RPC_URL;
-        }
-        else
-        {
-            return MAINNET_RPC_URL;
-        }
+        return MAINNET_INF_RPC_URL;
     case CLASSIC_ID:
         return CLASSIC_RPC_URL;
     case POA_ID:
         return POA_RPC_URL;
     case KOVAN_ID:
-        if (infura_key != 0)
-        {
-            return KOVAN_INF_RPC_URL;
-        }
-        else
-        {
-            return KOVAN_RPC_URL;
-        }
+        return KOVAN_INF_RPC_URL;
     case SOKOL_ID:
         return SOKOL_RPC_URL;
     case RINKEBY_ID:
-        if (infura_key != 0)
-        {
-            return RINKEBY_INF_RPC_URL;
-        }
-        else
-        {
-            return RINKEBY_RPC_URL;
-        }
+        return RINKEBY_INF_RPC_URL;
     case XDAI_ID:
         return XDAI_RPC_URL;
     case GOERLI_ID:
-        if (infura_key != 0)
-        {
-            return GOERLI_INF_RPC_URL;
-        }
-        else
-        {
-            return GOERLI_RPC_URL;
-        }
+        return GOERLI_INF_RPC_URL;
     case KLAYTN_ID:
         return KLAYTN_RPC;
     case KLAYTN_BOABAB_ID:
@@ -105,63 +68,27 @@ const char* getNode(long long chainId, const char *infura_key)
     case IOTEX_TESTNET_ID:
         return IOTEX_TESTNET_RPC_URL;
     case POLYGON_ID:
-        if (infura_key != 0)
-        {
-            return POLYGON_INF_RPC_URL;
-        }
-        else
-        {
-            return POLYGON_RPC_URL;
-        }
+        return POLYGON_INF_RPC_URL;
     case MUMBAI_TEST_ID:
-        if (infura_key != 0)
-        {
-            return MUMBAI_INF_RPC_URL;
-        }
-        else
-        {
-            return MUMBAI_RPC_URL;
-        }
+        return MUMBAI_INF_RPC_URL;
     case MILKOMEDA_C1_ID:
         return MILKOMEDA_C1_RPC;
     case MILKOMEDA_C1_TEST_ID:
         return MILKOMEDA_C1_TEST_RPC;
     case ARBITRUM_MAIN_ID:
-        if (infura_key != 0)
-        {
-            return ARBITRUM_INF_RPC_URL;
-        }
-        else
-        {
-            return ARBITRUM_RPC_URL;
-        }
+        ARBITRUM_INF_RPC_URL;
     case OPTIMISTIC_MAIN_ID:
-        if (infura_key != 0)
-        {
-            return OPTIMISM_INF_RPC_URL;
-        }
-        else
-        {
-            return OPTIMISM_RPC_URL;
-        }
-    case ARBITRUM_TEST_ID:
-        if (infura_key != 0)
-        {
-            return ARBITRUM_INF_TEST_RPC_URL;
-        }
-        else
-        {
-            return ARBITRUM_TEST_RPC_URL;
-        }
-    case OPTIMISTIC_TEST_ID:
-        if (infura_key != 0)
-        {
-            return OPTIMISM_INF_RPC_URL;
-        }
-        else
-        {
-            return OPTIMISM_RPC_URL;
-        }
+        return OPTIMISM_INF_RPC_URL;
+    case ARBITRUM_RINKEBY_TEST_ID_DEPRECATED:
+        return ARBITRUM_INF_TEST_RPC_URL;
+    case OPTIMISTIC_KOVAN_TEST_ID_DEPRECATED:
+        return OPTIMISM_INF_RPC_URL;
+    case SEPOLIA_ID:
+        return SEPOLIA_URL;
+    case OPTIMISM_GOERLI_ID:
+        return OPTIMISM_INF_GOERLI_URL;
+    case ARBITRUM_GOERLI_ID:
+        return ARBITRUM_INF_GOERLI_URL;
 
     default:
         return "";

@@ -17,6 +17,8 @@ typedef unsigned char BYTE;
 #define ETHERS_KECCAK256_LENGTH        32
 #define ETHERS_SIGNATURE_LENGTH        65
 
+#define INFURA_API_KEY "a9d6b1764a464faaa8f0399958601361" //For production you will want to make your own API key, visit https://infura.io
+
 class Web3;
 class Crypto;
 class KeyID;

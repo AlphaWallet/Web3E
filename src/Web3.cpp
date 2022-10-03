@@ -16,7 +16,7 @@
 #include "nodes.h"
 
 Web3::Web3(long long networkId) {
-    infura_key = 0;
+    infura_key = INFURA_API_KEY;
     mem = new BYTE[sizeof(WiFiClientSecure)];
     chainId = networkId;
     selectHost();
@@ -26,8 +26,8 @@ Web3::Web3(long long networkId, const char* infura_key_str) {
     mem = new BYTE[sizeof(WiFiClientSecure)];
     if (strnlen(infura_key_str, 34) != 32)
     {
-        Serial.println("Incorrect Infura Key spec, fallback to free node");
-        infura_key = 0;
+        Serial.println("Incorrect Infura Key spec, fallback to staging API key");
+        infura_key = INFURA_API_KEY;
     }
     else
     {
@@ -351,7 +351,7 @@ string Web3::getString(const string *json)
  */
 void Web3::setupCert()
 {
-    const char *cert = getCertificate(chainId, infura_key);
+    const char *cert = getCertificate(chainId);
     if (cert != NULL)
     {
         client->setCACert(cert);
@@ -364,12 +364,10 @@ void Web3::setupCert()
 
 void Web3::selectHost()
 {
-    std::string node = getNode(chainId, infura_key);
+    std::string node = getNode(chainId);
 
-    if (infura_key != 0)
+    if (node.find("infura.io") != std::string::npos)
     {
-        Serial.print("Setting Infura Key: ");
-        Serial.println(infura_key);
         node += infura_key;
     }
 
@@ -377,7 +375,7 @@ void Web3::selectHost()
     {
         Serial.print("ChainId: ");
         Serial.print(chainId);
-        Serial.println("Is not yet supported, please add the certificate and submit a PR to the repo.");
+        Serial.println("Is not yet supported, please add the RPC (and certificate if required) and submit a PR to the repo.");
         return;
     }
 
