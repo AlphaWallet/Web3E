@@ -7,7 +7,7 @@
 What's New:
 
 v1.33:
-- Fix & simplify node setup - only need to specify numeric ChainID or use the pre-definition eg ```GOERLI_ID```.
+- Fix & simplify node setup - only need to specify numeric ChainID or use the pre-definition eg ```Web3 web3 = new Web3(GOERLI_ID)```.
 - Fix & update Node certificates.
 - Add Sepolia, Arbirtum and Optimism Goerli. 
 
