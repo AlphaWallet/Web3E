@@ -24,7 +24,7 @@ THE SOFTWARE.
 
 With much help from Auston Sterling
 
-Thanks to François Dessenne for convincing me
+Thanks to Franï¿½ois Dessenne for convincing me
 to do a general rewrite of this class.
 */
 
@@ -67,7 +67,7 @@ class uint256_t{
         uint256_t(const S & upper_rhs, const T & lower_rhs)
             : UPPER(upper_rhs), LOWER(lower_rhs)
         {}
-       template <typename R, typename S, typename T, typename U,
+        template <typename R, typename S, typename T, typename U,
                 typename = typename std::enable_if<std::is_integral<R>::value && 
                 std::is_integral<S>::value && 
                 std::is_integral<T>::value && 

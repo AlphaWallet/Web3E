@@ -94,10 +94,9 @@ string Contract::SetupContractData(const char* func, ...)
             string output = GenerateBytesForString(va_arg(args, string *));
             ret = ret + string(output);
         }
-        else if (strncmp(params[i].c_str(), "bytes", sizeof("bytes")) == 0)
+        else if (strncmp(params[i].c_str(), "bytes", sizeof("bytes")) == 0) //if sending bytes, take the value in hex
         {
-            long len = strtol(params[i].c_str() + 5, nullptr, 10);
-            string output = GenerateBytesForBytes(va_arg(args, char *), len);
+            string output = GenerateBytesForHexBytes(va_arg(args, string *));
             ret = ret + string(output);
         }
     }
@@ -212,11 +211,25 @@ string Contract::GenerateBytesForString(const string *value)
     return GenerateBytesForBytes(valuePtr, length);
 }
 
+string Contract::GenerateBytesForHexBytes(const string *value)
+{
+    string cleaned = *value;
+    if (value->at(0) == 'x') cleaned = value->substr(1);
+    else if (value->at(1) == 'x') cleaned = value->substr(2);
+    string digitsStr = Util::intToHex(cleaned.length() / 2); //bytes length will be hex length / 2
+    string lengthDesignator = string(64 - digitsStr.length(), '0') + digitsStr;
+    //write designator. TODO: This should be done for multiple inputs not just single inputs
+    lengthDesignator = "0000000000000000000000000000000000000000000000000000000000000020" + lengthDesignator;
+    cleaned = lengthDesignator + cleaned;
+    size_t digits = cleaned.length() % 64;
+    return cleaned + string(64 - digits, '0');
+}
+
 string Contract::GenerateBytesForBytes(const char *value, const int len)
 {
-    string bytesStr = Util::ConvertBytesToHex((const uint8_t *)value, len);
+    string bytesStr = Util::ConvertBytesToHex((const uint8_t *)value, len).substr(2); //clean hex prefix;
     size_t digits = bytesStr.length();
-    return bytesStr + string(64 - digits, '0');
+    return bytesStr + string(64 - digits, '0'); 
 }
 
 vector<uint8_t> Contract::RlpEncode(

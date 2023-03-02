@@ -6,7 +6,7 @@
 //Bridge defaults - override these with setupConnection
 static const uint16_t defaultPort = 8003;
 static const uint16_t topPort = 8003;
-static const IPAddress ipAddr(3,95,243,251);
+static const char *hostName = "scriptproxy.smarttokenlabs.com";
 
 #define PACKET_BUFFER_SIZE 512
 
@@ -135,9 +135,23 @@ void UdpBridge::scanAPI(const BYTE *packet, APIReturn *apiReturn, int payloadLen
     }
 }
 
+int UdpBridge::getArglen(const BYTE *packet, int &index)
+{
+    int byteArgLen = packet[index++] & 0xFF;
+    int argLen = byteArgLen;
+
+    while ((byteArgLen & 0xFF) == 0xFF)
+    {
+        byteArgLen = packet[index++] & 0xFF;
+        argLen += byteArgLen;
+    }
+
+    return argLen;
+}
+
 std::string UdpBridge::getArg(const BYTE *packet, int &index, int payloadLength)
 {
-    int argLen = packet[index++] & 0xFF;
+    int argLen = getArglen(packet, index);
     std::string retVal = "";
     int endIndex = index + argLen;
     if (endIndex > payloadLength)
@@ -152,7 +166,7 @@ std::string UdpBridge::getArg(const BYTE *packet, int &index, int payloadLength)
 
 void UdpBridge::reSendResponse()
 {
-    beginPacket(ipAddr, port);
+    beginPacket(hostName, port);
     write(currentReturnBytes, currentReturnBytesLen);
     endPacket();
 }
@@ -165,7 +179,7 @@ void UdpBridge::sendRefreshRequest()
     packetBuffer[10] = 0x00;
     int packetLength = 11;
 
-    beginPacket(ipAddr, port);
+    beginPacket(hostName, port);
     write(packetBuffer, packetLength);
     endPacket();
 }
@@ -184,7 +198,7 @@ void UdpBridge::sendResponse(std::string resp, int methodId)
     memcpy(currentReturnBytes, packetBuffer, packetLength);
     currentReturnBytesLen = packetLength;
 
-    beginPacket(ipAddr, port);
+    beginPacket(hostName, port);
     write(packetBuffer, packetLength);
     endPacket();
 }
@@ -251,7 +265,7 @@ void UdpBridge::sendSignature()
     memcpy(currentReturnBytes, packetBuffer, packetLength);
     currentReturnBytesLen = packetLength;
 
-    beginPacket(ipAddr, port);
+    beginPacket(hostName, port);
     write(packetBuffer, packetLength);
     endPacket();
 }
@@ -277,7 +291,7 @@ void UdpBridge::sendPing()
     packetBuffer[0] = 0x03; //Ping
     //write signature of session token
     memcpy(packetBuffer + 1, verifiedSessionBytes, 8);
-    beginPacket(ipAddr, port);
+    beginPacket(hostName, port);
     write(packetBuffer, 9);
     endPacket();
 }

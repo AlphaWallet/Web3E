@@ -34,6 +34,7 @@ private:
     inline boolean isNewSession();
     void sendPing();
     void sendResponse(std::string resp, int methodId);
+    int  getArglen(const BYTE *packet, int &index);
 
     Web3 *web3;
     KeyID *keyID;

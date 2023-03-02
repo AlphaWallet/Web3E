@@ -49,8 +49,10 @@ public:
     static void PadForward(string *target, int targetSize);
     static uint256_t ConvertToWei(double val, int decimals);
     static string ConvertWeiToEthString(uint256_t *weiVal, int decimals);
+    static string intToHex(int value);
 
     static vector<string>* ConvertCharStrToVector32(const char *resultPtr, size_t resultSize, vector<string> *result);
+    static vector<string>* ConvertResultToArray(string *result);
 
     static string  ConvertEthToWei(double eth);
     static string toString(int value);

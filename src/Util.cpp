@@ -560,6 +560,36 @@ vector<string>* Util::ConvertCharStrToVector32(const char *resultPtr, size_t res
 	return result;
 }
 
+/**
+ * @brief Only use to handle Ethereum results
+ * 
+ * @param result 
+ * @return vector<string>* 
+ */
+vector<string>* Util::ConvertResultToArray(string *value) 
+{
+    int startIndex = 0;
+    vector<string> *retVal = new vector<string>();
+
+    TagReader reader;
+    string result = reader.getTag(value, "result");
+
+    if (result.at(0) == 'x') startIndex = 1;
+    else if (result.at(1) == 'x') startIndex = 2;
+
+    int resultLength = result.length();
+
+    while (startIndex < resultLength)
+    {
+        string subStr = result.substr(startIndex, 64);
+        //we should never need to pad, as this should always be multiple of 64 chars
+        retVal->push_back(subStr);
+        startIndex += 64;
+    }
+
+    return retVal;
+}
+
 string Util::InterpretStringResult(const char *result)
 {
     //convert to vector bytes32
@@ -699,4 +729,11 @@ string Util::toString(int value)
     std::ostringstream oss;
     oss << value;
     return oss.str();
+}
+
+string Util::intToHex(int value)
+{
+  std::stringstream stream;
+  stream << hex << value;
+  return stream.str();
 }

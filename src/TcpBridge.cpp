@@ -64,8 +64,8 @@ void TcpBridge::checkClientAPI(TcpBridgeCallback callback)
         lastComms = millis();
         std::string result;
 
-        //Serial.print("RCV: ");
-        //Serial.println(len);
+        Serial.print("RCV: ");
+        Serial.println(len);
 
         switch (type)
         {
@@ -169,9 +169,23 @@ void TcpBridge::scanAPI(const BYTE *packet, APIReturn *apiReturn, int payloadLen
     }
 }
 
+int TcpBridge::getArglen(const BYTE *packet, int &index)
+{
+    int byteArgLen = packet[index++] & 0xFF;
+    int argLen = byteArgLen;
+
+    while ((byteArgLen & 0xFF) == 0xFF)
+    {
+        byteArgLen = packet[index++] & 0xFF;
+        argLen += byteArgLen;
+    }
+
+    return argLen;
+}
+
 std::string TcpBridge::getArg(const BYTE *packet, int &index, int payloadLength)
 {
-    int argLen = packet[index++] & 0xFF;
+    int argLen = getArglen(packet, index);
     std::string retVal = "";
     int endIndex = index + argLen;
     if (endIndex > payloadLength)
