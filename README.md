@@ -2,9 +2,14 @@
 
 <img align="right" src="https://raw.githubusercontent.com/JamesSmartCell/Release-Test/master/Web3-Esmall.png">
 
-## Version 1.33 [![PlatformIO Registry](https://badges.registry.platformio.org/packages/alphawallet/library/Web3E.svg)](https://registry.platformio.org/libraries/alphawallet/Web3E)
+## Version 1.34 [![PlatformIO Registry](https://badges.registry.platformio.org/packages/alphawallet/library/Web3E.svg)](https://registry.platformio.org/libraries/alphawallet/Web3E)
 
 What's New:
+
+v1.34:
+- Allow long params in ScriptBridge.
+- Correctly RLP encode (bytes) params.
+- Add utility function for decoding responses.
 
 v1.33:
 - Fix & simplify node setup - only need to specify numeric ChainID or use the pre-definition eg ```Web3 web3 = new Web3(GOERLI_ID)```.
