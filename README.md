@@ -6,6 +6,12 @@
 
 What's New:
 
+v1.4:
+- Add Sepolia testnet.
+- Ensure Polygon and Mumbai are working correctly.
+- Optimse and fix contract call result handling.
+- Handle String return correctly.
+
 v1.34:
 - Allow long params in ScriptBridge.
 - Correctly RLP encode (bytes) params.
