@@ -27,19 +27,21 @@ TagReader::TagReader()
 	_length = 0;
 }
 
-const char* TagReader::getTag(const string *JSON_Str, const char *value)
+const string TagReader::getTag(const string *JSON_Str, const char *value)
 {
 	//first determine if the tag exists in the file
 	size_t index = JSON_Str->find(value);
 	if (index == string::npos) //safe scan
 	{
-		return NULL;
+		return string("");
 	}
 
 	//parse for the end value
 	READ_STATE read_state = KEY;
 	READ_STATE old_state;
 	const char *value_ptr = NULL;
+	char *retValue;
+	size_t startIndex = 0;
 	_length = 0;
 
 	while (index < JSON_Str->length() && read_state != END_VALUE)
@@ -55,7 +57,11 @@ const char* TagReader::getTag(const string *JSON_Str, const char *value)
 			if (c != '\"' && c != ':') { read_state = VALUE; index--; }
 			break;
 		case VALUE:
-			if (value_ptr == NULL) value_ptr = (const char*)(JSON_Str->c_str() + index);
+			if (value_ptr == NULL)
+			{
+				value_ptr = (const char*)(JSON_Str->c_str() + index);
+				startIndex = index;
+			} 
 			if (c == '\"')
 			{
 				read_state = END_VALUE;
@@ -69,7 +75,7 @@ const char* TagReader::getTag(const string *JSON_Str, const char *value)
 			read_state = old_state;
 			break;
 		case END_VALUE:
-			return value_ptr;
+			break;
 		}
 
 		if (c == '\\')
@@ -80,5 +86,5 @@ const char* TagReader::getTag(const string *JSON_Str, const char *value)
 		index++;
 	}
 
-	return value_ptr;
+	return JSON_Str->substr(startIndex, _length);
 }

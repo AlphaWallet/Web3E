@@ -53,6 +53,7 @@ public:
 
     static vector<string>* ConvertCharStrToVector32(const char *resultPtr, size_t resultSize, vector<string> *result);
     static vector<string>* ConvertResultToArray(string *result);
+    static vector<string>* ConvertStringHexToABIArray(string *value); 
 
     static string  ConvertEthToWei(double eth);
     static string toString(int value);

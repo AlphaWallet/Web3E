@@ -10,7 +10,7 @@ class TagReader
 {
 public:
 	TagReader();
-	const char 	* getTag(const string * JSON_Str, const char * value);
+	const string  getTag(const string * JSON_Str, const char * value);
 	size_t		  length() { return _length; }
 	
 private:

@@ -568,20 +568,24 @@ vector<string>* Util::ConvertCharStrToVector32(const char *resultPtr, size_t res
  */
 vector<string>* Util::ConvertResultToArray(string *value) 
 {
-    int startIndex = 0;
-    vector<string> *retVal = new vector<string>();
-
     TagReader reader;
     string result = reader.getTag(value, "result");
 
-    if (result.at(0) == 'x') startIndex = 1;
-    else if (result.at(1) == 'x') startIndex = 2;
+    return ConvertStringHexToABIArray(&result);
+}
 
-    int resultLength = result.length();
+vector<string>* Util::ConvertStringHexToABIArray(string *result)
+{
+    int startIndex = 0;
+    vector<string> *retVal = new vector<string>();
+    if (result->at(0) == 'x') startIndex = 1;
+    else if (result->at(1) == 'x') startIndex = 2;
+
+    int resultLength = result->length();
 
     while (startIndex < resultLength)
     {
-        string subStr = result.substr(startIndex, 64);
+        string subStr = result->substr(startIndex, 64);
         //we should never need to pad, as this should always be multiple of 64 chars
         retVal->push_back(subStr);
         startIndex += 64;
@@ -622,7 +626,7 @@ vector<string> *Util::InterpretVectorResult(string *result)
 {
     vector<string> *retVal = new vector<string>();
     TagReader reader;
-    const char *value = reader.getTag(result, "result");
+    const char *value = reader.getTag(result, "result").c_str();
 
     if (value != NULL && strlen(value) > 0) 
     {

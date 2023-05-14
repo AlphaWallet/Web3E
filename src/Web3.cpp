@@ -10,7 +10,7 @@
 #include "Web3.h"
 #include "Certificates.h"
 #include "Util.h"
-#include "cJSON/cJSON.h"
+#include "TagReader/TagReader.h"
 #include <iostream>
 #include <sstream>
 #include "nodes.h"
@@ -94,17 +94,7 @@ bool Web3::EthSyncing() {
     string input = generateJson(&m, &p);
     string result = exec(&input);
 
-    cJSON *root, *value;
-    root = cJSON_Parse(result.c_str());
-    value = cJSON_GetObjectItem(root, "result");
-    bool ret;
-    if (cJSON_IsBool(value)) {
-        ret = false;
-    } else{
-        ret = true;
-    }
-    cJSON_free(root);
-    return ret;
+    return getBool(&result);
 }
 
 bool Web3::EthMining() {
@@ -254,92 +244,66 @@ string Web3::exec(const string* data) {
 }
 
 int Web3::getInt(const string* json) {
-    int ret = -1;
-    cJSON *root, *value;
-    root = cJSON_Parse(json->c_str());
-    value = cJSON_GetObjectItem(root, "result");
-    if (cJSON_IsString(value)) {
-        ret = strtol(value->valuestring, nullptr, 16);
-    }
-    cJSON_free(root);
-    return ret;
+    TagReader reader;
+    string parseVal = reader.getTag(json, "result");
+    return strtol(parseVal.c_str(), nullptr, 16);
 }
 
 long Web3::getLong(const string* json) {
-    long ret = -1;
-    cJSON *root, *value;
-    root = cJSON_Parse(json->c_str());
-    value = cJSON_GetObjectItem(root, "result");
-    if (cJSON_IsString(value)) {
-        ret = strtol(value->valuestring, nullptr, 16);
-    }
-    cJSON_free(root);
-    return ret;
+    TagReader reader;
+    string parseVal = reader.getTag(json, "result");
+    return strtol(parseVal.c_str(), nullptr, 16);
 }
 
 long long int Web3::getLongLong(const string* json) {
-    long long int ret = -1;
-    cJSON *root, *value;
-    root = cJSON_Parse(json->c_str());
-    value = cJSON_GetObjectItem(root, "result");
-    if (cJSON_IsString(value)) {
-        ret = strtoll(value->valuestring, nullptr, 16);
-    }
-    cJSON_free(root);
-    return ret;
+    TagReader reader;
+    string parseVal = reader.getTag(json, "result");
+    return strtoll(parseVal.c_str(), nullptr, 16);
 }
 
 uint256_t Web3::getUint256(const string* json) {
-    uint256_t ret = 0;
-    cJSON *root, *value;
-    root = cJSON_Parse(json->c_str());
-    value = cJSON_GetObjectItem(root, "result");
-    if (cJSON_IsString(value)) {
-        ret = uint256_t(value->valuestring);
-    }
-    cJSON_free(root);
-    return ret;
+    TagReader reader;
+    string parseVal = reader.getTag(json, "result");
+    return uint256_t(parseVal.c_str());
 }
 
 double Web3::getDouble(const string* json) {
-    double ret = -1;
-    cJSON *root, *value;
-    root = cJSON_Parse(json->c_str());
-    value = cJSON_GetObjectItem(root, "result");
-    if (cJSON_IsString(value)) {
-        ret = strtof(value->valuestring, nullptr);
-    }
-    cJSON_free(root);
-    return ret;
+    TagReader reader;
+    string parseVal = reader.getTag(json, "result");
+    return strtof(parseVal.c_str(), nullptr);
 }
 
 bool Web3::getBool(const string* json) {
-    bool ret = false;
-    cJSON *root, *value;
-    root = cJSON_Parse(json->c_str());
-    value = cJSON_GetObjectItem(root, "result");
-    if (cJSON_IsBool(value)) {
-        ret = (bool)value->valueint;
-    }
-    cJSON_free(root);
-    return ret;
+    TagReader reader;
+    string parseVal = reader.getTag(json, "result");
+    long v = strtol(parseVal.c_str(), nullptr, 16);
+    return v > 0;
 }
 
+//Currently only works for string return eg: function name() returns (string)
 string Web3::getString(const string *json)
 {
-    cJSON *root, *value;
-    if (json->find("result") >= 0)
+    TagReader reader;
+    string parseVal = reader.getTag(json, "result");
+    vector<string> *v = Util::ConvertStringHexToABIArray(&parseVal);
+    
+    uint256_t length = uint256_t(v->at(1));
+    int lengthIndex = (size_t)length;
+
+    string asciiHex;
+    int index = 2;
+    while (lengthIndex > 0)
     {
-        root = cJSON_Parse(json->c_str());
-        value = cJSON_GetObjectItem(root, "result");
-        if (value != NULL && cJSON_IsString(value))
-        {
-            cJSON_free(root);
-            return string(value->valuestring);
-        }
-        cJSON_free(root);
+        Serial.println(index);
+        asciiHex += v->at(index++);
+        lengthIndex -= 32;
     }
-    return string("");
+
+    //convert ascii into string
+    string text = Util::ConvertHexToASCII(asciiHex.substr(0, length*2).c_str(), length*2);
+    delete v;
+
+    return text;
 }
 
 /**
