@@ -72,6 +72,7 @@ public:
     string getString(const string* json);
     int getInt(const string* json);
     uint256_t getUint256(const string* json);
+    long long int getChainId() const;
 
 private:
     string exec(const string* data);
