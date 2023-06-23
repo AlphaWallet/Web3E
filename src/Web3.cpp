@@ -280,6 +280,14 @@ bool Web3::getBool(const string* json) {
     return v > 0;
 }
 
+string Web3::getResult(const string* json) {
+    TagReader reader;
+    string res = reader.getTag(json, "result");
+    if (res.at(0) == 'x') res = res.substr(1);
+    else if (res.at(1) == 'x') res = res.substr(2);
+    return res;
+}
+
 //Currently only works for string return eg: function name() returns (string)
 string Web3::getString(const string *json)
 {

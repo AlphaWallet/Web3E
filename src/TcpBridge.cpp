@@ -53,31 +53,35 @@ void TcpBridge::checkClientAPI(TcpBridgeCallback callback)
 {
     maintainComms(millis());
 
-    if (!available())
+    uint16_t rLen = available();
+
+    if (rLen <= 0)
         return;
 
-    int len = read(packetBuffer, PACKET_BUFFER_SIZE);
+    Serial.print("Available: ");
+    Serial.println(rLen);
 
-    if (len > 0)
+    int type = read();
+
+    if (type > 0)
     {
-        BYTE type = packetBuffer[0];
+        int len;
         lastComms = millis();
         std::string result;
-
-        Serial.print("RCV: ");
-        Serial.println(len);
 
         switch (type)
         {
         case 0x02:
-            signChallenge(&packetBuffer[1], len - 1);
+            Serial.println("Challenge");
+            len = read(packetBuffer, PACKET_BUFFER_SIZE);
+            signChallenge(packetBuffer, len);
             // challenge, we sign it
             connectionState = confirmed;
             break;
 
         case 0x04:
             // API call
-            scanAPI(packetBuffer + 1, apiReturn, len - 1);
+            scanAPI(apiReturn, rLen - 1);
             result = callback(apiReturn);
             Serial.print("Result ");
             Serial.println(result.c_str());
@@ -85,8 +89,15 @@ void TcpBridge::checkClientAPI(TcpBridgeCallback callback)
             break;
 
         case 0x06:
+            Serial.println("Keep Alive");
+            read(packetBuffer, PACKET_BUFFER_SIZE);
             SendKeepAlive();
             break;
+
+        default:
+            Serial.print("Unknown: ");
+            Serial.println(type);
+            break;    
         }
     }
 }
@@ -146,53 +157,67 @@ void TcpBridge::SendKeepAlive()
     write(packetBuffer, 1);
 }
 
-void TcpBridge::scanAPI(const BYTE *packet, APIReturn *apiReturn, int payloadLength)
+void TcpBridge::scanAPI(APIReturn *apiReturn, int available)
 {
-    apiReturn->clear();
-
     int index = 0;
-
-    // read length of API description
-    apiReturn->apiName = getArg(packet, index, payloadLength);
+    apiReturn->clear();
+    apiReturn->apiName = getArg(index);
     Serial.print("API: ");
     Serial.println(apiReturn->apiName.c_str());
 
-    while (index < payloadLength)
+    while (index < available)
     {
-        std::string key = getArg(packet, index, payloadLength);
-        std::string param = getArg(packet, index, payloadLength);
+        std::string key = getArg(index);
+        std::string param = getArg(index);
+
         apiReturn->params[key] = param;
-        Serial.print("PAIR: ");
+        /*Serial.print("PAIR: ");
         Serial.print(key.c_str());
         Serial.print("     ");
         Serial.println(param.c_str());
+        Serial.print("Index: ");
+        Serial.println(index);*/
     }
 }
 
-int TcpBridge::getArglen(const BYTE *packet, int &index)
+int TcpBridge::getArgLen(int &index)
 {
-    int byteArgLen = packet[index++] & 0xFF;
-    int argLen = byteArgLen;
+    int byteArgLen = 0xFF;
+    int argLen = 0;
 
     while ((byteArgLen & 0xFF) == 0xFF)
     {
-        byteArgLen = packet[index++] & 0xFF;
+        byteArgLen = read();
         argLen += byteArgLen;
+        index++;
     }
 
     return argLen;
 }
 
-std::string TcpBridge::getArg(const BYTE *packet, int &index, int payloadLength)
+std::string TcpBridge::bufferToString(const BYTE *packet, int endIndex)
 {
-    int argLen = getArglen(packet, index);
     std::string retVal = "";
-    int endIndex = index + argLen;
-    if (endIndex > payloadLength)
-        endIndex = payloadLength;
-    for (; index < endIndex; index++)
+    for (int index = 0; index < endIndex; index++)
     {
         retVal = retVal + (char)packet[index];
+    }
+
+    return retVal;
+}
+
+std::string TcpBridge::getArg(int &index)
+{
+    int argLen = getArgLen(index);
+    std::string retVal = "";
+
+    while (argLen > 0)
+    {
+        int readAmount = argLen > PACKET_BUFFER_SIZE ? PACKET_BUFFER_SIZE : argLen;
+        int len = read(packetBuffer, readAmount);
+        index += len;
+        argLen -= len;
+        retVal += bufferToString(packetBuffer, len);
     }
 
     return retVal;

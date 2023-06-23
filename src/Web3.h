@@ -72,6 +72,7 @@ public:
     string getString(const string* json);
     int getInt(const string* json);
     uint256_t getUint256(const string* json);
+    string getResult(const string* json);
 
 private:
     string exec(const string* data);

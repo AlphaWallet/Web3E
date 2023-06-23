@@ -21,8 +21,9 @@ public:
     int getPort() { return port; }
 
 private:
-    void scanAPI(const BYTE *packet, APIReturn *apiReturn, int payloadLength);
-    std::string getArg(const BYTE *packet, int &index, int payloadLength);
+    void scanAPI(APIReturn *apiReturn, int available);
+    std::string getArg(int &index);
+    std::string bufferToString(const BYTE *packet, int index);
     void closeConnection();
     void SendKeepAlive();
     void maintainComms(long currentMillis);
@@ -31,7 +32,7 @@ private:
     inline boolean isNewSession();
     void sendPing();
     void sendResponse(std::string resp);
-    int  getArglen(const BYTE *packet, int &index);
+    int  getArgLen(int &index);
 
     Web3 *web3;
     KeyID *keyID;

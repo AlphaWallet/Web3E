@@ -38,13 +38,15 @@ public:
     string SendTransaction(uint32_t nonceVal, unsigned long long gasPriceVal, uint32_t gasLimitVal,
                            string *toStr, uint256_t *valueStr, string *dataStr);
 
+    static void ReplaceFunction(std::string &param, const char* func);                       
+    
 private:
     Web3* web3;
     const char * contractAddress;
     Crypto* crypto;
 
 private:
-    string GenerateContractBytes(const char *func);
+    static string GenerateContractBytes(const char *func);
     string GenerateBytesForInt(const int32_t value);
     string GenerateBytesForUint(const uint256_t *value);
     string GenerateBytesForAddress(const string *value);
@@ -52,6 +54,7 @@ private:
     string GenerateBytesForBytes(const char* value, const int len);
     string GenerateBytesForUIntArray(const vector<uint32_t> *v);
     string GenerateBytesForHexBytes(const string *value);
+    string GenerateBytesForStruct(const string *value);
 
     void GenerateSignature(uint8_t* signature, int* recid, uint32_t nonceVal, unsigned long long gasPriceVal, uint32_t  gasLimitVal,
                            string* toStr, uint256_t* valueStr, string* dataStr);

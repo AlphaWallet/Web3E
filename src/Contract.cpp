@@ -64,6 +64,10 @@ string Contract::SetupContractData(const char* func, ...)
         }
     }
 
+    vector<string> abiBlocks;
+    vector<bool> isDynamic;
+    int dynamicStartPointer = 0;
+
     va_list args;
     va_start(args, func);
     for( int i = 0; i < paramCount; ++i ) {
@@ -71,35 +75,79 @@ string Contract::SetupContractData(const char* func, ...)
         {
             // value array
             string output = GenerateBytesForUIntArray(va_arg(args, vector<uint32_t> *));
-            ret = ret + output;
+            abiBlocks.push_back(output);
+            isDynamic.push_back(false);
+            dynamicStartPointer += 0x20;
         }
         else if (strncmp(params[i].c_str(), "uint", sizeof("uint")) == 0 || strncmp(params[i].c_str(), "uint256", sizeof("uint256")) == 0)
         {
             string output = GenerateBytesForUint(va_arg(args, uint256_t *));
-            ret = ret + output;
+            abiBlocks.push_back(output);
+            isDynamic.push_back(false);
+            dynamicStartPointer += 0x20;
         }
         else if (strncmp(params[i].c_str(), "int", sizeof("int")) == 0 || strncmp(params[i].c_str(), "bool", sizeof("bool")) == 0)
         {
             string output = GenerateBytesForInt(va_arg(args, int32_t));
-            ret = ret + string(output);
+            abiBlocks.push_back(output);
+            isDynamic.push_back(false);
+            dynamicStartPointer += 0x20;
         }
         else if (strncmp(params[i].c_str(), "address", sizeof("address")) == 0)
         {
             string output = GenerateBytesForAddress(va_arg(args, string *));
-            ret = ret + string(output);
+            abiBlocks.push_back(output);
+            isDynamic.push_back(false);
+            dynamicStartPointer += 0x20;
         }
         else if (strncmp(params[i].c_str(), "string", sizeof("string")) == 0)
         {
             string output = GenerateBytesForString(va_arg(args, string *));
-            ret = ret + string(output);
+            abiBlocks.push_back(output);
+            isDynamic.push_back(true);
+            dynamicStartPointer += 0x20;
         }
         else if (strncmp(params[i].c_str(), "bytes", sizeof("bytes")) == 0) //if sending bytes, take the value in hex
         {
             string output = GenerateBytesForHexBytes(va_arg(args, string *));
-            ret = ret + string(output);
+            abiBlocks.push_back(output);
+            isDynamic.push_back(true);
+            dynamicStartPointer += 0x20;
+        }
+        else if (strncmp(params[i].c_str(), "struct", sizeof("struct")) == 0) //if sending bytes, take the value in hex
+        {
+            string output = GenerateBytesForStruct(va_arg(args, string *));
+            abiBlocks.push_back(output);
+            isDynamic.push_back(true);
+            dynamicStartPointer += 0x20;
         }
     }
     va_end(args);
+
+    uint256_t abiOffet = uint256_t(dynamicStartPointer);
+    //now build output - parse 1, standard params
+    for( int i = 0; i < paramCount; ++i ) 
+    {
+        if (isDynamic[i])
+        {
+            ret = ret + abiOffet.str(16, 64);
+            string *outputHex = &abiBlocks[i];
+            abiOffet += outputHex->size() / 2;
+        }
+        else
+        {
+            ret = ret + abiBlocks[i];
+        }
+    }
+
+    //parse 2: add dynamic params
+    for( int i = 0; i < paramCount; ++i ) 
+    {
+        if (isDynamic[i])
+        {
+            ret = ret + abiBlocks[i];
+        }
+    }
 
     return ret;
 }
@@ -135,6 +183,15 @@ string Contract::SendTransaction(uint32_t nonceVal, unsigned long long gasPriceV
 
     string paramStr = Util::VectorToString(&param);
     return web3->EthSendSignedTransaction(&paramStr, param.size());
+}
+
+/**
+ * Utility functions
+ **/
+
+void Contract::ReplaceFunction(std::string &param, const char* func)
+{
+    param = GenerateContractBytes(func) + param.substr(10);
 }
 
 /**
@@ -217,18 +274,26 @@ string Contract::GenerateBytesForHexBytes(const string *value)
     else if (value->at(1) == 'x') cleaned = value->substr(2);
     string digitsStr = Util::intToHex(cleaned.length() / 2); //bytes length will be hex length / 2
     string lengthDesignator = string(64 - digitsStr.length(), '0') + digitsStr;
-    //write designator. TODO: This should be done for multiple inputs not just single inputs
-    lengthDesignator = "0000000000000000000000000000000000000000000000000000000000000020" + lengthDesignator;
     cleaned = lengthDesignator + cleaned;
     size_t digits = cleaned.length() % 64;
-    return cleaned + string(64 - digits, '0');
+    return cleaned + (digits > 0 ? string(64 - digits, '0') : "");
+}
+
+string Contract::GenerateBytesForStruct(const string *value)
+{
+    //struct has no length params: not required
+    string cleaned = *value;
+    if (value->at(0) == 'x') cleaned = value->substr(1);
+    else if (value->at(1) == 'x') cleaned = value->substr(2);
+    size_t digits = cleaned.length() % 64;
+    return cleaned + (digits > 0 ? string(64 - digits, '0') : "");
 }
 
 string Contract::GenerateBytesForBytes(const char *value, const int len)
 {
     string bytesStr = Util::ConvertBytesToHex((const uint8_t *)value, len).substr(2); //clean hex prefix;
-    size_t digits = bytesStr.length();
-    return bytesStr + string(64 - digits, '0'); 
+    size_t digits = bytesStr.length() % 64;
+    return bytesStr + (digits > 0 ? string(64 - digits, '0') : "");
 }
 
 vector<uint8_t> Contract::RlpEncode(
