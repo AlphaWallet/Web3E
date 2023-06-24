@@ -78,7 +78,8 @@ lib_deps =
   Web3E
 ```
 
-**Please take a note that without option 'lib_ldf_mode = deep' some ESP32 libraries can't be found, like 'EEPROM.h'**
+**Please note: you may need to use 'lib_ldf_mode = deep' to locate some ESP32 libraries like 'EEPROM.h'**
+**also: if you use many other libraries in your application you may need to add 'board_build.partitions = no_ota.csv' to fit your firmware**
 
 ## Example TokenScript flow
 
