@@ -72,10 +72,13 @@ framework = arduino
 ; Serial Monitor options
 monitor_speed = 115200
 
+lib_ldf_mode = deep
 lib_deps =
   # Using a library name
   Web3E
 ```
+
+**Please take a note that without option 'lib_ldf_mode = deep' some ESP32 libraries can't be found, like 'EEPROM.h'**
 
 ## Example TokenScript flow
 
