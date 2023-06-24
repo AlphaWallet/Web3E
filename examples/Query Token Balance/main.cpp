@@ -13,31 +13,29 @@
 
 const char *ssid = "<YOUR SSID>";
 const char *password = "<YOUR WiFi PASSWORD>";
-#define NATIVE_ETH_TOKENS "Kovan ETH"                                //if you switch chains you might want to change this
-#define ERC875CONTRACT "0x0b70dd9f8ada11eee393c8ab0dd0d3df6a172876"  //an ERC875 token contract on Kovan
-#define ERC20CONTRACT  "0xb06d72a24df50d4e2cac133b320c5e7de3ef94cb"  //and ERC20 token contract on Kovan
-#define USERACCOUNT "0x835bb27deec61e1cd81b3a2feec9fbd76b15971d"     //a user account that holds Kovan ETH and balances of tokens in the two above contracts 
+
+#define NATIVE_ETH_TOKENS "ETH"                                //if you switch chains you might want to change this
+#define CHILLIFROGS "0xa3b7cee4e082183e69a03fc03476f28b12c545a7"
+#define ERC20CONTRACT  "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"  //a well known ERC20 token contract on mainnet
+#define VITALIKADDRESS "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"
 
 Web3 *web3;
 int wificounter = 0;
 
-void queryERC875Balance(const char* Address, const char* ERC875ContractAddress);
-void queryERC20Balance(const char* Address, const char* ERC875ContractAddress);
+void queryERC721Balance();
+void queryERC20Balance();
 void setup_wifi();
 void TestERC20();
-void QueryEthBalance(const char* Address);
 
 void setup() 
 {
     Serial.begin(115200); //ensure you set your Arduino IDE port config or platformio.ini with monitor_speed = 115200
-    setup_wifi(KOVAN_ID);
+    setup_wifi();
 
-    web3 = new Web3(KOVAN_ID);
+    web3 = new Web3(MAINNET_ID);
 
-    string userAddress = USERACCOUNT;
-
-	queryERC20Balance(ERC20CONTRACT, USERACCOUNT);
-    queryERC875Balance(ERC875CONTRACT, USERACCOUNT);
+	queryERC20Balance();
+    queryERC721Balance();
 }
 
 
@@ -46,66 +44,70 @@ void loop()
     // put your main code here, to run repeatedly.
 }
 
-/* Query balance of ERC875 tokens */
-void queryERC875Balance(const char* ContractAddress, const char *userAddress)
+/* Query balance of Chilli Frogs tokens */
+void queryERC721Balance()
 {
-	// transaction
-	Contract contract(web3, ContractAddress);
+    web3 = new Web3(MAINNET_ID);
+	Contract contract(web3, CHILLIFROGS);
 
-	String myAddr = userAddress;
+    string myAddr = VITALIKADDRESS;
+    string frogs = CHILLIFROGS;
 
-	String func = "balanceOf(address)";
-	Serial.println("Start");
-	string param = contract.SetupContractData(func.c_str(), &myAddr);
-	string result = contract.ViewCall(&param);
+    string func = "balanceOf(address)";
+    Serial.println("Start");
+    string param = contract.SetupContractData(func.c_str(), &myAddr);
+    string result = contract.ViewCall(&param);
 
-	Serial.println(result.c_str());
+    Serial.println(result.c_str());
 
-	Serial.print("Balance of Contract ");
-	Serial.println(ContractAddress);
-	Serial.print("for user: ");
-	Serial.println(myAddr.c_str());
-	Serial.println();
+    Serial.print("Balance of Contract ");
+    Serial.println(CHILLIFROGS);
+    Serial.print("for user: ");
+    Serial.print(myAddr.c_str());
+    Serial.print(" -> ");
 
-	//break down the result
-	vector<string> *vectorResult = Util::InterpretVectorResult(&result);
-	int count = 1;
-	char buffer[128];
-	for (auto itr = vectorResult->begin(); itr != vectorResult->end(); itr++)
-	{
-		snprintf(buffer, 128, "%d: %s", count++, itr->c_str());
-		Serial.println(buffer);
-	}
+    long bal = web3->getInt(&result);
 
-	delete(vectorResult);
+    Serial.println(bal);
 
-	//Call contract name function
-	param = contract.SetupContractData("name()", &userAddress);
-	result = contract.ViewCall(&param);
-	string contractName = web3->getString(&result);
-	Serial.println("NAME: ");
-	// recover actual string name
-	string interpreted = Util::InterpretStringResult(contractName.c_str());
-	Serial.println(interpreted.c_str());
+    Serial.println("Fetch Name ... ");
+
+    //Call contract name function
+    param = contract.SetupContractData("name()");
+    result = contract.ViewCall(&param);
+    string contractName = web3->getString(&result);
+    Serial.print("NAME: ");
+    Serial.println(contractName.c_str());
 }
 
 // Query balance of ERC20 token
-void queryERC20Balance(const char* ContractAddress, const char *userAddress)
+void queryERC20Balance()
 {
-    Contract contract(web3, contractAddr);
-    String address = userAddress;
-    string param = contract.SetupContractData("balanceOf(address)", &address);
+    string myAddr = VITALIKADDRESS;
+    string usdc = ERC20CONTRACT;
+
+    Contract contract(web3, ERC20CONTRACT);
+
+    string param = contract.SetupContractData("balanceOf(address)", &myAddr);
     string result = contract.ViewCall(&param);
 
-    param = contract.SetupContractData("decimals()", &address);
+    uint256_t baseBalance = web3->getUint256(&result);
+
+    param = contract.SetupContractData("decimals()");
     result = contract.ViewCall(&param);
     int decimals = web3->getInt(&result);
 
-    uint256_t baseBalance = web3->getUint256(&result);
     string balanceStr = Util::ConvertWeiToEthString(&baseBalance, decimals); //use decimals to calculate value, not all ERC20 use 18 decimals
 
     Serial.print("ERC20 Balance: ");
     Serial.println(balanceStr.c_str());
+
+    //Call contract name function
+    param = contract.SetupContractData("name()");
+    result = contract.ViewCall(&param);
+    string contractName = web3->getString(&result);
+    Serial.print("NAME: ");
+    Serial.println(contractName.c_str());
 }
 
 
