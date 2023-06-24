@@ -283,6 +283,11 @@ bool Web3::getBool(const string* json) {
 string Web3::getResult(const string* json) {
     TagReader reader;
     string res = reader.getTag(json, "result");
+    if (res.length() == 0)
+    {
+        return string("");
+    }
+
     if (res.at(0) == 'x') res = res.substr(1);
     else if (res.at(1) == 'x') res = res.substr(2);
     return res;
@@ -293,6 +298,11 @@ string Web3::getString(const string *json)
 {
     TagReader reader;
     string parseVal = reader.getTag(json, "result");
+    if (parseVal.length() == 0)
+    {
+        return string("");
+    }
+
     vector<string> *v = Util::ConvertStringHexToABIArray(&parseVal);
     
     uint256_t length = uint256_t(v->at(1));

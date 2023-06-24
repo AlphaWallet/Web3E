@@ -672,7 +672,8 @@ uint256_t Util::ConvertToWei(double val, int decimals)
 {
     char buffer[36]; //allow extra 4 chars for gcvt
     if (val < 0) val = 0;
-    gcvt(val * pow(10.0, decimals), 32, buffer);
+    val *= pow(10.0, decimals);
+    sprintf(buffer, "%f", val);
     std::string weiStr = std::string(buffer);
     std::size_t index = weiStr.find_last_of('.');
     if (index != std::string::npos) weiStr = weiStr.substr(0, index);
