@@ -325,7 +325,7 @@ vector<uint8_t> Contract::RlpEncode(
     vector<uint8_t> to = Util::ConvertHexToVector(toStr);
     vector<uint8_t> value = val->export_bits_truncate();
     vector<uint8_t> data = Util::ConvertHexToVector(dataStr);
-    vector<uint8_t> chainId = Util::ConvertNumberToVector(uint32_t(web3->getChainId()));
+    vector<uint8_t> chainId = Util::ConvertNumberToVector(uint64_t(web3->getChainId()));
 
     auto *zeroStr = new string("0");
     vector<uint8_t> zero = Util::ConvertHexToVector(zeroStr);
@@ -401,8 +401,9 @@ vector<uint8_t> Contract::RlpEncodeForRawTransaction(
     R.insert(R.end(), signature.begin(), signature.begin()+(SIGNATURE_LENGTH/2));
     vector<uint8_t> S;
     S.insert(S.end(), signature.begin()+(SIGNATURE_LENGTH/2), signature.end());
-    vector<uint8_t> V;
-    V.push_back((uint8_t)(recid + web3->getChainId() * 2 + 35)); // according to EIP-155
+    //V.push_back((uint8_t)(recid + web3->getChainId() * 2 + 35)); // according to EIP-155
+    uint256_t vv = recid + (web3->getChainId() * 2) + 35; // EIP-155 ensure long chainIds work correctly
+    vector<uint8_t> V = vv.export_bits_truncate(); //convert to bytes
     vector<uint8_t> outputR = Util::RlpEncodeItemWithVector(R);
     vector<uint8_t> outputS = Util::RlpEncodeItemWithVector(S);
     vector<uint8_t> outputV = Util::RlpEncodeItemWithVector(V);
