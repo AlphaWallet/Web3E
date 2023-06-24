@@ -11,6 +11,7 @@
 #include "Web3.h"
 #include <WiFi.h>
 #include "Util.h"
+#include "cJSON/cJSON.h"
 #include <vector>
 
 #define SIGNATURE_LENGTH 64
@@ -28,6 +29,8 @@ Contract::Contract(Web3* _web3, const char* address) {
     strcpy(options.gasPrice,"0");
     crypto = NULL;
 }
+
+Contract::Contract(long long networkId) : Contract(new Web3(networkId), "") {}
 
 void Contract::SetPrivateKey(const char *key) {
     crypto = new Crypto(web3);
@@ -185,6 +188,23 @@ string Contract::SendTransaction(uint32_t nonceVal, unsigned long long gasPriceV
     return web3->EthSendSignedTransaction(&paramStr, param.size());
 }
 
+string
+Contract::SignTransaction(uint32_t nonceVal, unsigned long long gasPriceVal, uint32_t gasLimitVal, string *toStr,
+                          uint256_t *valueStr, string *dataStr) {
+
+    uint8_t signature[SIGNATURE_LENGTH];
+    memset(signature, 0, SIGNATURE_LENGTH);
+    int recid[1] = {0};
+
+    GenerateSignature(signature, recid, nonceVal, gasPriceVal, gasLimitVal,
+                      toStr, valueStr, dataStr);
+
+    vector<uint8_t> param = RlpEncodeForRawTransaction(nonceVal, gasPriceVal, gasLimitVal,
+                                                       toStr, valueStr, dataStr,
+                                                       signature, recid[0]);
+    return Util::VectorToString(&param);
+}
+
 /**
  * Utility functions
  **/
@@ -306,6 +326,10 @@ vector<uint8_t> Contract::RlpEncode(
     vector<uint8_t> to = Util::ConvertHexToVector(toStr);
     vector<uint8_t> value = val->export_bits_truncate();
     vector<uint8_t> data = Util::ConvertHexToVector(dataStr);
+    vector<uint8_t> chainId = Util::ConvertNumberToVector(uint32_t(web3->getChainId()));
+
+    auto *zeroStr = new string("0");
+    vector<uint8_t> zero = Util::ConvertHexToVector(zeroStr);
 
     vector<uint8_t> outputNonce = Util::RlpEncodeItemWithVector(nonce);
     vector<uint8_t> outputGasPrice = Util::RlpEncodeItemWithVector(gasPrice);
@@ -314,13 +338,19 @@ vector<uint8_t> Contract::RlpEncode(
     vector<uint8_t> outputValue = Util::RlpEncodeItemWithVector(value);
     vector<uint8_t> outputData = Util::RlpEncodeItemWithVector(data);
 
+    vector<uint8_t> outputChainId = Util::RlpEncodeItemWithVector(chainId);
+    vector<uint8_t> outputZero = Util::RlpEncodeItemWithVector(zero);
+
     vector<uint8_t> encoded = Util::RlpEncodeWholeHeaderWithVector(
         outputNonce.size() +
         outputGasPrice.size() +
         outputGasLimit.size() +
         outputTo.size() +
         outputValue.size() +
-        outputData.size());
+        outputData.size() +
+        outputChainId.size() +
+        outputZero.size() +
+        outputZero.size());
 
     encoded.insert(encoded.end(), outputNonce.begin(), outputNonce.end());
     encoded.insert(encoded.end(), outputGasPrice.begin(), outputGasPrice.end());
@@ -328,6 +358,10 @@ vector<uint8_t> Contract::RlpEncode(
     encoded.insert(encoded.end(), outputTo.begin(), outputTo.end());
     encoded.insert(encoded.end(), outputValue.begin(), outputValue.end());
     encoded.insert(encoded.end(), outputData.begin(), outputData.end());
+
+    encoded.insert(encoded.end(), outputChainId.begin(), outputChainId.end());
+    encoded.insert(encoded.end(), outputZero.begin(), outputZero.end());
+    encoded.insert(encoded.end(), outputZero.begin(), outputZero.end());
 
     return encoded;
 }
@@ -369,7 +403,7 @@ vector<uint8_t> Contract::RlpEncodeForRawTransaction(
     vector<uint8_t> S;
     S.insert(S.end(), signature.begin()+(SIGNATURE_LENGTH/2), signature.end());
     vector<uint8_t> V;
-    V.push_back((uint8_t)(recid+27)); // 27 is a magic number for Ethereum spec
+    V.push_back((uint8_t)(recid + web3->getChainId() * 2 + 35)); // according to EIP-155
     vector<uint8_t> outputR = Util::RlpEncodeItemWithVector(R);
     vector<uint8_t> outputS = Util::RlpEncodeItemWithVector(S);
     vector<uint8_t> outputV = Util::RlpEncodeItemWithVector(V);

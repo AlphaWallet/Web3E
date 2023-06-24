@@ -31,12 +31,15 @@ public:
 
 public:
     Contract(Web3* _web3, const char* address);
+    explicit Contract(long long int networkId);
     void SetPrivateKey(const char *key);
     string SetupContractData(const char* func, ...);
     string Call(const string* param);
     string ViewCall(const string *param);
     string SendTransaction(uint32_t nonceVal, unsigned long long gasPriceVal, uint32_t gasLimitVal,
                            string *toStr, uint256_t *valueStr, string *dataStr);
+    string SignTransaction(uint32_t nonceVal, unsigned long long int gasPriceVal, uint32_t gasLimitVal, string *toStr,
+                           uint256_t *valueStr, string *dataStr);
 
     static void ReplaceFunction(std::string &param, const char* func);                       
     

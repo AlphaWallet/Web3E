@@ -374,3 +374,8 @@ void Web3::selectHost()
         path = "/";
     }
 }
+
+
+long long Web3::getChainId() const {
+    return chainId;
+}
