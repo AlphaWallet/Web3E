@@ -11,7 +11,6 @@
 #include "Web3.h"
 #include <WiFi.h>
 #include "Util.h"
-#include "cJSON/cJSON.h"
 #include <vector>
 
 #define SIGNATURE_LENGTH 64
