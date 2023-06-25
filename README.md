@@ -6,6 +6,12 @@
 
 What's New:
 
+v1.42:
+- Use EIP-155 for sending transactions.
+- Remove depency on libm for converting doubles.
+- Fix various issues.
+- Rework examples to ensure they work and improve example code quality.
+
 v1.41:
 - Allow multiple dynamic params on function calls.
 - Fix/allow unlimited length params on TcpBridge.
