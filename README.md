@@ -5,6 +5,8 @@
 ## [![PlatformIO Registry](https://badges.registry.platformio.org/packages/alphawallet/library/Web3E.svg)](https://registry.platformio.org/libraries/alphawallet/Web3E)
 
 What's New:
+v1.43:
+- Update readme text in August door sample to point to Project wizard at http://smarttokenlabs.duckdns.org/
 
 v1.42:
 - Use EIP-155 for sending transactions.
@@ -43,6 +45,15 @@ What is required is a method to write simple, fully embedded DApps which give yo
 It is possible that as Ethereum runs natively on embedded devices a new revolution in the blockchain saga will begin. Now you have the ability to write a fully embedded DApp that gives you the seurity and flexibility of Ethereum in an embedded device.
 
 ## New Features
+
+- Fixed transaction send to use EIP-155.
+- Reduce firmware size footprint.
+- Reduce dependency on external libraries.
+- Produce Interface wizard which creates an NFT, writes and uploads TokenScript to IPFS, links the TokenScript via EIP-5169 and writes the firmware.
+  Wizard is here: http://smarttokenlabs.duckdns.org/ (Note that it is http, you need to trust the site!)
+- Improve encoding and decoding for calling smartcontract functions.
+- vastly improve SmartLayer comms with TokenScript.
+- Test examples with latest library and improve code.
 
 - Simplified Node connection.
 - Add TCP Bridge.

@@ -23,7 +23,8 @@ const int led2 = 4;
 
 // Then, EITHER:
 
-// 2. Use the Wizard, which will create the NFT, deploy the TokenScript on IPFS and link to NFT via EIP-5169 and create the firmware for you. If you use this, skip to 5.
+// 2. Use the Wizard at http://smarttokenlabs.duckdns.org/ (please note it is http, so you will get a warning - ensure you are using testnet on your AlphaWallet or metamask) 
+//     which will create the NFT, deploy the TokenScript on IPFS and link to NFT via EIP-5169 and create the firmware for you. If you use this, skip to 5.
 
 // OR
 
@@ -64,7 +65,7 @@ AugustLock augustLock("78:9C:00:00:00:00", "00000000000000000000000000000000", 1
                                                                                               // Smart layer interface key. It does not have any value or blockchain transactions
                                                                                               // Paste the private key here and make a note of the associated address - you will use that
                                                                                               // Address in your TokenScript to communicate with this device via Smart Layer
-                                                                                              
+
 //#define SPOOF_MAC_ADDRESS {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}  //In case you need to connect to a network that requires a specific mac address to connect
 
 void BlueToothService(void *pvParameters);
