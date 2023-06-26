@@ -5,6 +5,10 @@
 ## [![PlatformIO Registry](https://badges.registry.platformio.org/packages/alphawallet/library/Web3E.svg)](https://registry.platformio.org/libraries/alphawallet/Web3E)
 
 What's New:
+v1.44:
+- Fix type conversion ambiguity.
+- Add required method in TcpBridge.
+
 v1.43:
 - Update readme text in August door sample to point to Project wizard at http://smarttokenlabs.duckdns.org/
 
