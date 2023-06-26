@@ -102,6 +102,12 @@ void TcpBridge::checkClientAPI(TcpBridgeCallback callback)
     }
 }
 
+// Get Diff from last time we had server comms
+long TcpBridge::getLastCommsTime()
+{
+    return lastComms;
+}
+
 void TcpBridge::sendResponse(std::string resp)
 {
     packetBuffer[0] = 0x08;

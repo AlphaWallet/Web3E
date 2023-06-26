@@ -329,7 +329,6 @@ vector<uint8_t> Contract::RlpEncode(
 
     auto *zeroStr = new string("0");
     vector<uint8_t> zero = Util::ConvertHexToVector(zeroStr);
-
     vector<uint8_t> outputNonce = Util::RlpEncodeItemWithVector(nonce);
     vector<uint8_t> outputGasPrice = Util::RlpEncodeItemWithVector(gasPrice);
     vector<uint8_t> outputGasLimit = Util::RlpEncodeItemWithVector(gasLimit);

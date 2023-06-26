@@ -306,7 +306,7 @@ string Web3::getString(const string *json)
     vector<string> *v = Util::ConvertStringHexToABIArray(&parseVal);
     
     uint256_t length = uint256_t(v->at(1));
-    int lengthIndex = (size_t)length;
+    uint32_t lengthIndex = length;
 
     string asciiHex;
     int index = 2;

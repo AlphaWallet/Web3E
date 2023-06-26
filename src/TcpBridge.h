@@ -20,6 +20,8 @@ public:
     int getConnectionStatus() { return connectionValidCountdown; }
     int getPort() { return port; }
 
+    long getLastCommsTime();
+
 private:
     void scanAPI(APIReturn *apiReturn, int available);
     std::string getArg(int &index);
