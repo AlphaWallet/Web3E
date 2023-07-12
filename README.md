@@ -121,15 +121,15 @@ Web3E now has a series of API key free node endpoints for many EVMs. The full li
 Supply one of these to the Web3 object in your main sketch to start connecting.
 eg:
 
-```Web3 *web3 = new Web3(RINKEBY_ID);```
-	
-```Web3 *web3 = new Web3(IOTEX_ID);```
-	
-```Web3 *web3 = new Web3(MUMBAI_TEST_ID);```
+``` C++
+Web3 *web3 = new Web3(SEPOLIA_ID);
+Web3 *web3 = new Web3(MAINNET_ID);
+Web3 *web3 = new Web3(MUMBAI_TEST_ID);
+```
 
 Note, if you have an Infura API key and wish to use Infura where possible, edit Web3.h like this:
 
-```
+``` C++
 #define USING_INFURA 1
 #define INFURA_KEY "1234567890abcdef1234567890abcdef" //<--- your Infura key here
 ```
@@ -153,12 +153,12 @@ https://github.com/alpha-wallet/Web3E-Application
 Full source code for the [system active at the AlphaWallet office](https://www.youtube.com/watch?v=D_pMOMxXrYY). To get it working you need:
 - [Platformio](https://platformio.org/)
 - [AlphaWallet](https://www.alphawallet.com)
-- [Testnet Eth Kovan](https://faucets.chain.link/kovan). Visit this site on the DApp browser, although it's locked down to only use MetaMask.
-- [Testnet Eth Goerli](https://fauceth.komputing.org/?chain=5). Visit this site on your DApp browser - you'll need an ENS name to retrieve.
-Choose NonFungible token standard ERC721 or ERC875. Note the samples are written for ERC875 so you may need to adapt them for the ERC721 balance check.
+- [Testnet Eth Sepolia](https://sepoliafaucet.com/). Visit this site in the dapp browser or desktop with your browser plugin wallet.
+- [Testnet Polygon Mumbai](https://mumbaifaucet.com/). Visit this site on your DApp browser - you'll need an ENS name to retrieve.
+- Mint some ERC721 tokens. You can use OpenSea or mintable below
 - [Mint some ERC721 tokens](https://mintable.app/create) Visit here on your DApp browser.
-- [Mint some ERC875 tokens](https://tf.alphawallet.com) Visit here on your DApp browser.
-- Take a note of the contract address. Copy/paste contract address into source code inside the 'STORMBIRD_CONTRACT' define.
+- [Mint some ERC20 tokens](https://www.smartcontracts.tools/token-generator/create/ethereum/) Visit here on your DApp browser.
+- Take a note of the contract address. Copy/paste contract address into source code inside the 'DOOR_CONTRACT' or 'TOKEN_CONTRACT' define.
 - Build and deploy the sample to your Arduino framework device.
 - Use the transfer or MagicLink on AlphaWallet to give out the tokens.
 
@@ -183,7 +183,7 @@ In this usage pattern, your IoT device will connect to a proxy server which prov
 The source code for the proxy server can be found here: [Script Proxy](https://github.com/AlphaWallet/Web3E-Application/tree/master/ScriptProxy)
 
 - Set up API routes
-```
+``` C++
     const char *apiRoute = "api/";
     enum APIRoutes {   
         api_getChallenge, 
@@ -195,39 +195,59 @@ The source code for the proxy server can be found here: [Script Proxy](https://g
     s_apiRoutes["end"] = api_End;
 ```
 
-Declare UdpBridge, KeyID and Web3 in globals:
+Declare TcpBridge, KeyID and Web3 in globals:
 
-```
-UdpBridge *udpConnection;
+``` C++
+TcpBridge *tcpConnection;
 Web3 *web3;
 KeyID *keyID;
 ```
 
 Setup your Web node
-```
+``` C++
 web3 = new Web3(MAINNET_ID);
 ```
 
 Start UDP bridge after connecting to WiFi:
 
-```
-    udpConnection = new UdpBridge();
-    udpConnection->setKey(keyID, web3);
-    udpConnection->startConnection();
+``` C++
+    tcpConnection = new TcpBridge();
+    tcpConnection->setKey(keyID, web3);
+    tcpConnection->startConnection();
 ```
 
 Within your loop() check for API call:
 
-```
-	udpConnection->checkClientAPI(&handleAPI);
+``` C++
+    tcpConnection->checkClientAPI(&handleTCPAPI);
 ```
 
 Handle API call in the callback:
 
-```
-void handleAPI(APIReturn *apiReturn, UdpBridge *udpBridge, int methodId)
+``` C++
+enum APIRoutes
 {
-    switch (s_apiRoutes[apiReturn->apiName.c_str()])
+  api_unknown,
+  api_getChallenge,
+  api_checkSignature,
+  api_checkSignatureLock,
+  api_checkMarqueeSig,
+  api_end
+};
+
+std::map<std::string, APIRoutes> s_apiRoutes;
+
+void Initialize()
+{
+  s_apiRoutes["getChallenge"] = api_getChallenge;
+  s_apiRoutes["checkSignature"] = api_checkSignature;
+  s_apiRoutes["checkSignatureLock"] = api_checkSignatureLock;
+  s_apiRoutes["end"] = api_end;
+}
+
+std::string handleTCPAPI(APIReturn* apiReturn)
+{
+    switch (s_apiRoutes[apiReturn->apiName])
     {
 	case api_getChallenge:
 		Serial.println(currentChallenge.c_str());
@@ -259,11 +279,11 @@ void handleAPI(APIReturn *apiReturn, UdpBridge *udpBridge, int methodId)
 In this usage pattern, the TokenScript running on the wallet will connect directly to the IoT device. Notice that this means your IoT is directly accessible to the internet, which may be susceptible to exploit.
 
 - Declare the TCP server in globals:
-```
+``` C++
 WiFiServer server(8082);
 ```
 - Ensure your Device is locked to a fixed IP Address for port forwarding (adjust local IP address as required):
-```
+``` C++
 IPAddress ipStat(192, 168, 1, 100);
 IPAddress gateway(192, 168, 1, 1);
 IPAddress subnet(255, 255, 255, 0);
@@ -273,7 +293,7 @@ WiFi.config(ipStat, gateway, subnet, dns, dns);
 
 
 - Set up API routes
-```
+``` C++
     const char *apiRoute = "api/";
     enum APIRoutes {   
         api_getChallenge, 
@@ -285,7 +305,7 @@ WiFi.config(ipStat, gateway, subnet, dns, dns);
     s_apiRoutes["end"] = api_End;
 ```
 - Listen for API call:
-```
+``` C++
     WiFiClient c = server.available(); // Listen for incoming clients
     ScriptClient *client = (ScriptClient*) &c;
 
@@ -296,7 +316,7 @@ WiFi.config(ipStat, gateway, subnet, dns, dns);
     }
 ```
 - Handle API return:
-```
+``` C++
 void handleAPI(APIReturn *apiReturn, ScriptClient *client)
 {
     switch(s_apiRoutes[apiReturn->apiName.c_str()])
@@ -327,7 +347,7 @@ void handleAPI(APIReturn *apiReturn, ScriptClient *client)
 
 ## Ethereum transaction (ie send ETH to address):
 
-```
+``` C++
 // Setup Web3 and Contract with Private Key
 ...
 web3 = new Web3(RINKEBY_ID);
@@ -343,13 +363,13 @@ string result = contract.SendTransaction(nonceVal, gasPriceVal, gasLimitVal, &to
 ```
 
 ## Query ETH balance:
-```
+``` C++
 uint256_t balance = web3->EthGetBalance(&address); //obtain balance in Wei
 string balanceStr = Util::ConvertWeiToEthString(&balance, 18); //get string balance as Eth (18 decimals)
 ```
 
 ## Query ERC20 Balance:
-```
+``` C++
 string address = string("0x007bee82bdd9e866b2bd114780a47f2261c684e3");
 Contract contract(web3, "0x20fe562d797a42dcb3399062ae9546cd06f63280"); //contract is on Ropsten
 
@@ -367,7 +387,7 @@ string balanceStr = Util::ConvertWeiToEthString(&baseBalance, decimals); //conve
 ```
 
 ## Send ERC20 Token:
-```
+``` C++
 string contractAddr = "0x20fe562d797a42dcb3399062ae9546cd06f63280";
 Contract contract(web3, contractAddr.c_str());
 contract.SetPrivateKey(<Your private key>);
