@@ -14,7 +14,7 @@ v1.43:
 
 v1.42:
 - Use EIP-155 for sending transactions.
-- Remove depency on libm for converting doubles.
+- Remove dependency on libm for converting doubles.
 - Fix various issues.
 - Rework examples to ensure they work and improve example code quality.
 
@@ -38,15 +38,15 @@ v1.33:
 - Fix & update Node certificates.
 - Add Sepolia, Arbirtum and Optimism Goerli. 
 
-For a working demonstation of TokenScript and Web3E please try minting an ERC5169/TokenScript powered ERC721 NFT here: http://smarttokenlabs.duckdns.org
+For a working demonstration of TokenScript and Web3E please try minting an ERC5169/TokenScript powered ERC721 NFT here: http://smarttokenlabs.duckdns.org
 You will need AlphaWallet on your mobile phone; simply replace the main.cpp in the project here: https://github.com/TokenScript/TokenScriptTestContracts/tree/master/firmware with the generated project which the Token wizard generates.
 
 Web3E is a fully functional Web3 framework for Embedded devices running Arduino. Web3E now has methods which allow you to use TokenScript in your IoT solution for rapid deployment. Tested mainly on ESP32 and working on ESP8266. Also included is a rapid development DApp injector to convert your embedded server into a fully integrated Ethereum DApp. 
 
-Starting from a simple requirement - write a DApp capable of running on an ESP32 which can serve as a security door entry system. Some brave attempts can be found in scattered repos but ultimately even the best are just dapp veneers or have ingeneous and clunky hand-rolled communication systems like the Arduino wallet attempts.
+Starting from a simple requirement - write a DApp capable of running on an ESP32 which can serve as a security door entry system. Some brave attempts can be found in scattered repos but ultimately even the best are just dapp veneers or have ingenous and clunky hand-rolled communication systems like the Arduino wallet attempts.
 
-What is required is a method to write simple, fully embedded DApps which give you a zero infrastucture and total security solution.
-It is possible that as Ethereum runs natively on embedded devices a new revolution in the blockchain saga will begin. Now you have the ability to write a fully embedded DApp that gives you the seurity and flexibility of Ethereum in an embedded device.
+What is required is a method to write simple, fully embedded DApps which give you a zero infrastructure and total security solution.
+It is possible that as Ethereum runs natively on embedded devices a new revolution in the blockchain saga will begin. Now you have the ability to write a fully embedded DApp that gives you the security and flexibility of Ethereum in an embedded device.
 
 ## New Features
 
@@ -170,7 +170,7 @@ Full source code for the [system active at the AlphaWallet office](https://www.y
 - Send Eth, showing how to send native eth.
 - Wallet Bridge 1: Introduction to simple TokenScript connection to wallet.
 - Wallet Bridge 2: Use simple authentication to check pre-defined addresses.
-- Wallet Bridge 3: Use Ethereum Tokens as security attestations to interct with your IoT directly via the wallet.
+- Wallet Bridge 3: Use Ethereum Tokens as security attestations to interact with your IoT directly via the wallet.
 
 The push transaction sample requires a little work to get running. You have to have an Ethereum wallet, some testnet ETH, the private key for that testnet eth, and then create some ERC20 and ERC875 tokens in the account.
 
