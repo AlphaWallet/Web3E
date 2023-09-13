@@ -38,6 +38,7 @@
 #define MILKOMEDA_C1_TEST_RPC "rpc-devnet-cardano-evm.c1.milkomeda.com"
 #define KLAYTN_RPC "public-node-api.klaytnapi.com/v1/cypress"
 #define KLAYTN_BAOBAB_RPC "api.baobab.klaytn.net:8651"
+#define FUJI_TEST_RPC "api.avax-test.network/ext/bc/C/rpc"
 
 const char* getNode(long long chainId)
 {
@@ -89,7 +90,9 @@ const char* getNode(long long chainId)
         return OPTIMISM_INF_GOERLI_URL;
     case ARBITRUM_GOERLI_ID:
         return ARBITRUM_INF_GOERLI_URL;
-
+	case FUJI_TEST_ID:
+        return FUJI_TEST_RPC;
+		
     default:
         return "";
     }
