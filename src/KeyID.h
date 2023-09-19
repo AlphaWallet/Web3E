@@ -1,8 +1,8 @@
 #ifndef KEY_ID_H
 #define KEY_ID_H
 #include "EEPROM.h"
-#include <web3.h>
-#include <trezor/rand.h>
+#include <Web3.h>
+#include <Trezor/rand.h>
 #include <string>
 #include <Crypto.h>
 
