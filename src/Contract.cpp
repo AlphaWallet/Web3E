@@ -283,7 +283,7 @@ string Contract::GenerateBytesForString(const string *value)
 {
     const char *valuePtr = value->c_str(); //don't fail if given a 'String'
     size_t length = strlen(valuePtr);
-    return GenerateBytesForBytes(valuePtr, length);
+    return GenerateBytesForInt(length) + GenerateBytesForBytes(valuePtr, length);
 }
 
 string Contract::GenerateBytesForHexBytes(const string *value)
