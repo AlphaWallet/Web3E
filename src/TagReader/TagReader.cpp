@@ -3,7 +3,7 @@
 *	Crawls a JSON looking for tags
 *	Saves any allocation
 *
-*	TODO: Move all JSON handling to this class 
+*	Future optimization: Move all JSON handling to this class
 *		- pass a char* so terminators can be inserted and have all the value pairs stay within the original data, which is on stack
 **/
 

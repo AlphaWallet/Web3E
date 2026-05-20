@@ -44,6 +44,7 @@ enum ConnectionStage
 class Web3 {
 public:
     // Default constructor: uses pub1.aplocoin.com as primary, pub2 as fallback
+    // TLS uses WiFiClientSecure defaults unless a CA bundle/certificate or explicit insecure mode is configured.
     Web3();
     
     // Custom RPC constructor: specify primary RPC URL
@@ -54,6 +55,22 @@ public:
     
     // Legacy constructor for backward compatibility (chainId ignored, always uses APLO_ID)
     Web3(long long chainId);
+    
+    // Certificate validation configuration
+    // Call one of these methods BEFORE making any RPC calls when your platform requires explicit trust anchors.
+    
+    // Option 1: Use ESP32 CA certificate bundle (recommended for production)
+    // Requires: board_build.embed_files = data/cert/x509_crt_bundle.bin in platformio.ini
+    // See: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/protocols/esp_crt_bundle.html
+    void setCertificateBundle(const uint8_t* bundle_start);
+    
+    // Option 2: Use specific CA certificate (PEM format)
+    // Useful when you control the RPC endpoint and want to pin to a specific CA
+    void setCertificate(const char* root_ca);
+    
+    // Option 3: Explicitly disable certificate validation (insecure, for testing only)
+    // This is never enabled automatically.
+    void setInsecure();
     
     string Web3ClientVersion();
     string Web3Sha3(const string* data);
@@ -129,6 +146,12 @@ private:
     const char* fallbackRpcUrl;
     unsigned short port;
     long long chainId;  // Fixed to APLO_ID (28282)
+    
+    // Certificate configuration state
+    enum CertMode { CERT_AUTO, CERT_INSECURE, CERT_CA, CERT_BUNDLE };
+    CertMode certMode;
+    const char* caCert;
+    const uint8_t* certBundle;
 };
 
 #endif //APLOEMBED_WEB3_H

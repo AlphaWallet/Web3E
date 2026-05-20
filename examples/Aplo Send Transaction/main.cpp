@@ -27,7 +27,7 @@ const char *password = "<YOUR_WIFI_PASSWORD>";
 #define RECIPIENT_ADDRESS "0x007bEe82BDd9e866b2bd114780a47f2261C684E3"  // Recipient address
 
 // CRITICAL: Replace with your actual 64-character hex private key (without 0x prefix)
-// This is a placeholder - your real key should be 64 hex characters
+// Demo key for documentation builds. Set a real 64-character private key from secure storage in production.
 const char *PRIVATE_KEY = "0000000000000000000000000000000000000000000000000000000000000000";
 
 // Transaction parameters

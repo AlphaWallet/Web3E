@@ -58,6 +58,13 @@ public:
 
     static string ConvertIntegerToBytes(const int32_t value);
 
+    // Mining helpers
+    static string PackMiningData(const string* address, const string* nonce, 
+                                  const string* difficulty, const string* prevHash, 
+                                  uint32_t totalMined);
+    static string ComputeKeccak256(const string* hexData);
+    static bool CompareUint256(const string* hash, const string* difficulty);
+
 private:
     static uint8_t ConvertCharToByte(const uint8_t* ptr);
 

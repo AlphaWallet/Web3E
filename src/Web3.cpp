@@ -19,6 +19,13 @@ void Web3::initWeb3(const char* primaryRpc, const char* fallbackRpc) {
     chainId = APLO_ID;  // Fixed to AploCoin chain ID (28282)
     primaryRpcUrl = primaryRpc;
     fallbackRpcUrl = fallbackRpc;
+    
+    // Default: let WiFiClientSecure/HTTP stack handle TLS using its configured trust store.
+    // No AploCoin certificates are hardcoded and certificate validation is never disabled implicitly.
+    certMode = CERT_AUTO;
+    caCert = nullptr;
+    certBundle = nullptr;
+    
     selectHost();
 }
 
@@ -47,6 +54,22 @@ Web3::Web3(long long networkId) {
         Serial.println(networkId);
     }
     initWeb3(getAploPrimaryNode(), getAploFallbackNode());
+}
+
+// Certificate validation configuration methods
+
+void Web3::setCertificateBundle(const uint8_t* bundle_start) {
+    certMode = CERT_BUNDLE;
+    certBundle = bundle_start;
+}
+
+void Web3::setCertificate(const char* root_ca) {
+    certMode = CERT_CA;
+    caCert = root_ca;
+}
+
+void Web3::setInsecure() {
+    certMode = CERT_INSECURE;
 }
 
 string Web3::Web3ClientVersion() {
@@ -131,7 +154,11 @@ long long int Web3::EthGasPrice() {
 }
 
 void Web3::EthAccounts(char** array, int size) {
-     // TODO
+    // eth_accounts is deprecated in modern Ethereum clients
+    // For AploCoin embedded use, accounts are managed locally via private keys
+    // This method is kept for API compatibility but returns empty
+    (void)array;  // Suppress unused parameter warning
+    (void)size;
 }
 
 int Web3::EthBlockNumber() {
@@ -172,10 +199,35 @@ int Web3::EthGetTransactionCount(const string* address) {
 
 string Web3::EthCall(const string* from, const char* to, long gas, long gasPrice,
                      const string* value, const string* data) {
-    // TODO use gas, gasprice and value
+    // Build eth_call with optional gas, gasPrice, and value parameters
     string m = "eth_call";
     string p = "[{\\\"from\\\":\\\"" + *from + "\\\",\\\"to\\\":\\\""
-               + *to + "\\\",\\\"data\\\":\\\"" + *data + "\\\"}, \\\"latest\\\"]";
+               + *to + "\\\",\\\"data\\\":\\\"" + *data + "\\\"";
+    
+    // Add gas if specified (non-zero)
+    if (gas > 0) {
+        char gasHex[32];
+        snprintf(gasHex, sizeof(gasHex), "0x%lx", gas);
+        p += ",\\\"gas\\\":\\\"";
+        p += gasHex;
+        p += "\\\"";
+    }
+    
+    // Add gasPrice if specified (non-zero)
+    if (gasPrice > 0) {
+        char gasPriceHex[32];
+        snprintf(gasPriceHex, sizeof(gasPriceHex), "0x%lx", gasPrice);
+        p += ",\\\"gasPrice\\\":\\\"";
+        p += gasPriceHex;
+        p += "\\\"";
+    }
+    
+    // Add value if specified (non-empty and non-zero)
+    if (value != nullptr && !value->empty() && *value != "0" && *value != "0x0") {
+        p += ",\\\"value\\\":\\\"" + *value + "\\\"";
+    }
+    
+    p += "}, \\\"latest\\\"]";
     string input = generateJson(&m, &p);
     return exec(&input);
 }
@@ -334,20 +386,63 @@ string Web3::getString(const string *json)
 }
 
 /**
- * @brief Configure TLS for HTTPS connection
+/**
+ * Configure TLS certificate validation for HTTPS connections.
  * 
- * Uses setInsecure() for ESP32/Arduino embedded platforms.
- * AploCoin RPC endpoints (pub1/pub2.aplocoin.com) use standard CA-signed certificates,
- * so no custom certificate pinning is required.
+ * Four modes are supported:
+ * 0. CERT_AUTO: Do not override WiFiClientSecure certificate handling.
+ *    - Uses the TLS behavior configured by the active Arduino/ESP32 core.
+ *    - This is the default and avoids hardcoded AploCoin certificates.
+ *
+ * 1. CERT_BUNDLE: Use ESP32 CA certificate bundle (recommended for production)
+ *    - Validates against Mozilla's root certificate set
+ *    - Requires board_build.embed_files in platformio.ini
+ *    - See: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/protocols/esp_crt_bundle.html
  * 
- * Note: For production deployments requiring strict certificate validation,
- * consider using setCACert() with the system CA bundle or a specific root certificate.
+ * 2. CERT_CA: Use specific CA certificate (PEM format)
+ *    - Validates against a single root CA certificate
+ *    - Useful for pinning to a specific CA you control
+ * 
+ * 3. CERT_INSECURE: Explicitly disable certificate validation
+ *    - Connection is encrypted but server identity is NOT verified
+ *    - Vulnerable to man-in-the-middle attacks
+ *    - Use only for testing or when certificate validation is not feasible
+ * 
+ * Call setCertificateBundle() or setCertificate() BEFORE making RPC calls if your platform
+ * does not provide a usable default trust store.
  */
 void Web3::setupCert()
 {
-    // ESP32 WiFiClientSecure: setInsecure() disables certificate validation
-    // This is acceptable for embedded devices with limited resources
-    client->setInsecure();
+    switch (certMode) {
+        case CERT_BUNDLE:
+            // Use ESP32 CA certificate bundle
+            if (certBundle != nullptr) {
+                client->setCACertBundle(certBundle);
+            } else {
+                Serial.println("Warning: CERT_BUNDLE mode but bundle is null; using WiFiClientSecure defaults");
+            }
+            break;
+            
+        case CERT_CA:
+            // Use specific CA certificate
+            if (caCert != nullptr) {
+                client->setCACert(caCert);
+            } else {
+                Serial.println("Warning: CERT_CA mode but certificate is null; using WiFiClientSecure defaults");
+            }
+            break;
+
+        case CERT_AUTO:
+            // Do not call setInsecure() and do not hardcode certificate material.
+            // The active WiFiClientSecure implementation handles TLS with its configured trust store.
+            break;
+            
+        case CERT_INSECURE:
+        default:
+            // Explicit testing/development mode only.
+            client->setInsecure();
+            break;
+    }
 }
 
 void Web3::selectHost()

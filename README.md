@@ -263,13 +263,39 @@ Staking APLO increases your mining reward multiplier:
 
 **Minimum stake for mining rewards: 1,000 APLO**
 
-## Security Warnings
+## Security
+
+### TLS Certificate Validation
+
+AploEmbed does not hardcode AploCoin RPC certificates and does not disable certificate validation automatically. By default it leaves TLS handling to `WiFiClientSecure` and the active Arduino/ESP32 trust configuration.
+
+If your target platform does not provide a usable trust store, configure a CA bundle or a specific CA certificate before making RPC calls:
+
+```cpp
+// Option 1: CA Certificate Bundle (recommended for ESP32 PlatformIO projects)
+extern const uint8_t rootca_crt_bundle_start[] asm("_binary_data_cert_x509_crt_bundle_bin_start");
+Web3 *web3 = new Web3();
+web3->setCertificateBundle(rootca_crt_bundle_start);
+
+// Option 2: Specific CA Certificate
+const char* root_ca = "-----BEGIN CERTIFICATE-----\n...";
+Web3 *web3 = new Web3();
+web3->setCertificate(root_ca);
+```
+
+TLS guidance:
+- AploEmbed does not hardcode AploCoin RPC certificates.
+- Default behavior leaves TLS to `WiFiClientSecure` and the platform trust configuration.
+- If your platform lacks a trust store, configure a CA bundle or a specific CA certificate before RPC calls.
+- Do not disable TLS validation for wallets that hold real funds.
+
+### Quick Security Checklist
 
 ⚠️ **Private Key Safety**
 - Never hardcode private keys in production code
 - Store private keys securely (EEPROM, secure element, etc.)
 - Never commit private keys to version control
-- Consider using hardware wallets for high-value operations
+- Consider using hardware security modules for high-value operations
 
 ⚠️ **Transaction Safety**
 - Always verify balance before sending transactions
@@ -282,6 +308,11 @@ Staking APLO increases your mining reward multiplier:
 - Configure your own RPC infrastructure for development
 - Implement rate limiting in production applications
 - Use failover endpoints for reliability
+
+⚠️ **TLS Security**
+- Enable certificate validation for production (see SECURITY.md)
+- Use CA bundle or specific CA certificate
+- Never use insecure mode with real funds
 
 ## Troubleshooting
 

@@ -257,23 +257,38 @@ MinerParams getMinerParams(const char *address)
 {
     MinerParams params;
     
-    // Call miner_params(address) view function
-    // Returns: (uint256 last_block, uint256 current_difficulty, uint256 total_mined, uint256 prev_hash)
+    // Call miner_params(address) view function using Web3::AploGetMinerParams
+    string addr = address;
+    string miningContractAddr = APLO_MINING_CONTRACT;
     
-    // NOTE: This requires proper ABI encoding which is not yet implemented
-    // For now, use placeholder values
-    // TODO: Implement proper ABI encoding for miner_params(address) call
+    uint256_t lastBlock, currentDifficulty, totalMined, prevHash;
     
-    // Placeholder implementation - would need:
-    // 1. Encode function selector: keccak256("miner_params(address)")[:4]
-    // 2. Encode address parameter (32 bytes, left-padded)
-    // 3. Call EthViewCall with encoded data
-    // 4. Decode returned bytes32[4] result
+    bool success = web3->AploGetMinerParams(&miningContractAddr, &addr,
+                                            &lastBlock, &currentDifficulty,
+                                            &totalMined, &prevHash);
     
-    params.lastBlock = 0;
-    params.currentDifficulty = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
-    params.totalMined = 0;
-    params.prevHash = "0x0000000000000000000000000000000000000000000000000000000000000000";
+    if (success) {
+        params.lastBlock = (uint32_t)lastBlock;
+        params.totalMined = (uint32_t)totalMined;
+        
+        // Convert uint256_t to hex string
+        char diffHex[67], prevHashHex[67];
+        snprintf(diffHex, sizeof(diffHex), "0x%064llx%064llx", 
+                 (unsigned long long)(currentDifficulty >> 64), 
+                 (unsigned long long)(currentDifficulty & 0xFFFFFFFFFFFFFFFFULL));
+        snprintf(prevHashHex, sizeof(prevHashHex), "0x%064llx%064llx",
+                 (unsigned long long)(prevHash >> 64),
+                 (unsigned long long)(prevHash & 0xFFFFFFFFFFFFFFFFULL));
+        
+        params.currentDifficulty = String(diffHex);
+        params.prevHash = String(prevHashHex);
+    } else {
+        // Fallback to safe defaults if RPC call fails
+        params.lastBlock = 0;
+        params.currentDifficulty = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+        params.totalMined = 0;
+        params.prevHash = "0x0000000000000000000000000000000000000000000000000000000000000000";
+    }
     
     Serial.println("Miner Parameters:");
     Serial.print("  Last Block: ");
@@ -314,12 +329,23 @@ bool attemptMining(const char *address)
         String hash = hashNonce(nonce, address, params.currentDifficulty, 
                                params.prevHash, params.totalMined);
         
-        // Compare hash with difficulty (simplified comparison)
-        // In production, need proper BigInt comparison
-        // For now, check if hash starts with more zeros than difficulty
+        // Compare hash with difficulty using proper uint256 comparison
+        string hashStr = hash.c_str();
+        string diffStr = params.currentDifficulty.c_str();
         
-        // Simplified: if hash is "small enough", submit
-        // TODO: Implement proper difficulty comparison
+        if (Util::CompareUint256(&hashStr, &diffStr)) {
+            // Found valid nonce!
+            Serial.println("\n\n🎉 VALID NONCE FOUND!");
+            Serial.print("Nonce: ");
+            Serial.println(nonce);
+            Serial.print("Hash: ");
+            Serial.println(hash);
+            Serial.print("Difficulty: ");
+            Serial.println(params.currentDifficulty);
+            
+            // Submit mining transaction
+            return submitMineTransaction(nonce);
+        }
         
         if (i % 10 == 0) {
             Serial.print(".");
@@ -346,14 +372,18 @@ String hashNonce(const String &nonce, const char *address, const String &difficu
     // Hash = keccak256(abi.encodePacked(address, nonce, difficulty, prevHash, totalMined))
     // This matches the WebMiner implementation
     
-    // For embedded implementation, we need to:
-    // 1. Pack the data according to Solidity ABI encoding
-    // 2. Compute keccak256 hash
+    string addr = address;
+    string nonceStr = nonce.c_str();
+    string diffStr = difficulty.c_str();
+    string prevHashStr = prevHash.c_str();
     
-    // TODO: Implement proper keccak256 hashing
-    // For now, return placeholder
+    // Pack data according to Solidity abi.encodePacked
+    string packed = Util::PackMiningData(&addr, &nonceStr, &diffStr, &prevHashStr, totalMined);
     
-    return "0x0000000000000000000000000000000000000000000000000000000000000000";
+    // Compute keccak256 hash
+    string hash = Util::ComputeKeccak256(&packed);
+    
+    return String(hash.c_str());
 }
 
 bool submitMineTransaction(const String &nonce) 

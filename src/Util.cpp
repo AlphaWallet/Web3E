@@ -6,6 +6,7 @@
 //
 
 #include <Util.h>
+#include <Crypto.h>
 #include <Arduino.h>
 #include <cstdio>
 #include <cstdlib>
@@ -739,4 +740,81 @@ string Util::intToHex(int value)
   std::stringstream stream;
   stream << hex << value;
   return stream.str();
+}
+
+// -------------------------------
+// Mining Helper Functions
+// -------------------------------
+
+string Util::PackMiningData(const string* address, const string* nonce, 
+                             const string* difficulty, const string* prevHash, 
+                             uint32_t totalMined) {
+    // Pack data for keccak256(abi.encodePacked(address, nonce, difficulty, prevHash, totalMined))
+    // This matches Solidity's abi.encodePacked behavior
+    
+    string packed = "";
+    
+    // Remove 0x prefix from all hex strings
+    string addr = *address;
+    if (addr.substr(0, 2) == "0x") addr = addr.substr(2);
+    
+    string nonceHex = *nonce;
+    if (nonceHex.substr(0, 2) == "0x") nonceHex = nonceHex.substr(2);
+    
+    string diffHex = *difficulty;
+    if (diffHex.substr(0, 2) == "0x") diffHex = diffHex.substr(2);
+    
+    string prevHashHex = *prevHash;
+    if (prevHashHex.substr(0, 2) == "0x") prevHashHex = prevHashHex.substr(2);
+    
+    // Pad address to 20 bytes (40 hex chars)
+    while (addr.length() < 40) addr = "0" + addr;
+    
+    // Pad nonce to 32 bytes (64 hex chars)
+    while (nonceHex.length() < 64) nonceHex = "0" + nonceHex;
+    
+    // Pad difficulty to 32 bytes (64 hex chars)
+    while (diffHex.length() < 64) diffHex = "0" + diffHex;
+    
+    // Pad prevHash to 32 bytes (64 hex chars)
+    while (prevHashHex.length() < 64) prevHashHex = "0" + prevHashHex;
+    
+    // Convert totalMined to 32-byte hex (big-endian)
+    char totalMinedHex[65];
+    snprintf(totalMinedHex, sizeof(totalMinedHex), "%064x", totalMined);
+    
+    // Concatenate all parts
+    packed = addr + nonceHex + diffHex + prevHashHex + string(totalMinedHex);
+    
+    return packed;
+}
+
+string Util::ComputeKeccak256(const string* hexData) {
+    // Convert hex string to bytes and compute keccak256
+    vector<uint8_t> bytes = ConvertHexToVector(hexData);
+    
+    uint8_t hash[32];
+    Crypto::Keccak256(bytes.data(), bytes.size(), hash);
+    
+    // Convert hash to hex string
+    return "0x" + ConvertBytesToHex(hash, 32);
+}
+
+bool Util::CompareUint256(const string* hash, const string* difficulty) {
+    // Compare two uint256 hex strings
+    // Returns true if hash < difficulty
+    
+    string h = *hash;
+    string d = *difficulty;
+    
+    // Remove 0x prefix
+    if (h.substr(0, 2) == "0x") h = h.substr(2);
+    if (d.substr(0, 2) == "0x") d = d.substr(2);
+    
+    // Pad to 64 hex chars (32 bytes)
+    while (h.length() < 64) h = "0" + h;
+    while (d.length() < 64) d = "0" + d;
+    
+    // Lexicographic comparison works for same-length hex strings
+    return h < d;
 }

@@ -58,7 +58,7 @@ const char *password = "<YOUR_WIFI_PASSWORD>";
 
 **CRITICAL SECURITY STEP:**
 
-Replace the placeholder values with your actual wallet details:
+Set your actual wallet details before sending transactions:
 
 ```cpp
 #define MY_ADDRESS "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"

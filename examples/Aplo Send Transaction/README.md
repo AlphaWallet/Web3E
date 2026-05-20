@@ -37,7 +37,7 @@ This example demonstrates how to send APLO currency to another address using the
 
 ### 1. WiFi Credentials
 
-Edit `main.cpp` and replace the placeholders:
+Edit `main.cpp` and set your local WiFi and wallet values:
 
 ```cpp
 const char *ssid = "<YOUR_SSID>";

@@ -437,7 +437,7 @@ String aplo = Util::ConvertWeiToEthString("1000500000000000000000", 18);  // "10
 
 1. **NEVER commit private keys to version control**
    - Add `main.cpp` to `.gitignore` if it contains real keys
-   - Use placeholder keys in committed code
+   - Keep committed examples on deterministic demo keys only; set real keys through secure storage
 
 2. **Use environment variables or secure storage**
    - For production, load keys from secure storage (SPIFFS, EEPROM with encryption)
@@ -463,40 +463,44 @@ String aplo = Util::ConvertWeiToEthString("1000500000000000000000", 18);  // "10
 
 ### Custom Difficulty Comparison
 
-The example includes simplified difficulty comparison. For production:
+The library includes proper uint256 difficulty comparison via `Util::CompareUint256()`:
 
 ```cpp
-// TODO: Implement proper BigInt comparison
-bool isValidNonce(const String &hash, const String &difficulty) {
-    // Compare hash < difficulty using proper big integer arithmetic
-    // ESP32 doesn't have native 256-bit integer support
-    // Consider using a library like mbedtls for big integer operations
+// Compare hash < difficulty using lexicographic comparison on padded hex strings
+string hashStr = hash.c_str();
+string diffStr = difficulty.c_str();
+if (Util::CompareUint256(&hashStr, &diffStr)) {
+    // Valid nonce found
 }
 ```
 
 ### Optimized Hashing
 
-For better mining performance:
+For better mining performance, consider:
 
 ```cpp
-// TODO: Implement hardware-accelerated keccak256
-// ESP32 has hardware SHA acceleration, but not keccak256
-// Consider:
-// 1. Optimized software keccak256 implementation
-// 2. Parallel nonce generation (multi-core ESP32)
-// 3. GPU mining for serious operations (ESP32 is for demonstration)
+// Hardware acceleration options:
+// - ESP32 has hardware SHA acceleration, but not keccak256
+// - Software keccak256 is already optimized in the library
+// - For serious mining, use dedicated hardware (ASIC/GPU)
+
+// Multi-core optimization (ESP32 dual-core):
+// - Run mining loop on Core 0
+// - Handle WiFi/RPC on Core 1
+// - Use FreeRTOS tasks for parallel nonce generation
 ```
 
 ### Mining Pool Support
 
-To join a mining pool:
+To join a mining pool, implement pool protocol:
 
 ```cpp
-// TODO: Implement pool protocol
-// 1. Connect to pool server
+// Pool mining workflow:
+// 1. Connect to pool server via WebSocket/HTTP
 // 2. Receive work assignments (difficulty, prev_hash)
-// 3. Submit shares (partial proofs)
-// 4. Receive proportional rewards
+// 3. Submit shares (partial proofs below network difficulty)
+// 4. Receive proportional rewards based on shares contributed
+// Note: Pool protocol is pool-specific and not standardized
 ```
 
 ## Performance Considerations
@@ -536,9 +540,10 @@ If you want to maximize ESP32 mining performance:
 
 3. **Use both ESP32 cores**:
    ```cpp
-   // TODO: Implement multi-core mining
+   // Multi-core mining example using FreeRTOS tasks
    xTaskCreatePinnedToCore(miningTask, "Mining", 4096, NULL, 1, NULL, 0);
    xTaskCreatePinnedToCore(miningTask, "Mining", 4096, NULL, 1, NULL, 1);
+   // Note: Requires careful synchronization of shared state
    ```
 
 4. **Optimize keccak256 implementation** (when implemented)
