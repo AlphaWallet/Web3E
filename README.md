@@ -1,446 +1,54 @@
 # AploEmbed - AploCoin for Embedded Devices
 
-> **Note:** This library is based on Web3E and has been specialized for AploCoin blockchain as **AploEmbed v2.0.0**
-
-<img align="right" src="https://raw.githubusercontent.com/JamesSmartCell/Release-Test/master/Web3-Esmall.png">
-
-## [![PlatformIO Registry](https://badges.registry.platformio.org/packages/alphawallet/library/Web3E.svg)](https://registry.platformio.org/libraries/alphawallet/Web3E)
-
-What's New:
-v2.0.0 (AploEmbed):
-- Specialized for AploCoin blockchain (chain ID 28282)
-- Removed multi-chain logic, focused on AploCoin RPC endpoints
-- Added AploCoin-specific helpers: balance, staking, mining
-- RPC failover support (primary + fallback providers)
-- Unit conversion helpers (APLO ↔ Gaplo/wei)
-
-v1.44:
-- Fix type conversion ambiguity.
-- Add required method in TcpBridge.
-
-v1.43:
-- Update readme text in August door sample to point to Project wizard at http://smarttokenlabs.duckdns.org/
-
-v1.42:
-- Use EIP-155 for sending transactions.
-- Remove dependency on libm for converting doubles.
-- Fix various issues.
-- Rework examples to ensure they work and improve example code quality.
-
-v1.41:
-- Allow multiple dynamic params on function calls.
-- Fix/allow unlimited length params on TcpBridge.
-
-v1.4:
-- Add Sepolia testnet.
-- Ensure Polygon and Mumbai are working correctly.
-- Optimise and fix contract call result handling.
-- Handle String return correctly.
-
-v1.34:
-- Allow long params in ScriptBridge.
-- Correctly RLP encode (bytes) params.
-- Add utility function for decoding responses.
-
-v1.33:
-- Fix & simplify node setup - only need to specify numeric ChainID or use the pre-definition eg ```Web3 web3 = new Web3(GOERLI_ID)```.
-- Fix & update Node certificates.
-- Add Sepolia, Arbirtum and Optimism Goerli. 
-
-For a working demonstration of TokenScript and Web3E please try minting an ERC5169/TokenScript powered ERC721 NFT here: http://smarttokenlabs.duckdns.org
-You will need AlphaWallet on your mobile phone; simply replace the main.cpp in the project here: https://github.com/TokenScript/TokenScriptTestContracts/tree/master/firmware with the generated project which the Token wizard generates.
-
-Web3E is a fully functional Web3 framework for Embedded devices running Arduino. Web3E now has methods which allow you to use TokenScript in your IoT solution for rapid deployment. Tested mainly on ESP32 and working on ESP8266. Also included is a rapid development DApp injector to convert your embedded server into a fully integrated Ethereum DApp. 
-
-Starting from a simple requirement - write a DApp capable of running on an ESP32 which can serve as a security door entry system. Some brave attempts can be found in scattered repos but ultimately even the best are just dapp veneers or have ingenous and clunky hand-rolled communication systems like the Arduino wallet attempts.
-
-What is required is a method to write simple, fully embedded DApps which give you a zero infrastructure and total security solution.
-It is possible that as Ethereum runs natively on embedded devices a new revolution in the blockchain saga will begin. Now you have the ability to write a fully embedded DApp that gives you the security and flexibility of Ethereum in an embedded device.
-
-## New Features
-
-- Fixed transaction send to use EIP-155.
-- Reduce firmware size footprint.
-- Reduce dependency on external libraries.
-- Produce Interface wizard which creates an NFT, writes and uploads TokenScript to IPFS, links the TokenScript via EIP-5169 and writes the firmware.
-  Wizard is here: http://smarttokenlabs.duckdns.org/ (Note that it is http, you need to trust the site!)
-- Improve encoding and decoding for calling smartcontract functions.
-- vastly improve SmartLayer comms with TokenScript.
-- Test examples with latest library and improve code.
-
-- Simplified Node connection.
-- Add TCP Bridge.
-- improve device key init.
-- add August lock crypto interface sample.
-- TokenScript/API interface [TokenScript](https://tokenscript.org)
-- uint256 class added to correctly handle Ethereum types.
-- usability methods added for converting between doubles and Wei values.
-- usability methods added for displaying Wei values as doubles.
-- random number generation uses Mersenne Twister.
-- memory usage improved.
+AploEmbed is a specialized blockchain library for ESP32 and Arduino devices, providing native access to the AploCoin blockchain. AploEmbed focuses exclusively on AploCoin operations including balance queries, token transfers, staking, and mining.
 
 ## Features
 
-- Web3E now has a streamlined [TokenScript](https://tokenscript.org) interface for smooth integration with AlphaWallet, and other TokenScript powered wallet.
-- Web3E has a Ready-to-Go DApp injection system that turns any device hosted site instantly into an Ethereum DApp with ECDSA crypto!
-- Cryptography has been overhauled to use a cut-down version of Trezor Wallet's heavily optimised and production proven library.
-- Transaction system is fully optimised and has been tested on ERC20 and ERC875 contracts.
-- Usability has been a priority.
+- **Single-Chain Focus**: Optimized exclusively for AploCoin (Chain ID 28282)
+- **RPC Failover**: Automatic failover between primary and backup RPC endpoints
+- **Complete API**: Balance queries, transactions, staking, and mining operations
+- **Unit Conversion**: Built-in helpers for APLO ↔ Gaplo (wei) conversion
+- **Embedded-Optimized**: Minimal memory footprint, tested on ESP32
+- **Production-Ready Crypto**: Uses Trezor's battle-tested cryptography library
 
 ## Installation
 
-- It is recommended to use [Platformio](https://platformio.org/install/) for best experience. Web3E is now part of the Platformio libraries so no need to clone the repo.
-- Using Web3E is a one step process:
-    1. Create a new project in Platformio and edit the platformio.ini so it looks similar to:
+### PlatformIO (Recommended)
 
-```
+Add AploEmbed to your `platformio.ini`:
+
+```ini
 [env:esp32dev]
 platform = espressif32
 board = esp32dev
 framework = arduino
 
-; Serial Monitor options
 monitor_speed = 115200
 
 lib_ldf_mode = deep
 lib_deps =
-  # Using a library name
-  Web3E
+  https://github.com/AploCoin/AploEmbed.git
 ```
 
-**Please note: you may need to use 'lib_ldf_mode = deep' to locate some ESP32 libraries like 'EEPROM.h'**
-**also: if you use many other libraries in your application you may need to add 'board_build.partitions = no_ota.csv' to fit your firmware**
+**Note:** You may need `lib_ldf_mode = deep` to locate ESP32 libraries like `EEPROM.h`. If using many libraries, add `board_build.partitions = no_ota.csv` to fit your firmware.
 
-## Example TokenScript flow
+### Arduino IDE
 
-- Two API end points are exposed on the embedded device, '/api/getChallenge' and 'api/checkSignature?sig=<sig>'
-- Device creates a challenge string, lets say 'Oranges 22853'.
-- Tokenscript enabled phone runs embedded JavaScript that does a 'fetch' on 'getChallenge', returning 'Oranges 22853'.
-- User is asked to sign this message using Ethereum SignPersonalMessage, with the same key that owns an entry token.
-- Signature is sent back to embedded device using 'fetch' on 'api/checkSignature?sig=<signature of 'Oranges 22853'>'.
-- Device ECRecover's an Ethereum Address from the signature using the current challenge.
-- If address from ECRecover holds a token then open the door.
-- Report pass/fail to callee.
+1. Download the repository as a ZIP file
+2. In Arduino IDE: Sketch → Include Library → Add .ZIP Library
+3. Select the downloaded ZIP file
 
-The advantage of using TokenScript rather than a dapp is evident from looking at the code example. You will have a very nice user interface defined with html/css with the calling code written in small JavaScript functions. The user would quickly find the entry token in their wallet.
+## Quick Start
 
-## New in Version 1.3 - easy node setup
+### Basic Setup
 
-Web3E now has a series of API key free node endpoints for many EVMs. The full list can be found in ```src/chainIds.h```.
-Supply one of these to the Web3 object in your main sketch to start connecting.
-eg:
-
-``` C++
-Web3 *web3 = new Web3(SEPOLIA_ID);
-Web3 *web3 = new Web3(MAINNET_ID);
-Web3 *web3 = new Web3(MUMBAI_TEST_ID);
-```
-
-Note, if you have an Infura API key and wish to use Infura where possible, edit Web3.h like this:
-
-``` C++
-#define USING_INFURA 1
-#define INFURA_KEY "1234567890abcdef1234567890abcdef" //<--- your Infura key here
-```
-
-Web3E will adjust the node endpoint to use Infura for all Infura supported networks. Note that you will need to enable Infura in the dashboard for all these networks; otherwise use the free connections.
-
-## Example Web3E DApp flow
-
-- Device creates a challenge string, lets say 'Oranges 22853'. 
-- Sign button containing a JavaScript Web3 call will instruct the wallet browser to ask the user to use their private key to sign 'Oranges 22853'. 
-- After user signs, the signature and the user's address are passed back into the code running on the firmware.
-- Web3E can perform ECRecover on the signature and the challenge string it created.
-- The device code compares the recovered address with the address from the user. If they match then we have verified the user holds the private key for that address.
-- Web3E can now check for specific permission tokens held by the user address. If the tokens are present the user has permission to operate whatever is connected to the device, could be a security door, safe, the office printer, a shared bitcoin hardware wallet etc.
-- All operations are offchain ie gasless, but using on-chain attestations which an owner can issue at will.
-
-## AlphaWallet Security Door
-
-https://github.com/alpha-wallet/Web3E-Application
-
-Full source code for the [system active at the AlphaWallet office](https://www.youtube.com/watch?v=D_pMOMxXrYY). To get it working you need:
-- [Platformio](https://platformio.org/)
-- [AlphaWallet](https://www.alphawallet.com)
-- [Testnet Eth Sepolia](https://sepoliafaucet.com/). Visit this site in the dapp browser or desktop with your browser plugin wallet.
-- [Testnet Polygon Mumbai](https://mumbaifaucet.com/). Visit this site on your DApp browser - you'll need an ENS name to retrieve.
-- Mint some ERC721 tokens. You can use OpenSea or mintable below
-- [Mint some ERC721 tokens](https://mintable.app/create) Visit here on your DApp browser.
-- [Mint some ERC20 tokens](https://www.smartcontracts.tools/token-generator/create/ethereum/) Visit here on your DApp browser.
-- Take a note of the contract address. Copy/paste contract address into source code inside the 'DOOR_CONTRACT' or 'TOKEN_CONTRACT' define.
-- Build and deploy the sample to your Arduino framework device.
-- Use the transfer or MagicLink on AlphaWallet to give out the tokens.
-
-## Included in the package are seven samples
-
-- Simple DApp. Shows the power of the library to create a DApp server truly embedded in the device. The on-board cryptography engine can fully interact with user input. Signing, recovery/verification takes milliseconds on ESP32.
-- Query Wallet balances, Token balances and for the first time Non-Fungible-Token (NFT) balances.
-- Push transactions, showing token transfer of ERC20 and ERC875 tokens.
-- Send Eth, showing how to send native eth.
-- Wallet Bridge 1: Introduction to simple TokenScript connection to wallet.
-- Wallet Bridge 2: Use simple authentication to check pre-defined addresses.
-- Wallet Bridge 3: Use Ethereum Tokens as security attestations to interact with your IoT directly via the wallet.
-
-The push transaction sample requires a little work to get running. You have to have an Ethereum wallet, some testnet ETH, the private key for that testnet eth, and then create some ERC20 and ERC875 tokens in the account.
-
-## Usage
-See Wallet Bridge 1, 2 and 3 examples for complete source
-
-## Standard: Using ScriptProxy Bridge
-### This style of connection will work in almost every situation, from inside or outside of the WiFi connection
-In this usage pattern, your IoT device will connect to a proxy server which provides a bridge to the TokenScript running on your wallet. 
-The source code for the proxy server can be found here: [Script Proxy](https://github.com/AlphaWallet/Web3E-Application/tree/master/ScriptProxy)
-
-- Set up API routes
-``` C++
-    const char *apiRoute = "api/";
-    enum APIRoutes {   
-        api_getChallenge, 
-        api_checkSignature, 
-        api_End };
-					
-    s_apiRoutes["getChallenge"] = api_getChallenge;
-    s_apiRoutes["checkSignature"] = api_checkSignature;
-    s_apiRoutes["end"] = api_End;
-```
-
-Declare TcpBridge, KeyID and Web3 in globals:
-
-``` C++
-TcpBridge *tcpConnection;
-Web3 *web3;
-KeyID *keyID;
-```
-
-Setup your Web node
-``` C++
-web3 = new Web3(MAINNET_ID);
-```
-
-Start UDP bridge after connecting to WiFi:
-
-``` C++
-    tcpConnection = new TcpBridge();
-    tcpConnection->setKey(keyID, web3);
-    tcpConnection->startConnection();
-```
-
-Within your loop() check for API call:
-
-``` C++
-    tcpConnection->checkClientAPI(&handleTCPAPI);
-```
-
-Handle API call in the callback:
-
-``` C++
-enum APIRoutes
-{
-  api_unknown,
-  api_getChallenge,
-  api_checkSignature,
-  api_checkSignatureLock,
-  api_checkMarqueeSig,
-  api_end
-};
-
-std::map<std::string, APIRoutes> s_apiRoutes;
-
-void Initialize()
-{
-  s_apiRoutes["getChallenge"] = api_getChallenge;
-  s_apiRoutes["checkSignature"] = api_checkSignature;
-  s_apiRoutes["checkSignatureLock"] = api_checkSignatureLock;
-  s_apiRoutes["end"] = api_end;
-}
-
-std::string handleTCPAPI(APIReturn* apiReturn)
-{
-    switch (s_apiRoutes[apiReturn->apiName])
-    {
-	case api_getChallenge:
-		Serial.println(currentChallenge.c_str());
-		udpBridge->sendResponse(currentChallenge, methodId);
-		break;
-	case api_checkSignature:
-		{
-			//EC-Recover address from signature and challenge
-			string address = Crypto::ECRecoverFromPersonalMessage(&apiReturn->params["sig"], &currentChallenge);  
-			//Check if this address has our entry token
-			boolean hasToken = QueryBalance(&address);
-			updateChallenge(); //generate a new challenge after each check
-			if (hasToken)
-			{
-				udpBridge->sendResponse("pass", methodId);
-				OpenDoor(); //Call your code that opens a door or performs the required 'pass' action
-			}
-			else
-			{
-				udpBridge->sendResponse("fail: doesn't have token", methodId);
-			}
-		}
-                break;	
-```
-
-
-## Advanced: Direct TCP connection
-### Use this if you have admin control of your WiFi Router, as you need to set up port forwarding to access the unit from outside your WiFi
-In this usage pattern, the TokenScript running on the wallet will connect directly to the IoT device. Notice that this means your IoT is directly accessible to the internet, which may be susceptible to exploit.
-
-- Declare the TCP server in globals:
-``` C++
-WiFiServer server(8082);
-```
-- Ensure your Device is locked to a fixed IP Address for port forwarding (adjust local IP address as required):
-``` C++
-IPAddress ipStat(192, 168, 1, 100);
-IPAddress gateway(192, 168, 1, 1);
-IPAddress subnet(255, 255, 255, 0);
-IPAddress dns(192, 168, 1, 1);
-WiFi.config(ipStat, gateway, subnet, dns, dns);
-```
-
-
-- Set up API routes
-``` C++
-    const char *apiRoute = "api/";
-    enum APIRoutes {   
-        api_getChallenge, 
-        api_checkSignature, 
-        api_End };
-					
-    s_apiRoutes["getChallenge"] = api_getChallenge;
-    s_apiRoutes["checkSignature"] = api_checkSignature;
-    s_apiRoutes["end"] = api_End;
-```
-- Listen for API call:
-``` C++
-    WiFiClient c = server.available(); // Listen for incoming clients
-    ScriptClient *client = (ScriptClient*) &c;
-
-    if (*client)
-    {
-        Serial.println("New Client.");
-        client->checkClientAPI(apiRoute, &handleAPI); //method handles connection close etc.
-    }
-```
-- Handle API return:
-``` C++
-void handleAPI(APIReturn *apiReturn, ScriptClient *client)
-{
-    switch(s_apiRoutes[apiReturn->apiName.c_str()])
-    {
-        case api_getChallenge:
-            client->print(currentChallenge.c_str());
-            break;
-        case api_checkSignature:
-            {
-				//EC-Recover address from signature and challenge
-                string address = Crypto::ECRecoverFromPersonalMessage(&apiReturn->params["sig"], &currentChallenge);  
-				//Check if this address has our entry token
-                boolean hasToken = QueryBalance(&address);
-                updateChallenge(); //generate a new challenge after each check
-                if (hasToken)
-                {
-                    client->print("pass");
-                    OpenDoor(); //Call your code that opens a door or performs the required 'pass' action
-                }
-                else
-                {
-                    client->print("fail: doesn't have token");
-                }
-            }
-            break;
-    }
-```
-
-## Ethereum transaction (ie send ETH to address):
-
-``` C++
-// Setup Web3 and Contract with Private Key
-...
-web3 = new Web3(RINKEBY_ID);
-Contract contract(web3, "");
-contract.SetPrivateKey(PRIVATE_KEY);
-uint32_t nonceVal = (uint32_t)web3->EthGetTransactionCount(&address); //obtain the next nonce
-uint256_t weiValue = Util::ConvertToWei(0.25, 18); //send 0.25 eth
-unsigned long long gasPriceVal = 1000000000ULL;
-uint32_t  gasLimitVal = 90000;
-string emptyString = "";
-string toAddress = "0xC067A53c91258ba513059919E03B81CF93f57Ac7";
-string result = contract.SendTransaction(nonceVal, gasPriceVal, gasLimitVal, &toAddress, &weiValue, &emptyString);
-```
-
-## Query ETH balance:
-``` C++
-uint256_t balance = web3->EthGetBalance(&address); //obtain balance in Wei
-string balanceStr = Util::ConvertWeiToEthString(&balance, 18); //get string balance as Eth (18 decimals)
-```
-
-## Query ERC20 Balance:
-``` C++
-string address = string("0x007bee82bdd9e866b2bd114780a47f2261c684e3");
-Contract contract(web3, "0x20fe562d797a42dcb3399062ae9546cd06f63280"); //contract is on Ropsten
-
-//Obtain decimals to correctly display ERC20 balance (if you already know this you can skip this step)
-string param = contract.SetupContractData("decimals()", &address);
-string result = contract.ViewCall(&param);
-int decimals = web3->getInt(&result);
-
-//Fetch the balance in base units
-param = contract.SetupContractData("balanceOf(address)", &address);
-result = contract.ViewCall(&param);
-
-uint256_t baseBalance = web3->getUint256(&result);
-string balanceStr = Util::ConvertWeiToEthString(&baseBalance, decimals); //convert balance to double style using decimal places
-```
-
-## Send ERC20 Token:
-``` C++
-string contractAddr = "0x20fe562d797a42dcb3399062ae9546cd06f63280";
-Contract contract(web3, contractAddr.c_str());
-contract.SetPrivateKey(<Your private key>);
-
-//Get contract name
-string param = contract.SetupContractData("name()", &addr);
-string result = contract.ViewCall(&param);
-string interpreted = Util::InterpretStringResult(web3->getString(&result).c_str());
-Serial.println(interpreted.c_str());
-
-//Get Contract decimals
-param = contract.SetupContractData("decimals()", &addr);
-result = contract.ViewCall(&param);
-int decimals = web3->getInt(&result);
-Serial.println(decimals);
-
-unsigned long long gasPriceVal = 22000000000ULL;
-uint32_t  gasLimitVal = 4300000;
-
-//amount of erc20 token to send, note we use decimal value obtained earlier
-uint256_t weiValue = Util::ConvertToWei(0.1, decimals);
-
-//get nonce
-uint32_t nonceVal = (uint32_t)web3->EthGetTransactionCount(&addr);
-string toAddress = "0x007bee82bdd9e866b2bd114780a47f2261c684e3";
-string valueStr = "0x00";
-
-//Setup contract function call
-string p = contract.SetupContractData("transfer(address,uint256)", &toAddress, &weiValue); //ERC20 function plus params
-
-//push transaction to ethereum
-result = contract.SendTransaction(nonceVal, gasPriceVal, gasLimitVal, &contractAddr, &valueStr, &p);
-string transactionHash = web3->getString(&result);
-```
-
-## AploCoin-Specific API Examples
-
-### Setup AploEmbed with RPC Configuration
-
-``` C++
+```cpp
 #include <Web3.h>
 #include <AploContracts.h>
 
-// Use default AploCoin RPC endpoints (pub1.aplocoin.com primary, pub2 fallback)
+// Use default AploCoin RPC endpoints
+// Primary: pub1.aplocoin.com
+// Fallback: pub2.aplocoin.com
 Web3 *web3 = new Web3();
 
 // Or specify custom RPC endpoint
@@ -450,25 +58,49 @@ Web3 *web3 = new Web3("custom-rpc.aplocoin.com");
 Web3 *web3 = new Web3("primary-rpc.aplocoin.com", "fallback-rpc.aplocoin.com");
 ```
 
+**Important:** The default RPC endpoints (pub1.aplocoin.com and pub2.aplocoin.com) are configurable defaults for your application. Do not spam these endpoints with test traffic. Configure your own RPC infrastructure for development and testing.
+
 ### Query APLO Balance
 
-``` C++
+```cpp
 string address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb";
 
 // Get balance in Gaplo (wei) - raw blockchain units
 uint256_t balanceGaplo = web3->AploGetBalance(&address);
 
 // Get balance as human-readable APLO string (18 decimals)
-// 1 APLO = 10^18 Gaplo (similar to ETH/wei relationship)
+// 1 APLO = 10^18 Gaplo
 string balanceAplo = web3->AploGetBalanceInAplo(&address);
 Serial.print("Balance: ");
 Serial.print(balanceAplo.c_str());
 Serial.println(" APLO");
 ```
 
+### Send APLO Transaction
+
+```cpp
+#include <Contract.h>
+
+Contract contract(web3, "");
+contract.SetPrivateKey(PRIVATE_KEY);
+
+string toAddress = "0xRecipientAddressHere";
+uint256_t amount = Util::ConvertToWei(10.0, 18); // Send 10 APLO
+
+uint32_t nonce = (uint32_t)web3->EthGetTransactionCount(&myAddress);
+unsigned long long gasPrice = 1000000000ULL;
+uint32_t gasLimit = 21000;
+string emptyData = "";
+
+string txHash = contract.SendTransaction(nonce, gasPrice, gasLimit, 
+                                         &toAddress, &amount, &emptyData);
+Serial.print("Transaction Hash: ");
+Serial.println(txHash.c_str());
+```
+
 ### Check Staking Status
 
-``` C++
+```cpp
 #include <AploContracts.h>
 
 string stakingContract = getAploStakingContract();
@@ -489,40 +121,9 @@ Serial.print("Multiplier: ");
 Serial.println(multiplier.str().c_str());
 ```
 
-### Query Mining Parameters
+### Stake APLO
 
-``` C++
-#include <AploContracts.h>
-
-string miningContract = getAploMiningContract();
-string minerAddress = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb";
-
-uint256_t lastBlock, currentDifficulty, totalMined, prevHash;
-
-bool success = web3->AploGetMinerParams(
-    &miningContract, 
-    &minerAddress,
-    &lastBlock, 
-    &currentDifficulty, 
-    &totalMined, 
-    &prevHash
-);
-
-if (success) {
-    Serial.print("Last Block: ");
-    Serial.println(lastBlock.str().c_str());
-    Serial.print("Difficulty: ");
-    Serial.println(currentDifficulty.str().c_str());
-    Serial.print("Total Mined: ");
-    Serial.println(totalMined.str().c_str());
-    Serial.print("Prev Hash: 0x");
-    Serial.println(prevHash.str(16).c_str());
-}
-```
-
-### Stake APLO (requires Contract class)
-
-``` C++
+```cpp
 #include <Contract.h>
 #include <AploContracts.h>
 
@@ -530,7 +131,7 @@ string stakingContract = getAploStakingContract();
 Contract contract(web3, stakingContract.c_str());
 contract.SetPrivateKey(PRIVATE_KEY);
 
-// Stake 1000 APLO (minimum stake amount)
+// Stake 1000 APLO (minimum for rewards)
 uint256_t stakeAmount = Util::ConvertToWei(1000, 18);
 
 // Build stake(uint256) function call
@@ -550,57 +151,90 @@ Serial.print("Stake TX: ");
 Serial.println(txHash.c_str());
 ```
 
-### Mine APLO (requires Contract class)
+### Mining
 
-``` C++
+```cpp
 #include <Contract.h>
 #include <AploContracts.h>
 
 string miningContract = getAploMiningContract();
-Contract contract(web3, miningContract.c_str());
-contract.SetPrivateKey(PRIVATE_KEY);
+string minerAddress = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb";
 
 // Get current mining parameters
 uint256_t lastBlock, currentDifficulty, totalMined, prevHash;
-web3->AploGetMinerParams(&miningContract, &myAddress, 
-                        &lastBlock, &currentDifficulty, &totalMined, &prevHash);
+bool success = web3->AploGetMinerParams(
+    &miningContract, 
+    &minerAddress,
+    &lastBlock, 
+    &currentDifficulty, 
+    &totalMined, 
+    &prevHash
+);
 
-// Generate nonce and check if it meets difficulty
-// (simplified - real mining requires proof-of-work loop)
-string nonce = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+if (success) {
+    Serial.print("Last Block: ");
+    Serial.println(lastBlock.str().c_str());
+    Serial.print("Difficulty: ");
+    Serial.println(currentDifficulty.str().c_str());
+}
 
-// Build mine(bytes32) function call
-string functionData = contract.SetupContractData("mine(bytes32)", &nonce);
-
-// Send mining transaction
-uint32_t nonceVal = (uint32_t)web3->EthGetTransactionCount(&myAddress);
-unsigned long long gasPrice = 1000000000ULL;
-uint32_t gasLimit = 200000;
-string valueStr = "0x00";
-
-string result = contract.SendTransaction(nonceVal, gasPrice, gasLimit,
-                                        &miningContract, &valueStr, &functionData);
-string txHash = web3->getString(&result);
-Serial.print("Mine TX: ");
-Serial.println(txHash.c_str());
+// Generate nonce and submit mining transaction
+// (See examples/Aplo Mining for complete mining loop)
 ```
+
+## Examples
+
+Complete working examples are included in the `examples/` directory:
+
+1. **Aplo Balance Query** - Query balance in APLO and Gaplo with RPC failover
+2. **Aplo Send Transaction** - Send APLO to an address with balance verification
+3. **Aplo Staking** - Query stake/multiplier, stake and unstake operations
+4. **Aplo Mining** - Mining loop with difficulty checking and staking verification
+
+Each example includes comprehensive documentation, security warnings, and troubleshooting guides.
+
+## AploCoin Blockchain
+
+AploEmbed supports one blockchain: **AploCoin**
+
+- **Chain ID**: 28282 (APLO_ID)
+- **Default RPC Primary**: pub1.aplocoin.com
+- **Default RPC Fallback**: pub2.aplocoin.com
+- **Native Currency**: APLO
+- **Base Unit**: Gaplo (1 APLO = 10^18 Gaplo)
+
+## API Reference
+
+### Balance Operations
+
+- `uint256_t AploGetBalance(string *address)` - Get balance in Gaplo (wei)
+- `string AploGetBalanceInAplo(string *address)` - Get balance as APLO string
+
+### Staking Operations
+
+- `uint256_t AploGetStake(string *contract, string *address)` - Get staked amount
+- `uint256_t AploGetStakeMultiplier(string *contract, string *address)` - Get multiplier
+- `string AploStake(string *contract, string *address, uint256_t *amount)` - Stake APLO
+- `string AploUnstake(string *contract, string *address, uint256_t *amount)` - Unstake APLO
+
+### Mining Operations
+
+- `bool AploGetMinerParams(string *contract, string *address, uint256_t *lastBlock, uint256_t *difficulty, uint256_t *totalMined, uint256_t *prevHash)` - Get mining parameters
+- `string AploMine(string *contract, string *address, string *nonce)` - Submit mining solution
+
+### Transaction Operations
+
+- `string AploSendTransaction(string *to, uint256_t *value)` - Send APLO to address
+- `uint32_t EthGetTransactionCount(string *address)` - Get nonce for transactions
+- `uint256_t EthBlockNumber()` - Get current block number
 
 ### RPC Failover
 
-The library automatically handles RPC failover. If the primary RPC endpoint fails, it will retry with the fallback endpoint:
+- `string execWithFailover(string *method, string *params)` - Execute RPC call with automatic failover
 
-``` C++
-// Configure with primary and fallback
-Web3 *web3 = new Web3("pub1.aplocoin.com", "pub2.aplocoin.com");
+## Unit Conversion
 
-// All API calls automatically use failover
-uint256_t balance = web3->AploGetBalance(&address);
-// If pub1 fails, automatically retries with pub2
-```
-
-### Unit Conversion Reference
-
-``` C++
+```cpp
 // APLO ↔ Gaplo (wei) conversion
 // 1 APLO = 1,000,000,000,000,000,000 Gaplo (10^18)
 
@@ -611,22 +245,117 @@ uint256_t gaplo = Util::ConvertToWei(1.5, 18);  // 1.5 APLO → 1500000000000000
 string aplo = Util::ConvertWeiToEthString(&gaplo, 18);  // "1.5"
 ```
 
-Originally forked https://github.com/kopanitsa/web3-arduino but with almost a complete re-write it is a new framework entirely.
+## Staking Tiers
 
-Libraries used:
-- Web3 Arduino https://github.com/kopanitsa/web3-arduino - skeleton of framework.
-- Trezor Crypto https://github.com/trezor/trezor-crypto - ECDSA sign, recover, verify, keccak256.
-- cJSON https://github.com/DaveGamble/cJSON
-- uint256 https://github.com/calccrypto/uint256_t - Lightweight uint256 implementation perfect for embedded devices.
-- Mersenne Twister https://github.com/MersenneTwister-Lab/TinyMT.git - For the most optimal random number generation for embedded.
+Staking APLO increases your mining reward multiplier:
 
-Coming soon:
+| Stake Amount | Multiplier |
+|--------------|------------|
+| < 1,000 APLO | 0× (no rewards) |
+| 1,000-1,999 APLO | 1.0× |
+| 2,000-2,999 APLO | 1.1× |
+| 3,000-3,999 APLO | 1.2× |
+| 4,000-4,999 APLO | 1.3× |
+| 5,000-5,999 APLO | 1.4× |
+| 6,000-6,999 APLO | 1.5× |
+| 7,000-7,999 APLO | 1.6× |
+| 8,000+ APLO | 1.7× |
 
-- Security door using NFT access (currently live at AlphaWallet office!).
-- ERC1155 balance enquiry.
-- Use Templates in library code for more flexible development.
+**Minimum stake for mining rewards: 1,000 APLO**
 
-# Donations
-If you support the cause, we could certainly use donations to help fund development:
+## Security Warnings
 
-0xbc8dAfeacA658Ae0857C80D8Aa6dE4D487577c63
+⚠️ **Private Key Safety**
+- Never hardcode private keys in production code
+- Store private keys securely (EEPROM, secure element, etc.)
+- Never commit private keys to version control
+- Consider using hardware wallets for high-value operations
+
+⚠️ **Transaction Safety**
+- Always verify balance before sending transactions
+- Double-check recipient addresses
+- Test with small amounts first
+- Monitor gas prices to avoid overpaying
+
+⚠️ **RPC Endpoint Safety**
+- Do not spam public RPC endpoints with test traffic
+- Configure your own RPC infrastructure for development
+- Implement rate limiting in production applications
+- Use failover endpoints for reliability
+
+## Troubleshooting
+
+### Compilation Issues
+
+**Missing EEPROM.h or other ESP32 libraries:**
+Add `lib_ldf_mode = deep` to your `platformio.ini`
+
+**Firmware too large:**
+Add `board_build.partitions = no_ota.csv` to your `platformio.ini`
+
+### Runtime Issues
+
+**RPC connection failures:**
+- Check WiFi connectivity
+- Verify RPC endpoint is accessible
+- Check firewall/network restrictions
+- Try alternate RPC endpoint
+
+**Transaction failures:**
+- Verify sufficient balance (including gas)
+- Check nonce is correct
+- Verify gas price and gas limit
+- Check contract address is correct
+
+**Mining not working:**
+- Verify you have staked at least 1,000 APLO
+- Check block cooldown (20 blocks between mining attempts)
+- Verify difficulty is met by your nonce
+- Check miner parameters are current
+
+## Technical Details
+
+### Dependencies
+
+AploEmbed uses the following libraries:
+
+- **Trezor Crypto** - ECDSA sign, recover, verify, keccak256
+- **cJSON** - JSON parsing and generation
+- **uint256_t** - Lightweight uint256 implementation for embedded devices
+- **Mersenne Twister** - Optimal random number generation for embedded
+
+### Compatibility
+
+- **Platforms**: ESP32, ESP8266 (ESP32 recommended)
+- **Framework**: Arduino
+- **C++ Standard**: C++11
+- **Memory**: Optimized for embedded devices with limited RAM
+
+### Architecture
+
+AploEmbed is specialized for AploCoin:
+
+- Fixed Chain ID to 28282 (APLO_ID)
+- Simplified RPC configuration to AploCoin endpoints
+- Added AploCoin-specific API methods
+- Maintained backward compatibility through legacy constructors
+
+## Credits
+
+AploEmbed is based on the work by James Brown and the AlphaWallet team. We are grateful for their excellent embedded blockchain framework.
+
+## License
+
+MIT License - see LICENSE file for details
+
+## Support
+
+- **Issues**: https://github.com/AploCoin/AploEmbed/issues
+- **AploCoin**: https://aplocoin.com/
+- **Documentation**: See examples/ directory for complete working code
+
+## Version
+
+**Current Version**: 0.0.1
+
+This is an early release focused on core AploCoin operations. Future versions will add additional features and optimizations.

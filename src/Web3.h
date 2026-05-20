@@ -29,7 +29,7 @@ class KeyID;
 #include <Util.h>
 #include <string.h>
 #include <string>
-#include "chainIds.h"
+#include "AploContracts.h"
 
 using namespace std;
 

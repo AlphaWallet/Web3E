@@ -415,7 +415,7 @@ Serial.print(balance, 6);  // 1234.567890 APLO
 
 ## Units and Conversions
 
-AploCoin uses 18 decimal places (like Ethereum):
+AploCoin uses 18 decimal places:
 
 - **1 APLO** = 1,000,000,000,000,000,000 Gaplo (10^18)
 - **1 Gaplo** = 0.000000000000000001 APLO (10^-18)

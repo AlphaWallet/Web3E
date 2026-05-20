@@ -1,6 +1,9 @@
 #ifndef APLOEMBED_CONTRACTS_H
 #define APLOEMBED_CONTRACTS_H
 
+// AploCoin Chain ID (from aplonode/params/config.go)
+#define APLO_ID 28282
+
 // AploCoin Smart Contract Addresses
 // These are example addresses from WebMiner reference implementation
 // Update these with actual deployed contract addresses for your network

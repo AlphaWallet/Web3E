@@ -1,5 +1,3 @@
-#include "chainIds.h"
-
 #ifndef APLOEMBED_NODES_H
 #define APLOEMBED_NODES_H
 
@@ -18,16 +16,6 @@ const char* getAploPrimaryNode()
 const char* getAploFallbackNode()
 {
     return APLO_FALLBACK_RPC_URL;
-}
-
-// Legacy compatibility: returns primary node for APLO_ID
-const char* getNode(long long chainId)
-{
-    if (chainId == APLO_ID)
-    {
-        return APLO_PRIMARY_RPC_URL;
-    }
-    return "";
 }
 
 #endif

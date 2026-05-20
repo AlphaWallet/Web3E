@@ -5,20 +5,19 @@ This example demonstrates how to query AploCoin balances using the AploEmbed lib
 ## Features
 
 - Query balance in **APLO** (human-readable format, 18 decimals)
-- Query balance in **Gaplo** (raw blockchain units, equivalent to wei in Ethereum)
+- Query balance in **Gaplo** (raw blockchain units, smallest denomination)
 - Automatic RPC failover (primary → fallback)
 - Simple WiFi setup for ESP32
 
 ## Unit Conversion
 
-AploCoin uses the same unit relationship as Ethereum:
+AploCoin uses 18 decimal places:
 
-```
-1 APLO = 10^18 Gaplo (wei)
-```
+- **1 APLO** = 1,000,000,000,000,000,000 Gaplo (10^18)
+- **Gaplo** is the smallest unit (like cents to dollars)
 
-- **APLO**: Human-readable unit (like ETH)
-- **Gaplo**: Smallest blockchain unit (like wei)
+- **APLO**: Human-readable unit
+- **Gaplo**: Smallest blockchain unit
 
 ## Configuration
 
@@ -68,7 +67,7 @@ pio device monitor
 ### Using Arduino IDE
 
 1. Copy the contents of `main.cpp` to a new sketch
-2. Install the Web3E library (version 2.0.0+)
+2. Install the AploEmbed library (version 0.0.1+)
 3. Select your ESP32 board
 4. Set serial monitor to 115200 baud
 5. Upload and monitor
@@ -139,7 +138,7 @@ uint256_t gaplo = Util::ConvertToWei(1234.56, 18);
 - Ensure the address has been funded on AploCoin network
 
 ### Compilation Errors
-- Ensure Web3E library version 2.0.0+ is installed
+- Ensure AploEmbed library version 0.0.1+ is installed
 - Check that all required headers are available
 - Verify ESP32 board support is installed
 
@@ -151,4 +150,4 @@ uint256_t gaplo = Util::ConvertToWei(1234.56, 18);
 
 ## License
 
-This example is part of the AploEmbed library (Web3E fork) and follows the same license terms.
+This example is part of the AploEmbed library and follows the same license terms.

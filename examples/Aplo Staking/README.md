@@ -311,10 +311,10 @@ string callData = contract.SetupContractData("unstake()");
 
 ## Units and Conversions
 
-AploCoin uses the same unit system as Ethereum:
+AploCoin uses 18 decimal places:
 
-- **APLO**: Human-readable unit (like ETH)
-- **Gaplo**: Smallest unit, equivalent to wei (1 APLO = 10^18 Gaplo)
+- **1 APLO** = 1,000,000,000,000,000,000 Gaplo (10^18)
+- **Gaplo** is the smallest unit
 
 ### Conversion Helpers
 
@@ -478,4 +478,4 @@ void loop()
 ## License
 
 This example is part of the AploEmbed library.
-Based on Web3E by James Brown (@JamesSmartCell, @AlphaWallet).
+Based on the original work by James Brown (@JamesSmartCell, @AlphaWallet).

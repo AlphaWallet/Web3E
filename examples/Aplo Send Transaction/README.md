@@ -157,7 +157,7 @@ You can track this transaction on the AploCoin block explorer
 
 **Possible causes:**
 1. **Invalid private key** - Verify it's 64 hex characters, no 0x prefix
-2. **Invalid recipient address** - Must be valid Ethereum-format address (0x...)
+2. **Invalid recipient address** - Must be valid address format (0x...)
 3. **Network issues** - Check WiFi connection and RPC endpoint availability
 4. **Insufficient gas** - Try increasing `GAS_PRICE` or `GAS_LIMIT`
 5. **Nonce issues** - If you sent multiple transactions quickly, wait for previous ones to confirm
@@ -240,7 +240,7 @@ string txHash = contract.SendTransaction(
 ### APLO vs Gaplo
 
 - **APLO** - Human-readable unit (like ETH)
-- **Gaplo** - Smallest unit, also called "wei" (like wei in Ethereum)
+- **Gaplo** - Smallest unit, also called "wei"
 - **Conversion:** 1 APLO = 10^18 Gaplo
 
 ### Gas Units

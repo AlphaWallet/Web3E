@@ -1,5 +1,5 @@
 {
-    "description": "AploEmbed - Ethereum-compatible blockchain interface for AploCoin, specialized for embedded devices running Arduino/ESP32. Based on Web3E.", 
+    "description": "AploEmbed - AploCoin blockchain interface for embedded devices running Arduino/ESP32. Provides balance queries, transactions, staking, and mining operations.", 
     "repository": {
         "url": "https://github.com/aplosdk/aploembed", 
         "type": "git"
@@ -14,7 +14,7 @@
             "url": "https://github.com/aplosdk"
         },
         {
-            "name": "James Brown (Web3E original)", 
+            "name": "James Brown (original author)", 
             "url": "https://github.com/JamesSmartCell"
         }
     ], 
@@ -26,11 +26,11 @@
         "Embedded",
         "ESP32",
         "Arduino",
-        "Web3",
-        "Ethereum",
-        "RPC"
+        "RPC",
+        "Staking",
+        "Mining"
     ],
     "name": "AploEmbed", 
-    "version": "2.0.0", 
+    "version": "0.0.1", 
     "homepage": "https://aplocoin.com/"
 }

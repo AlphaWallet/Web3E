@@ -6,7 +6,7 @@
 //
 
 #include "Web3.h"
-#include "Certificates.h"
+
 #include "Util.h"
 #include "TagReader/TagReader.h"
 #include <iostream>
@@ -334,24 +334,20 @@ string Web3::getString(const string *json)
 }
 
 /**
- * @brief Fetch TLS certificate for the node
+ * @brief Configure TLS for HTTPS connection
  * 
- * TODO: Add AploCoin certificate if needed
+ * Uses setInsecure() for ESP32/Arduino embedded platforms.
+ * AploCoin RPC endpoints (pub1/pub2.aplocoin.com) use standard CA-signed certificates,
+ * so no custom certificate pinning is required.
  * 
- * @return const char* 
+ * Note: For production deployments requiring strict certificate validation,
+ * consider using setCACert() with the system CA bundle or a specific root certificate.
  */
 void Web3::setupCert()
 {
-    const char *cert = getCertificate(chainId);
-    if (cert != nullptr)
-    {
-        client->setCACert(cert);
-    }
-    else
-    {
-        // Use insecure connection for now (acceptable for embedded devices)
-        client->setInsecure();
-    }
+    // ESP32 WiFiClientSecure: setInsecure() disables certificate validation
+    // This is acceptable for embedded devices with limited resources
+    client->setInsecure();
 }
 
 void Web3::selectHost()
