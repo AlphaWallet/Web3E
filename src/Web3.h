@@ -97,17 +97,11 @@ public:
     uint256_t AploGetBalance(const string* address);  // Returns balance in Gaplo (wei)
     string AploGetBalanceInAplo(const string* address);  // Returns balance as APLO string (human-readable)
     
-    // Send APLO currency with RPC failover
-    // value: amount in Gaplo (wei)
-    // Returns transaction hash on success, empty string on failure
-    string AploSendTransaction(const string* from, const string* to, 
-                               const uint256_t* value, uint32_t nonce,
-                               unsigned long long gasPrice, uint32_t gasLimit);
-    
-    // Staking operations (requires staking contract address)
+    // Staking operations (requires staking contract address, private key, and sender address)
     // All amounts in Gaplo (wei)
-    string AploStake(const string* stakingContract, const uint256_t* amount);
-    string AploUnstake(const string* stakingContract);
+    // Returns transaction hash on success, empty string on failure
+    string AploStake(const string* stakingContract, const uint256_t* amount, const char* privateKey, const string* fromAddress);
+    string AploUnstake(const string* stakingContract, const char* privateKey, const string* fromAddress);
     uint256_t AploGetStake(const string* stakingContract, const string* account);
     uint256_t AploGetStakeMultiplier(const string* stakingContract, const string* account);
     
@@ -116,7 +110,9 @@ public:
     bool AploGetMinerParams(const string* miningContract, const string* minerAddress,
                            uint256_t* lastBlock, uint256_t* currentDifficulty,
                            uint256_t* totalMined, uint256_t* prevHash);
-    string AploMine(const string* miningContract, const string* nonce);
+    // Submit mining transaction with valid nonce (32-byte hex string)
+    // Returns transaction hash on success, empty string on failure
+    string AploMine(const string* miningContract, const string* nonce, const char* privateKey, const string* fromAddress);
 
     long long int getLongLong(const string* json);
     string getString(const string* json);

@@ -214,19 +214,20 @@ AploEmbed supports one blockchain: **AploCoin**
 
 - `uint256_t AploGetStake(string *contract, string *address)` - Get staked amount
 - `uint256_t AploGetStakeMultiplier(string *contract, string *address)` - Get multiplier
-- `string AploStake(string *contract, string *address, uint256_t *amount)` - Stake APLO
-- `string AploUnstake(string *contract, string *address, uint256_t *amount)` - Unstake APLO
+- `string AploStake(string *stakingContract, uint256_t *amount, const char *privateKey, string *fromAddress)` - Stake APLO (returns transaction hash)
+- `string AploUnstake(string *stakingContract, const char *privateKey, string *fromAddress)` - Unstake APLO (returns transaction hash)
 
 ### Mining Operations
 
 - `bool AploGetMinerParams(string *contract, string *address, uint256_t *lastBlock, uint256_t *difficulty, uint256_t *totalMined, uint256_t *prevHash)` - Get mining parameters
-- `string AploMine(string *contract, string *address, string *nonce)` - Submit mining solution
+- `string AploMine(string *miningContract, string *nonce, const char *privateKey, string *fromAddress)` - Submit mining solution (returns transaction hash)
 
 ### Transaction Operations
 
-- `string AploSendTransaction(string *to, uint256_t *value)` - Send APLO to address
 - `uint32_t EthGetTransactionCount(string *address)` - Get nonce for transactions
 - `uint256_t EthBlockNumber()` - Get current block number
+
+**Note:** For sending APLO transactions, use the `Contract` class with `SetPrivateKey()` and `SendTransaction()` as shown in the "Send APLO Transaction" example above.
 
 ### RPC Failover
 

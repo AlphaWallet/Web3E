@@ -70,15 +70,6 @@ Adjust mining behavior if needed:
 #define CYCLE_DELAY_MS 1000        // Delay between cycles (ms)
 ```
 
-### 4. Gas Configuration (Optional)
-
-Adjust gas parameters for mining transactions:
-
-```cpp
-#define GAS_PRICE 1000000000ULL    // 1 Gwei (adjust based on network)
-#define GAS_LIMIT 100000           // Gas limit for mine() transaction
-```
-
 ## RPC Configuration
 
 The example uses default AploCoin RPC endpoints with automatic failover:
@@ -214,12 +205,21 @@ if (hash < difficulty) {
 
 ### 5. Transaction Submission
 
-Valid nonces are submitted via `mine(bytes32)` transaction:
+Valid nonces are submitted via `Web3::AploMine()` helper:
 
 ```cpp
-miningContract->SetupContractData("mine(bytes32)", nonce.c_str());
-String txHash = miningContract->SendTransaction(txNonce, GAS_LIMIT, GAS_PRICE, "");
+string miningContractAddr = APLO_MINING_CONTRACT;
+string nonceStr = nonce.c_str();
+string myAddr = MY_ADDRESS;
+string txHash = web3->AploMine(&miningContractAddr, &nonceStr, PRIVATE_KEY, &myAddr);
 ```
+
+The helper automatically handles:
+- Nonce validation (must be 32 bytes / 64 hex chars)
+- Function encoding for `mine(bytes32)`
+- Transaction nonce retrieval via `EthGetTransactionCount()`
+- Gas price query via `EthGasPrice()`
+- Transaction signing and submission
 
 ### 6. Reward Calculation
 

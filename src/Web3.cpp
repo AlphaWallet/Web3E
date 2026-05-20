@@ -538,36 +538,71 @@ string Web3::AploGetBalanceInAplo(const string* address) {
 }
 
 // -------------------------------
-// AploCoin Send Transaction
-// -------------------------------
-
-string Web3::AploSendTransaction(const string* from, const string* to, 
-                                 const uint256_t* value, uint32_t nonce,
-                                 unsigned long long gasPrice, uint32_t gasLimit) {
-    // This is a simplified wrapper - in production you'd need to:
-    // 1. Build and sign the transaction with private key
-    // 2. RLP encode it
-    // 3. Send via eth_sendRawTransaction
-    // For now, return empty string as this requires Contract class integration
-    Serial.println("AploSendTransaction: Use Contract class with SetPrivateKey for signed transactions");
-    return "";
-}
-
-// -------------------------------
 // AploCoin Staking Operations
 // -------------------------------
 
-string Web3::AploStake(const string* stakingContract, const uint256_t* amount) {
-    // Call stake(uint256) function on staking contract
-    // This requires Contract class integration for proper ABI encoding
-    Serial.println("AploStake: Use Contract class for staking operations");
-    return "";
+string Web3::AploStake(const string* stakingContract, const uint256_t* amount, const char* privateKey, const string* fromAddress) {
+    // Create contract instance
+    Contract contract(this, stakingContract->c_str());
+    contract.SetPrivateKey(privateKey);
+    
+    // Build function call data: stake(uint256)
+    string functionData = contract.SetupContractData("stake(uint256)", amount);
+    
+    // Get current nonce
+    uint32_t nonce = (uint32_t)EthGetTransactionCount(fromAddress);
+    
+    // Get current gas price
+    unsigned long long gasPrice = (unsigned long long)EthGasPrice();
+    
+    // Gas limit for staking (30k actual + buffer)
+    uint32_t gasLimit = 100000;
+    
+    // Send transaction with APLO value
+    // NOTE: For stake(), the amount is sent as transaction value (msg.value)
+    string contractAddr = *stakingContract;
+    string txHash = contract.SendTransaction(
+        nonce,
+        gasPrice,
+        gasLimit,
+        &contractAddr,
+        const_cast<uint256_t*>(amount),  // Value sent with transaction
+        &functionData
+    );
+    
+    return txHash;
 }
 
-string Web3::AploUnstake(const string* stakingContract) {
-    // Call unstake() function on staking contract
-    Serial.println("AploUnstake: Use Contract class for unstaking operations");
-    return "";
+string Web3::AploUnstake(const string* stakingContract, const char* privateKey, const string* fromAddress) {
+    // Create contract instance
+    Contract contract(this, stakingContract->c_str());
+    contract.SetPrivateKey(privateKey);
+    
+    // Build function call data: unstake()
+    string functionData = contract.SetupContractData("unstake()");
+    
+    // Get current nonce
+    uint32_t nonce = (uint32_t)EthGetTransactionCount(fromAddress);
+    
+    // Get current gas price
+    unsigned long long gasPrice = (unsigned long long)EthGasPrice();
+    
+    // Gas limit for unstaking (30k actual + buffer)
+    uint32_t gasLimit = 100000;
+    
+    // Send transaction with zero value (unstake returns APLO to sender)
+    uint256_t zeroValue = 0;
+    string contractAddr = *stakingContract;
+    string txHash = contract.SendTransaction(
+        nonce,
+        gasPrice,
+        gasLimit,
+        &contractAddr,
+        &zeroValue,
+        &functionData
+    );
+    
+    return txHash;
 }
 
 uint256_t Web3::AploGetStake(const string* stakingContract, const string* account) {
@@ -651,9 +686,49 @@ bool Web3::AploGetMinerParams(const string* miningContract, const string* minerA
     return true;
 }
 
-string Web3::AploMine(const string* miningContract, const string* nonce) {
-    // Call mine(bytes32) function
-    // This requires Contract class integration for proper transaction signing
-    Serial.println("AploMine: Use Contract class for mining operations");
-    return "";
+string Web3::AploMine(const string* miningContract, const string* nonce, const char* privateKey, const string* fromAddress) {
+    // Validate nonce format (must be 32-byte hex string)
+    string nonceStr = *nonce;
+    // Remove 0x prefix if present
+    if (nonceStr.length() >= 2 && nonceStr.substr(0, 2) == "0x") {
+        nonceStr = nonceStr.substr(2);
+    }
+    
+    // Check length (must be 64 hex chars = 32 bytes)
+    if (nonceStr.length() != 64) {
+        Serial.println("AploMine: nonce must be 32 bytes (64 hex chars)");
+        return "";
+    }
+    
+    // Create contract instance
+    Contract contract(this, miningContract->c_str());
+    contract.SetPrivateKey(privateKey);
+    
+    // Build function call data: mine(bytes32)
+    // Ensure nonce has 0x prefix for SetupContractData
+    string nonceWithPrefix = "0x" + nonceStr;
+    string functionData = contract.SetupContractData("mine(bytes32)", &nonceWithPrefix);
+    
+    // Get current transaction nonce (not mining nonce)
+    uint32_t txNonce = (uint32_t)EthGetTransactionCount(fromAddress);
+    
+    // Get current gas price
+    unsigned long long gasPrice = (unsigned long long)EthGasPrice();
+    
+    // Gas limit for mining (may require more gas than staking)
+    uint32_t gasLimit = 200000;
+    
+    // Send transaction with zero value
+    uint256_t zeroValue = 0;
+    string contractAddr = *miningContract;
+    string txHash = contract.SendTransaction(
+        txNonce,
+        gasPrice,
+        gasLimit,
+        &contractAddr,
+        &zeroValue,
+        &functionData
+    );
+    
+    return txHash;
 }

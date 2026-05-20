@@ -1,7 +1,6 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <Web3.h>
-#include <Contract.h>
 #include <AploContracts.h>
 #include <Util.h>
 
@@ -51,13 +50,7 @@ const char *PRIVATE_KEY = "00000000000000000000000000000000000000000000000000000
 #define HASH_ATTEMPTS_PER_CYCLE 100 // Number of nonces to try before checking block height
 #define CYCLE_DELAY_MS 1000        // Delay between hash cycles (ms)
 
-// Gas parameters for AploCoin mining transactions
-#define GAS_PRICE 1000000000ULL    // 1 Gwei in wei
-#define GAS_LIMIT 100000           // Gas limit for mine() transaction
-
 Web3 *web3;
-Contract *miningContract;
-Contract *stakingContract;
 int wificounter = 0;
 
 // Mining state
@@ -104,13 +97,6 @@ void setup()
     Serial.print("Staking Contract: ");
     Serial.println(APLO_STAKING_CONTRACT);
     Serial.println();
-    
-    // Initialize mining contract
-    miningContract = new Contract(web3, APLO_MINING_CONTRACT);
-    miningContract->SetPrivateKey(PRIVATE_KEY);
-    
-    // Initialize staking contract
-    stakingContract = new Contract(web3, APLO_STAKING_CONTRACT);
     
     // Query current balance
     double balance = queryBalance(MY_ADDRESS);
@@ -390,31 +376,20 @@ bool submitMineTransaction(const String &nonce)
 {
     Serial.println("\n🔨 Submitting mine transaction...");
     
-    // Setup contract data for mine(bytes32 nonce)
-    miningContract->SetupContractData(
-        "mine(bytes32)",
-        nonce.c_str()
-    );
-    
-    // Get transaction count for nonce
+    // Call Web3::AploMine helper
+    // This handles nonce validation, function encoding, nonce retrieval, gas price, signing, and submission
+    string miningContractAddr = APLO_MINING_CONTRACT;
+    string nonceStr = nonce.c_str();
     string myAddr = MY_ADDRESS;
-    uint32_t txNonce = (uint32_t)web3->EthGetTransactionCount(&myAddr);
+    string txHash = web3->AploMine(&miningContractAddr, &nonceStr, PRIVATE_KEY, &myAddr);
     
-    // Send transaction
-    String txHash = miningContract->SendTransaction(
-        txNonce,
-        GAS_LIMIT,
-        GAS_PRICE,
-        ""  // No value transfer
-    );
-    
-    if (txHash.isEmpty() || txHash == "0x0") {
+    if (txHash.empty() || txHash == "0x" || txHash == "0x0") {
         Serial.println("✗ Transaction failed!");
         return false;
     }
     
     Serial.print("✓ Transaction submitted: ");
-    Serial.println(txHash);
+    Serial.println(txHash.c_str());
     
     return true;
 }

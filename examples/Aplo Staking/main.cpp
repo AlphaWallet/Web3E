@@ -1,7 +1,6 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <Web3.h>
-#include <Contract.h>
 #include <AploContracts.h>
 #include <Util.h>
 
@@ -42,10 +41,6 @@ const char *PRIVATE_KEY = "00000000000000000000000000000000000000000000000000000
 // Staking parameters
 // Amount to stake in APLO (minimum 1,000 APLO for rewards)
 #define STAKE_AMOUNT_APLO 1000.0
-
-// Gas parameters for AploCoin staking transactions
-#define GAS_PRICE 1000000000ULL    // 1 Gwei in wei
-#define GAS_LIMIT 100000           // Higher limit for contract interaction
 
 Web3 *web3;
 int wificounter = 0;
@@ -237,10 +232,6 @@ void stakeAplo(double aplo)
 {
     Serial.println("--- Preparing Staking Transaction ---\n");
     
-    // Create contract object for the staking contract
-    Contract contract(web3, APLO_STAKING_CONTRACT);
-    contract.SetPrivateKey(PRIVATE_KEY);
-    
     // Convert APLO to Gaplo (wei) - 18 decimals
     uint256_t valueGaplo = Util::ConvertToWei(aplo, 18);
     
@@ -251,25 +242,6 @@ void stakeAplo(double aplo)
     Serial.println(valueGaplo.str().c_str());
     Serial.println();
     
-    // Build function call data: stake(uint256)
-    // Function selector: first 4 bytes of keccak256("stake(uint256)")
-    string functionData = contract.SetupContractData("stake(uint256)", &valueGaplo);
-    
-    Serial.println("Function: stake(uint256)");
-    Serial.print("Call Data: ");
-    Serial.println(functionData.c_str());
-    Serial.println();
-    
-    // Get current nonce
-    string myAddr = MY_ADDRESS;
-    uint32_t nonce = (uint32_t)web3->EthGetTransactionCount(&myAddr);
-    Serial.print("Nonce: ");
-    Serial.println(nonce);
-    Serial.println();
-    
-    // Prepare transaction parameters
-    string contractAddr = APLO_STAKING_CONTRACT;
-    
     Serial.println("Transaction Parameters:");
     Serial.print("  From: ");
     Serial.println(MY_ADDRESS);
@@ -278,30 +250,14 @@ void stakeAplo(double aplo)
     Serial.print("  Value: ");
     Serial.print(aplo, 2);
     Serial.println(" APLO (sent WITH transaction)");
-    Serial.print("  Gas Price: ");
-    Serial.print((unsigned long)(GAS_PRICE / 1000000000ULL));
-    Serial.println(" Gwei");
-    Serial.print("  Gas Limit: ");
-    Serial.println(GAS_LIMIT);
-    Serial.print("  Nonce: ");
-    Serial.println(nonce);
     Serial.println();
     
-    // Sign and send transaction
-    // NOTE: For stake(), we send the APLO amount as transaction value
-    // The contract will lock this amount and record it as the stake
+    // Call Web3::AploStake helper
+    // This handles nonce retrieval, gas price, function encoding, signing, and submission
     Serial.println("Signing and sending staking transaction...");
-    string txResult = contract.SendTransaction(
-        nonce, 
-        GAS_PRICE, 
-        GAS_LIMIT, 
-        &contractAddr, 
-        &valueGaplo,      // Send APLO with the transaction
-        &functionData     // Call stake(uint256) function
-    );
-    
-    // Parse transaction hash from result
-    string txHash = web3->getString(&txResult);
+    string stakingContract = APLO_STAKING_CONTRACT;
+    string myAddr = MY_ADDRESS;
+    string txHash = web3->AploStake(&stakingContract, &valueGaplo, PRIVATE_KEY, &myAddr);
     
     Serial.println("\n--- Staking Transaction Result ---\n");
     
@@ -323,9 +279,6 @@ void stakeAplo(double aplo)
         Serial.println("  - Invalid contract address");
         Serial.println("  - Network connectivity issues");
         Serial.println("  - RPC endpoint unavailable");
-        Serial.println();
-        Serial.print("Raw result: ");
-        Serial.println(txResult.c_str());
     }
     
     Serial.println();
@@ -341,59 +294,20 @@ void unstakeAplo()
 {
     Serial.println("--- Preparing Unstaking Transaction ---\n");
     
-    // Create contract object for the staking contract
-    Contract contract(web3, APLO_STAKING_CONTRACT);
-    contract.SetPrivateKey(PRIVATE_KEY);
-    
-    // Build function call data: unstake()
-    // Function selector: first 4 bytes of keccak256("unstake()")
-    // No parameters needed
-    string functionData = contract.SetupContractData("unstake()");
-    
-    Serial.println("Function: unstake()");
-    Serial.print("Call Data: ");
-    Serial.println(functionData.c_str());
-    Serial.println();
-    
-    // Get current nonce
-    string myAddr = MY_ADDRESS;
-    uint32_t nonce = (uint32_t)web3->EthGetTransactionCount(&myAddr);
-    Serial.print("Nonce: ");
-    Serial.println(nonce);
-    Serial.println();
-    
-    // Prepare transaction parameters
-    string contractAddr = APLO_STAKING_CONTRACT;
-    uint256_t zeroValue = 0;  // No APLO sent with unstake transaction
-    
     Serial.println("Transaction Parameters:");
     Serial.print("  From: ");
     Serial.println(MY_ADDRESS);
     Serial.print("  To (Contract): ");
     Serial.println(APLO_STAKING_CONTRACT);
     Serial.println("  Value: 0 APLO (unstake returns staked APLO)");
-    Serial.print("  Gas Price: ");
-    Serial.print((unsigned long)(GAS_PRICE / 1000000000ULL));
-    Serial.println(" Gwei");
-    Serial.print("  Gas Limit: ");
-    Serial.println(GAS_LIMIT);
-    Serial.print("  Nonce: ");
-    Serial.println(nonce);
     Serial.println();
     
-    // Sign and send transaction
+    // Call Web3::AploUnstake helper
+    // This handles nonce retrieval, gas price, function encoding, signing, and submission
     Serial.println("Signing and sending unstaking transaction...");
-    string txResult = contract.SendTransaction(
-        nonce, 
-        GAS_PRICE, 
-        GAS_LIMIT, 
-        &contractAddr, 
-        &zeroValue,       // No value sent
-        &functionData     // Call unstake() function
-    );
-    
-    // Parse transaction hash from result
-    string txHash = web3->getString(&txResult);
+    string stakingContract = APLO_STAKING_CONTRACT;
+    string myAddr = MY_ADDRESS;
+    string txHash = web3->AploUnstake(&stakingContract, PRIVATE_KEY, &myAddr);
     
     Serial.println("\n--- Unstaking Transaction Result ---\n");
     
@@ -415,9 +329,6 @@ void unstakeAplo()
         Serial.println("  - Insufficient gas");
         Serial.println("  - Network connectivity issues");
         Serial.println("  - RPC endpoint unavailable");
-        Serial.println();
-        Serial.print("Raw result: ");
-        Serial.println(txResult.c_str());
     }
     
     Serial.println();

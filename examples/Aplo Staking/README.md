@@ -78,16 +78,7 @@ Adjust the stake amount (minimum 1,000 APLO for rewards):
 #define STAKE_AMOUNT_APLO 1000.0
 ```
 
-### 4. Gas Configuration
-
-Default gas settings should work for most cases:
-
-```cpp
-#define GAS_PRICE 1000000000ULL    // 1 Gwei
-#define GAS_LIMIT 100000           // Contract interaction limit
-```
-
-### 5. RPC Configuration
+### 4. RPC Configuration
 
 The example uses default AploCoin RPC endpoints:
 - Primary: `pub1.aplocoin.com`
@@ -288,26 +279,49 @@ uint256_t multiplier = web3->AploGetStakeMultiplier(&stakingContract, &addr);
 // multiplier = 10 means 1.0×, 17 means 1.7×
 ```
 
-### Contract Methods
+### Web3 Staking Methods
 
-#### `contract.SetupContractData(function, ...)`
-Builds ABI-encoded function call data for contract interaction.
+#### `web3->AploStake(stakingContract, amount, privateKey, fromAddress)`
+Stakes APLO in the staking contract to increase mining multiplier.
 
 **Parameters:**
-- `function` - Function signature (const char*)
-- `...` - Function parameters (variadic)
+- `stakingContract` - Staking contract address (const string*)
+- `amount` - Amount to stake in Gaplo/wei (const uint256_t*)
+- `privateKey` - 64-character hex private key (const char*)
+- `fromAddress` - Sender address (const string*)
 
-**Returns:** `string` - Hex-encoded call data
+**Returns:** `string` - Transaction hash on success, empty string on failure
 
-**Examples:**
+**Example:**
 ```cpp
-// stake(uint256 amount)
-uint256_t amount = Util::ConvertToWei(1000.0, 18);
-string callData = contract.SetupContractData("stake(uint256)", &amount);
-
-// unstake() - no parameters
-string callData = contract.SetupContractData("unstake()");
+string stakingContract = APLO_STAKING_CONTRACT;
+uint256_t amount = Util::ConvertToWei(1000.0, 18);  // 1000 APLO
+string myAddr = MY_ADDRESS;
+string txHash = web3->AploStake(&stakingContract, &amount, PRIVATE_KEY, &myAddr);
 ```
+
+#### `web3->AploUnstake(stakingContract, privateKey, fromAddress)`
+Unstakes ALL staked APLO and resets mining multiplier to 0.
+
+**Parameters:**
+- `stakingContract` - Staking contract address (const string*)
+- `privateKey` - 64-character hex private key (const char*)
+- `fromAddress` - Sender address (const string*)
+
+**Returns:** `string` - Transaction hash on success, empty string on failure
+
+**Example:**
+```cpp
+string stakingContract = APLO_STAKING_CONTRACT;
+string myAddr = MY_ADDRESS;
+string txHash = web3->AploUnstake(&stakingContract, PRIVATE_KEY, &myAddr);
+```
+
+**Note:** Both methods automatically handle:
+- Nonce retrieval via `EthGetTransactionCount()`
+- Gas price query via `EthGasPrice()`
+- Function encoding and ABI packing
+- Transaction signing and submission
 
 ## Units and Conversions
 
