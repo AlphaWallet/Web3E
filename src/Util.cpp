@@ -1,10 +1,8 @@
-// Web3E Utilities
+// AploEmbed Utilities
 //
-// By James Brown Githubs: @JamesSmartCell @AlphaWallet
-// Twitters: @TallyDigital @AlphaWallet
-//
-// Based on Web3 Arduino by Okada, Takahiro.
-//
+// Specialized for AploCoin blockchain
+// Based on Web3E by James Brown (@JamesSmartCell, @AlphaWallet)
+// Original Web3 Arduino by Okada, Takahiro
 //
 
 #include <Util.h>
@@ -16,7 +14,7 @@
 
 char *gcvt(double x, int ndigit, char *buf);
 
-static const char * _web3e_hexStr = "0123456789ABCDEF";
+static const char * _aploembed_hexStr = "0123456789ABCDEF";
 // returns output (header) length
 uint32_t Util::RlpEncodeWholeHeader(uint8_t* header_output, uint32_t total_len) {
     if (total_len < 55) {
@@ -280,7 +278,7 @@ string Util::ConvertIntegerToBytes(const int32_t value)
     std::string rc(hex_len, '0');
     for (size_t i = 0, j = (hex_len - 1) * 4; i<hex_len; ++i, j -= 4)
     {
-        rc[i] = _web3e_hexStr[(value >> j) & 0x0f];
+        rc[i] = _aploembed_hexStr[(value >> j) & 0x0f];
     }
     return rc;
 }
@@ -291,8 +289,8 @@ string Util::PlainVectorToString(const vector<uint8_t> *buf)
 	char *pout = buffer;
 	for (int i = 0; i < buf->size(); i++)
 	{
-		*pout++ = _web3e_hexStr[((*buf)[i] >> 4) & 0xF];
-		*pout++ = _web3e_hexStr[(*buf)[i] & 0xF];
+		*pout++ = _aploembed_hexStr[((*buf)[i] >> 4) & 0xF];
+		*pout++ = _aploembed_hexStr[(*buf)[i] & 0xF];
 	}
 	*pout = 0;
 	return string(buffer);
@@ -306,8 +304,8 @@ string Util::ConvertBytesToHex(const uint8_t *bytes, int length)
     *pout++ = 'x';
     for (int i = 0; i < length; i++)
     {
-        *pout++ = _web3e_hexStr[((bytes)[i] >> 4) & 0xF];
-        *pout++ = _web3e_hexStr[(bytes)[i] & 0xF];
+        *pout++ = _aploembed_hexStr[((bytes)[i] >> 4) & 0xF];
+        *pout++ = _aploembed_hexStr[(bytes)[i] & 0xF];
     }
     *pout = 0;
     return std::string(buffer);

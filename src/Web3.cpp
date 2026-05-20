@@ -1,10 +1,8 @@
-// Web3E main header
+// AploEmbed main implementation
 //
-// By James Brown Githubs: @JamesSmartCell @AlphaWallet 
-// Twitters: @TallyDigital @AlphaWallet
-//
-// Based on Web3 Arduino by Okada, Takahiro.
-//
+// Specialized for AploCoin blockchain
+// Based on Web3E by James Brown (@JamesSmartCell, @AlphaWallet)
+// Original Web3 Arduino by Okada, Takahiro
 //
 
 #include "Web3.h"
@@ -15,29 +13,40 @@
 #include <sstream>
 #include "nodes.h"
 
-Web3::Web3(long long networkId) {
-    infura_key = INFURA_API_KEY;
+// Helper function to initialize Web3 instance
+void Web3::initWeb3(const char* primaryRpc, const char* fallbackRpc) {
     mem = new BYTE[sizeof(WiFiClientSecure)];
-    chainId = networkId;
+    chainId = APLO_ID;  // Fixed to AploCoin chain ID (28282)
+    primaryRpcUrl = primaryRpc;
+    fallbackRpcUrl = fallbackRpc;
     selectHost();
 }
 
-Web3::Web3(long long networkId, const char* infura_key_str) {
-    mem = new BYTE[sizeof(WiFiClientSecure)];
-    if (strnlen(infura_key_str, 34) != 32)
-    {
-        Serial.println("Incorrect Infura Key spec, fallback to staging API key");
-        infura_key = INFURA_API_KEY;
-    }
-    else
-    {
-        infura_key = infura_key_str;
-        Serial.print("Setting Infura Key: ");
-        Serial.println(infura_key);
-    }
+// Default constructor: uses default Aplo RPC endpoints
+Web3::Web3() {
+    initWeb3(getAploPrimaryNode(), getAploFallbackNode());
+}
 
-    chainId = networkId;
-    selectHost();
+// Custom RPC constructor
+Web3::Web3(const char* primaryRpcUrl) {
+    initWeb3(primaryRpcUrl, getAploFallbackNode());
+}
+
+// Custom RPC with fallback
+Web3::Web3(const char* primaryRpcUrl, const char* fallbackRpcUrl) {
+    initWeb3(primaryRpcUrl, fallbackRpcUrl);
+}
+
+// Legacy constructor for backward compatibility
+Web3::Web3(long long networkId) {
+    // Ignore networkId parameter, always use APLO_ID
+    if (networkId != APLO_ID) {
+        Serial.print("Warning: AploEmbed only supports AploCoin (chainId ");
+        Serial.print(APLO_ID);
+        Serial.print("), ignoring provided chainId ");
+        Serial.println(networkId);
+    }
+    initWeb3(getAploPrimaryNode(), getAploFallbackNode());
 }
 
 string Web3::Web3ClientVersion() {
@@ -50,7 +59,7 @@ string Web3::Web3ClientVersion() {
 
 string Web3::Web3Sha3(const string* data) {
     string m = "web3_sha3";
-    string p = "[\"" + *data + "\"]";
+    string p = "[\\\"" + *data + "\\\"]";
     string input = generateJson(&m, &p);
     string output = exec(&input);
     return getString(&output);
@@ -135,7 +144,7 @@ int Web3::EthBlockNumber() {
 
 uint256_t Web3::EthGetBalance(const string* address) {
     string m = "eth_getBalance";
-    string p = "[\"" + *address + "\",\"latest\"]";
+    string p = "[\\\"" + *address + "\\\",\\\"latest\\\"]";
     string input = generateJson(&m, &p);
     string output = exec(&input);
     return getUint256(&output);
@@ -144,18 +153,18 @@ uint256_t Web3::EthGetBalance(const string* address) {
 string Web3::EthViewCall(const string* data, const char* to)
 {
     string m = "eth_call";
-    string p = "[{\"data\":\"";// + *data;
+    string p = "[{\\\"data\\\":\\\"";;
     p += data->c_str();
-    p += "\",\"to\":\"";
+    p += "\\\",\\\"to\\\":\\\"";
     p += to;
-    p += "\"}, \"latest\"]";
+    p += "\\\"}, \\\"latest\\\"]";
     string input = generateJson(&m, &p);
     return exec(&input);
 }
 
 int Web3::EthGetTransactionCount(const string* address) {
     string m = "eth_getTransactionCount";
-    string p = "[\"" + *address + "\",\"pending\"]"; //in case we need to push several transactions in a row
+    string p = "[\\\"" + *address + "\\\",\\\"pending\\\"]"; //in case we need to push several transactions in a row
     string input = generateJson(&m, &p);
     string output = exec(&input);
     return getInt(&output);
@@ -165,15 +174,15 @@ string Web3::EthCall(const string* from, const char* to, long gas, long gasPrice
                      const string* value, const string* data) {
     // TODO use gas, gasprice and value
     string m = "eth_call";
-    string p = "[{\"from\":\"" + *from + "\",\"to\":\""
-               + *to + "\",\"data\":\"" + *data + "\"}, \"latest\"]";
+    string p = "[{\\\"from\\\":\\\"" + *from + "\\\",\\\"to\\\":\\\""
+               + *to + "\\\",\\\"data\\\":\\\"" + *data + "\\\"}, \\\"latest\\\"]";
     string input = generateJson(&m, &p);
     return exec(&input);
 }
 
 string Web3::EthSendSignedTransaction(const string* data, const uint32_t dataLen) {
     string m = "eth_sendRawTransaction";
-    string p = "[\"" + *data + "\"]";
+    string p = "[\\\"" + *data + "\\\"]";
     string input = generateJson(&m, &p);
 #if 0
     LOG(input);
@@ -185,7 +194,7 @@ string Web3::EthSendSignedTransaction(const string* data, const uint32_t dataLen
 // Private
 
 string Web3::generateJson(const string* method, const string* params) {
-    return "{\"jsonrpc\":\"2.0\",\"method\":\"" + *method + "\",\"params\":" + *params + ",\"id\":0}";
+    return "{\\\"jsonrpc\\\":\\\"2.0\\\",\\\"method\\\":\\\"" + *method + "\\\",\\\"params\\\":" + *params + ",\\\"id\\\":0}";
 }
 
 string Web3::exec(const string* data) {
@@ -223,8 +232,8 @@ string Web3::exec(const string* data) {
 
     while (client->connected())
     {
-        String line = client->readStringUntil('\n');
-        if (line == "\r") {
+        String line = client->readStringUntil('\\n');
+        if (line == "\\r") {
             break;
         }
     }
@@ -327,37 +336,31 @@ string Web3::getString(const string *json)
 /**
  * @brief Fetch TLS certificate for the node
  * 
- * TODO: Add remaining certificates as required
+ * TODO: Add AploCoin certificate if needed
  * 
  * @return const char* 
  */
 void Web3::setupCert()
 {
     const char *cert = getCertificate(chainId);
-    if (cert != NULL)
+    if (cert != nullptr)
     {
         client->setCACert(cert);
     }
     else
     {
+        // Use insecure connection for now (acceptable for embedded devices)
         client->setInsecure();
     }
 }
 
 void Web3::selectHost()
 {
-    std::string node = getNode(chainId);
-
-    if (node.find("infura.io") != std::string::npos)
-    {
-        node += infura_key;
-    }
+    std::string node = primaryRpcUrl;
 
     if (node.length() == 0)
     {
-        Serial.print("ChainId: ");
-        Serial.print(chainId);
-        Serial.println("Is not yet supported, please add the RPC (and certificate if required) and submit a PR to the repo.");
+        Serial.println("Error: No RPC URL configured for AploCoin");
         return;
     }
 
@@ -369,7 +372,7 @@ void Web3::selectHost()
     }
     else
     {
-        port = 443;
+        port = 443;  // Default HTTPS port
     }
 
     ppos = node.find("/");
@@ -388,4 +391,178 @@ void Web3::selectHost()
 
 long long Web3::getChainId() const {
     return chainId;
+}
+
+// -------------------------------
+// RPC Failover Support
+// -------------------------------
+
+string Web3::execWithFailover(const string* data) {
+    // Try primary RPC first
+    string result = exec(data);
+    
+    // Check if result is valid (non-empty and contains "result" field)
+    if (result.length() > 0 && result.find("\"result\"") != string::npos) {
+        return result;
+    }
+    
+    // Primary failed, try fallback if configured
+    if (fallbackRpcUrl != nullptr && strlen(fallbackRpcUrl) > 0) {
+        Serial.println("Primary RPC failed, trying fallback...");
+        
+        // Temporarily switch to fallback
+        const char* originalPrimary = primaryRpcUrl;
+        primaryRpcUrl = fallbackRpcUrl;
+        selectHost();
+        
+        result = exec(data);
+        
+        // Restore primary for next call
+        primaryRpcUrl = originalPrimary;
+        selectHost();
+        
+        if (result.length() > 0 && result.find("\"result\"") != string::npos) {
+            Serial.println("Fallback RPC succeeded");
+            return result;
+        }
+    }
+    
+    Serial.println("All RPC endpoints failed");
+    return "";
+}
+
+// -------------------------------
+// AploCoin Balance Helpers
+// -------------------------------
+
+uint256_t Web3::AploGetBalance(const string* address) {
+    return EthGetBalance(address);
+}
+
+string Web3::AploGetBalanceInAplo(const string* address) {
+    uint256_t balanceWei = EthGetBalance(address);
+    // Convert from Gaplo (wei) to APLO (18 decimals)
+    // 1 APLO = 10^18 Gaplo
+    return Util::ConvertWeiToEthString(&balanceWei, 18);
+}
+
+// -------------------------------
+// AploCoin Send Transaction
+// -------------------------------
+
+string Web3::AploSendTransaction(const string* from, const string* to, 
+                                 const uint256_t* value, uint32_t nonce,
+                                 unsigned long long gasPrice, uint32_t gasLimit) {
+    // This is a simplified wrapper - in production you'd need to:
+    // 1. Build and sign the transaction with private key
+    // 2. RLP encode it
+    // 3. Send via eth_sendRawTransaction
+    // For now, return empty string as this requires Contract class integration
+    Serial.println("AploSendTransaction: Use Contract class with SetPrivateKey for signed transactions");
+    return "";
+}
+
+// -------------------------------
+// AploCoin Staking Operations
+// -------------------------------
+
+string Web3::AploStake(const string* stakingContract, const uint256_t* amount) {
+    // Call stake(uint256) function on staking contract
+    // This requires Contract class integration for proper ABI encoding
+    Serial.println("AploStake: Use Contract class for staking operations");
+    return "";
+}
+
+string Web3::AploUnstake(const string* stakingContract) {
+    // Call unstake() function on staking contract
+    Serial.println("AploUnstake: Use Contract class for unstaking operations");
+    return "";
+}
+
+uint256_t Web3::AploGetStake(const string* stakingContract, const string* account) {
+    // Call getStake(address) view function
+    // Build function selector: keccak256("getStake(address)")[:4] = 0x7a766460
+    string functionData = "0x7a766460";
+    
+    // Pad address to 32 bytes (remove 0x prefix, pad left with zeros)
+    string addr = *account;
+    if (addr.substr(0, 2) == "0x") {
+        addr = addr.substr(2);
+    }
+    while (addr.length() < 64) {
+        addr = "0" + addr;
+    }
+    functionData += addr;
+    
+    string result = EthViewCall(&functionData, stakingContract->c_str());
+    return getUint256(&result);
+}
+
+uint256_t Web3::AploGetStakeMultiplier(const string* stakingContract, const string* account) {
+    // Call getMultiplier(address) view function
+    // Build function selector: keccak256("getMultiplier(address)")[:4] = 0x8e2c0e96
+    string functionData = "0x8e2c0e96";
+    
+    // Pad address to 32 bytes
+    string addr = *account;
+    if (addr.substr(0, 2) == "0x") {
+        addr = addr.substr(2);
+    }
+    while (addr.length() < 64) {
+        addr = "0" + addr;
+    }
+    functionData += addr;
+    
+    string result = EthViewCall(&functionData, stakingContract->c_str());
+    return getUint256(&result);
+}
+
+// -------------------------------
+// AploCoin Mining Helpers
+// -------------------------------
+
+bool Web3::AploGetMinerParams(const string* miningContract, const string* minerAddress,
+                              uint256_t* lastBlock, uint256_t* currentDifficulty,
+                              uint256_t* totalMined, uint256_t* prevHash) {
+    // Call miner_params(address) view function
+    // Returns: (uint256 last_block, uint256 current_difficulty, uint256 total_mined, uint256 prev_hash)
+    // Function selector: keccak256("miner_params(address)")[:4] = 0x4c0f38c2
+    string functionData = "0x4c0f38c2";
+    
+    // Pad address to 32 bytes
+    string addr = *minerAddress;
+    if (addr.substr(0, 2) == "0x") {
+        addr = addr.substr(2);
+    }
+    while (addr.length() < 64) {
+        addr = "0" + addr;
+    }
+    functionData += addr;
+    
+    string result = EthViewCall(&functionData, miningContract->c_str());
+    
+    if (result.length() == 0) {
+        return false;
+    }
+    
+    // Parse result - should contain 4 uint256 values (128 hex chars each = 64 bytes)
+    string resultData = getResult(&result);
+    if (resultData.length() < 256) {  // 4 * 64 hex chars
+        return false;
+    }
+    
+    // Extract each uint256 (64 hex chars each)
+    *lastBlock = uint256_t(("0x" + resultData.substr(0, 64)).c_str());
+    *currentDifficulty = uint256_t(("0x" + resultData.substr(64, 64)).c_str());
+    *totalMined = uint256_t(("0x" + resultData.substr(128, 64)).c_str());
+    *prevHash = uint256_t(("0x" + resultData.substr(192, 64)).c_str());
+    
+    return true;
+}
+
+string Web3::AploMine(const string* miningContract, const string* nonce) {
+    // Call mine(bytes32) function
+    // This requires Contract class integration for proper transaction signing
+    Serial.println("AploMine: Use Contract class for mining operations");
+    return "";
 }

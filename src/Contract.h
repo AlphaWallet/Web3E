@@ -1,14 +1,12 @@
-// Web3E Contract handling code
+// AploEmbed Contract handling code
 //
-// By James Brown Githubs: @JamesSmartCell @AlphaWallet
-// Twitters: @TallyDigital @AlphaWallet
-//
-// Based on Web3 Arduino by Okada, Takahiro.
-//
+// Specialized for AploCoin blockchain
+// Based on Web3E by James Brown (@JamesSmartCell, @AlphaWallet)
+// Original Web3 Arduino by Okada, Takahiro
 //
 
-#ifndef ARDUINO_WEB3_CONTRACT_H
-#define ARDUINO_WEB3_CONTRACT_H
+#ifndef APLOEMBED_CONTRACT_H
+#define APLOEMBED_CONTRACT_H
 
 #include "Arduino.h"
 #include "Web3.h"
@@ -71,4 +69,4 @@ private:
 };
 
 
-#endif //ARDUINO_WEB3_CONTRACT_H
+#endif //APLOEMBED_CONTRACT_H

@@ -1,7 +1,7 @@
 {
-    "description": "Web3E (Ethereum Embedded) interface for devices running Arduino with easy to use TokenScript/SmartLayer integration. Link your tokens/NFTs to devices securely.", 
+    "description": "AploEmbed - Ethereum-compatible blockchain interface for AploCoin, specialized for embedded devices running Arduino/ESP32. Based on Web3E.", 
     "repository": {
-        "url": "https://github.com/AlphaWallet/Web3E", 
+        "url": "https://github.com/aplosdk/aploembed", 
         "type": "git"
     }, 
     "platforms": [ 
@@ -10,27 +10,27 @@
     "authors": [
         {
             "maintainer": true, 
-            "name": "James Brown", 
-            "url": "https://github.com/JamesSmartCell", 
-            "email": "j@smarttokenlabs.com"
+            "name": "AploSDK Team", 
+            "url": "https://github.com/aplosdk"
+        },
+        {
+            "name": "James Brown (Web3E original)", 
+            "url": "https://github.com/JamesSmartCell"
         }
     ], 
     "frameworks": "arduino",
     "keywords": [
-        "Web3",
-        "Web3E",
-        "Ethereum",
+        "AploCoin",
+        "AploEmbed",
         "Blockchain",
-        "Token",
-        "Tokens",
-        "SmartLayer",
-        "DApp",
-        "NFT",
-        "TokenScript",
-		"AlphaWallet",
-		"Smart Tokens"
+        "Embedded",
+        "ESP32",
+        "Arduino",
+        "Web3",
+        "Ethereum",
+        "RPC"
     ],
-    "name": "Web3E", 
-    "version": "1.44", 
-    "homepage": "https://www.smarttokenlabs.com/"
+    "name": "AploEmbed", 
+    "version": "2.0.0", 
+    "homepage": "https://aplocoin.com/"
 }

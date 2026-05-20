@@ -1,5 +1,6 @@
 /**
-* Web3E uses Tiny Mersenne Twister only 127 bit internal state
+* AploEmbed uses Tiny Mersenne Twister only 127 bit internal state
+* (inherited from Web3E)
 *
 * @author Mutsuo Saito (Hiroshima University)
 * @author Makoto Matsumoto (University of Tokyo)

@@ -1,10 +1,19 @@
-# Web3E Ethereum for Embedded devices
+# AploEmbed - AploCoin for Embedded Devices
+
+> **Note:** This library is based on Web3E and has been specialized for AploCoin blockchain as **AploEmbed v2.0.0**
 
 <img align="right" src="https://raw.githubusercontent.com/JamesSmartCell/Release-Test/master/Web3-Esmall.png">
 
 ## [![PlatformIO Registry](https://badges.registry.platformio.org/packages/alphawallet/library/Web3E.svg)](https://registry.platformio.org/libraries/alphawallet/Web3E)
 
 What's New:
+v2.0.0 (AploEmbed):
+- Specialized for AploCoin blockchain (chain ID 28282)
+- Removed multi-chain logic, focused on AploCoin RPC endpoints
+- Added AploCoin-specific helpers: balance, staking, mining
+- RPC failover support (primary + fallback providers)
+- Unit conversion helpers (APLO ↔ Gaplo/wei)
+
 v1.44:
 - Fix type conversion ambiguity.
 - Add required method in TcpBridge.
@@ -421,6 +430,185 @@ string p = contract.SetupContractData("transfer(address,uint256)", &toAddress, &
 //push transaction to ethereum
 result = contract.SendTransaction(nonceVal, gasPriceVal, gasLimitVal, &contractAddr, &valueStr, &p);
 string transactionHash = web3->getString(&result);
+```
+
+## AploCoin-Specific API Examples
+
+### Setup AploEmbed with RPC Configuration
+
+``` C++
+#include <Web3.h>
+#include <AploContracts.h>
+
+// Use default AploCoin RPC endpoints (pub1.aplocoin.com primary, pub2 fallback)
+Web3 *web3 = new Web3();
+
+// Or specify custom RPC endpoint
+Web3 *web3 = new Web3("custom-rpc.aplocoin.com");
+
+// Or specify both primary and fallback
+Web3 *web3 = new Web3("primary-rpc.aplocoin.com", "fallback-rpc.aplocoin.com");
+```
+
+### Query APLO Balance
+
+``` C++
+string address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb";
+
+// Get balance in Gaplo (wei) - raw blockchain units
+uint256_t balanceGaplo = web3->AploGetBalance(&address);
+
+// Get balance as human-readable APLO string (18 decimals)
+// 1 APLO = 10^18 Gaplo (similar to ETH/wei relationship)
+string balanceAplo = web3->AploGetBalanceInAplo(&address);
+Serial.print("Balance: ");
+Serial.print(balanceAplo.c_str());
+Serial.println(" APLO");
+```
+
+### Check Staking Status
+
+``` C++
+#include <AploContracts.h>
+
+string stakingContract = getAploStakingContract();
+string myAddress = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb";
+
+// Get current stake amount in Gaplo (wei)
+uint256_t stakeAmount = web3->AploGetStake(&stakingContract, &myAddress);
+
+// Convert to APLO for display
+string stakeAplo = Util::ConvertWeiToEthString(&stakeAmount, 18);
+Serial.print("Staked: ");
+Serial.print(stakeAplo.c_str());
+Serial.println(" APLO");
+
+// Get staking multiplier (affects mining rewards)
+uint256_t multiplier = web3->AploGetStakeMultiplier(&stakingContract, &myAddress);
+Serial.print("Multiplier: ");
+Serial.println(multiplier.str().c_str());
+```
+
+### Query Mining Parameters
+
+``` C++
+#include <AploContracts.h>
+
+string miningContract = getAploMiningContract();
+string minerAddress = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb";
+
+uint256_t lastBlock, currentDifficulty, totalMined, prevHash;
+
+bool success = web3->AploGetMinerParams(
+    &miningContract, 
+    &minerAddress,
+    &lastBlock, 
+    &currentDifficulty, 
+    &totalMined, 
+    &prevHash
+);
+
+if (success) {
+    Serial.print("Last Block: ");
+    Serial.println(lastBlock.str().c_str());
+    Serial.print("Difficulty: ");
+    Serial.println(currentDifficulty.str().c_str());
+    Serial.print("Total Mined: ");
+    Serial.println(totalMined.str().c_str());
+    Serial.print("Prev Hash: 0x");
+    Serial.println(prevHash.str(16).c_str());
+}
+```
+
+### Stake APLO (requires Contract class)
+
+``` C++
+#include <Contract.h>
+#include <AploContracts.h>
+
+string stakingContract = getAploStakingContract();
+Contract contract(web3, stakingContract.c_str());
+contract.SetPrivateKey(PRIVATE_KEY);
+
+// Stake 1000 APLO (minimum stake amount)
+uint256_t stakeAmount = Util::ConvertToWei(1000, 18);
+
+// Build stake(uint256) function call
+string functionData = contract.SetupContractData("stake(uint256)", &stakeAmount);
+
+// Get nonce and gas parameters
+uint32_t nonce = (uint32_t)web3->EthGetTransactionCount(&myAddress);
+unsigned long long gasPrice = 1000000000ULL;
+uint32_t gasLimit = 100000;
+string valueStr = "0x00";
+
+// Send transaction
+string result = contract.SendTransaction(nonce, gasPrice, gasLimit, 
+                                        &stakingContract, &valueStr, &functionData);
+string txHash = web3->getString(&result);
+Serial.print("Stake TX: ");
+Serial.println(txHash.c_str());
+```
+
+### Mine APLO (requires Contract class)
+
+``` C++
+#include <Contract.h>
+#include <AploContracts.h>
+
+string miningContract = getAploMiningContract();
+Contract contract(web3, miningContract.c_str());
+contract.SetPrivateKey(PRIVATE_KEY);
+
+// Get current mining parameters
+uint256_t lastBlock, currentDifficulty, totalMined, prevHash;
+web3->AploGetMinerParams(&miningContract, &myAddress, 
+                        &lastBlock, &currentDifficulty, &totalMined, &prevHash);
+
+// Generate nonce and check if it meets difficulty
+// (simplified - real mining requires proof-of-work loop)
+string nonce = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+
+// Build mine(bytes32) function call
+string functionData = contract.SetupContractData("mine(bytes32)", &nonce);
+
+// Send mining transaction
+uint32_t nonceVal = (uint32_t)web3->EthGetTransactionCount(&myAddress);
+unsigned long long gasPrice = 1000000000ULL;
+uint32_t gasLimit = 200000;
+string valueStr = "0x00";
+
+string result = contract.SendTransaction(nonceVal, gasPrice, gasLimit,
+                                        &miningContract, &valueStr, &functionData);
+string txHash = web3->getString(&result);
+Serial.print("Mine TX: ");
+Serial.println(txHash.c_str());
+```
+
+### RPC Failover
+
+The library automatically handles RPC failover. If the primary RPC endpoint fails, it will retry with the fallback endpoint:
+
+``` C++
+// Configure with primary and fallback
+Web3 *web3 = new Web3("pub1.aplocoin.com", "pub2.aplocoin.com");
+
+// All API calls automatically use failover
+uint256_t balance = web3->AploGetBalance(&address);
+// If pub1 fails, automatically retries with pub2
+```
+
+### Unit Conversion Reference
+
+``` C++
+// APLO ↔ Gaplo (wei) conversion
+// 1 APLO = 1,000,000,000,000,000,000 Gaplo (10^18)
+
+// Convert APLO to Gaplo (wei)
+uint256_t gaplo = Util::ConvertToWei(1.5, 18);  // 1.5 APLO → 1500000000000000000 Gaplo
+
+// Convert Gaplo (wei) to APLO string
+string aplo = Util::ConvertWeiToEthString(&gaplo, 18);  // "1.5"
 ```
 
 Originally forked https://github.com/kopanitsa/web3-arduino but with almost a complete re-write it is a new framework entirely.

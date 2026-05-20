@@ -1,14 +1,12 @@
-// Web3E Utilities
+// AploEmbed Utilities
 //
-// By James Brown Githubs: @JamesSmartCell @AlphaWallet 
-// Twitters: @TallyDigital @AlphaWallet
-//
-// Based on Web3 Arduino by Okada, Takahiro.
-//
+// Specialized for AploCoin blockchain
+// Based on Web3E by James Brown (@JamesSmartCell, @AlphaWallet)
+// Original Web3 Arduino by Okada, Takahiro
 //
 
-#ifndef WEB3_UTIL_H
-#define WEB3_UTIL_H
+#ifndef APLOEMBED_UTIL_H
+#define APLOEMBED_UTIL_H
 
 #include <stdint.h>
 #include <vector>
@@ -65,4 +63,4 @@ private:
 
 };
 
-#endif //WEB3_UTIL_H
+#endif //APLOEMBED_UTIL_H
