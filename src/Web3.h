@@ -18,6 +18,9 @@ typedef unsigned char BYTE;
 #define ETHERS_SIGNATURE_LENGTH        65
 
 #define INFURA_API_KEY "a9d6b1764a464faaa8f0399958601361" //For production you will want to make your own API key, visit https://infura.io
+/** Reused staging buffer for eth RPC HTTP bodies (avoids per-byte string growth). */
+#define WEB3_RPC_BUFFER_SIZE           4096
+#define WEB3_HTTP_LINE_BUFFER_SIZE     256
 
 class Web3;
 class Crypto;
@@ -93,6 +96,10 @@ private:
     const char* infura_key;
     unsigned short port;
     long long chainId;
+    /** Filled each exec(); capacity retained across calls after first large response. */
+    string rpcResult;
+    char rpcReadBuf[WEB3_RPC_BUFFER_SIZE];
+    char httpLineBuf[WEB3_HTTP_LINE_BUFFER_SIZE];
 };
 
 #endif //ARDUINO_WEB3_WEB3_H

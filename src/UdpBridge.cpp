@@ -8,13 +8,8 @@ static const uint16_t defaultPort = 8003;
 static const uint16_t topPort = 8003;
 static const char *hostName = "scriptproxy.smarttokenlabs.com";
 
-#define PACKET_BUFFER_SIZE 512
-
 UdpBridge::UdpBridge()
 {
-    packetBuffer = new BYTE[PACKET_BUFFER_SIZE];
-    currentReturnBytes = new BYTE[96];
-    apiReturn = new APIReturn();
     memset(sessionBytes, 0, 8);
     port = defaultPort;
     connectionState = handshake;
@@ -97,8 +92,8 @@ void UdpBridge::checkClientAPI(BridgeCallback callback)
                 {
                     currentQueryId = packetBuffer[1];
                     int payloadLength = packetBuffer[2];
-                    scanAPI(packetBuffer + 3, apiReturn, payloadLength);
-                    result = callback(apiReturn);
+                    scanAPI(packetBuffer + 3, &apiReturn, payloadLength);
+                    result = callback(&apiReturn);
                     sendResponse(result, currentQueryId);
                 }
                 break;

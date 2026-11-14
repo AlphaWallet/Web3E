@@ -38,9 +38,9 @@ private:
 
     Web3 *web3;
     KeyID *keyID;
-    APIReturn *apiReturn;
-
-    BYTE *packetBuffer;
+    APIReturn apiReturn;
+    static const uint16_t PACKET_BUFFER_SIZE = 512;
+    BYTE packetBuffer[PACKET_BUFFER_SIZE];
 
     ConnectionStage connectionState;
     long lastCheck = 0;
