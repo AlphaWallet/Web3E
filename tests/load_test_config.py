@@ -29,9 +29,7 @@ if os.path.exists(config_file):
                             'TEST_TOKEN_CONTRACT', 'ERC721_CONTRACT'
                         ]
                         if key in valid_keys:
-                            # Escape quotes for C preprocessor
-                            value_escaped = value.replace('\\', '\\\\').replace('"', '\\"')
-                            env.Append(CPPDEFINES=[(key, f'\\"{value_escaped}\\"')])
+                            env.Append(CPPDEFINES=[(key, env.StringifyMacro(value))])
                             print(f"  - Loaded {key}")
     except Exception as e:
         print(f"Warning: Could not parse {config_file}: {e}")

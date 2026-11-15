@@ -6,11 +6,6 @@
 WIFI_SSID=YourWiFiSSID
 WIFI_PASS=YourWiFiPassword
 
-# ===== RPC Configuration =====
-# Web3E uses built-in node selection - just specify the chain ID in code
-# No RPC_URL needed - library automatically selects nodes based on chain
-# Tests use SEPOLIA (11155111) for transactions, MAINNET (1) for read-only queries
-
 # ===== Transaction tests (REQUIRE FUNDED TESTNET ACCOUNT) =====
 # WARNING: These tests send REAL transactions on Sepolia testnet!
 # Private key for transaction tests (Sepolia testnet only!)

@@ -50,13 +50,39 @@ void connectWiFi() {
     if (wifiConnected) return;
     
     Serial.println("\n=== Connecting to WiFi ===");
-    WiFiCredentials networks[] = {
-        {WIFI_SSID, WIFI_PASS},
-        {nullptr, nullptr}
-    };
     
-    wifiConnection.setupWifi(networks);
+    // Check for empty credentials
+    if (strlen(WIFI_SSID) == 0 || strlen(WIFI_PASS) == 0) {
+        Serial.println("ERROR: Empty Wi-Fi credentials!");
+        Serial.println("Copy test_config.ini.example to test_config.ini and set WIFI_SSID/WIFI_PASS");
+        wifiConnected = false;
+        return;
+    }
+    
+    Serial.print("Connecting to: ");
+    Serial.println(WIFI_SSID);
+    
+    WiFi.begin(WIFI_SSID, WIFI_PASS);
+    
+    // 30-second timeout
+    unsigned long startTime = millis();
+    const unsigned long timeout = 30000;
+    
+    while (WiFi.status() != WL_CONNECTED && (millis() - startTime) < timeout) {
+        delay(500);
+        Serial.print(".");
+    }
+    Serial.println();
+    
     wifiConnected = (WiFi.status() == WL_CONNECTED);
+    
+    if (wifiConnected) {
+        Serial.println("WiFi connected.");
+        Serial.print("IP address: ");
+        Serial.println(WiFi.localIP());
+    } else {
+        Serial.println("ERROR: Wi-Fi connection timeout!");
+    }
 }
 
 // ===== WiFi Tests =====
