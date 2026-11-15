@@ -19,6 +19,7 @@ Web3::Web3(long long networkId) {
     infura_key = INFURA_API_KEY;
     mem = new BYTE[sizeof(WiFiClientSecure)];
     chainId = networkId;
+    rpcResult.reserve(WEB3_RPC_BUFFER_SIZE);
     selectHost();
 }
 
@@ -37,6 +38,7 @@ Web3::Web3(long long networkId, const char* infura_key_str) {
     }
 
     chainId = networkId;
+    rpcResult.reserve(WEB3_RPC_BUFFER_SIZE);
     selectHost();
 }
 
@@ -189,8 +191,6 @@ string Web3::generateJson(const string* method, const string* params) {
 }
 
 string Web3::exec(const string* data) {
-    string result;
-
     client = new (mem) WiFiClientSecure();
     setupCert();
 
@@ -223,24 +223,38 @@ string Web3::exec(const string* data) {
 
     while (client->connected())
     {
-        String line = client->readStringUntil('\n');
-        if (line == "\r") {
-            break;
+        size_t n = 0;
+        while (client->connected() && n + 1 < WEB3_HTTP_LINE_BUFFER_SIZE)
+        {
+            int c = client->read();
+            if (c < 0)
+                break;
+            if (c == '\n')
+                break;
+            httpLineBuf[n++] = (char)c;
         }
+        httpLineBuf[n] = '\0';
+        if (n == 0 || (n == 1 && httpLineBuf[0] == '\r'))
+            break;
     }
 
-    // if there are incoming bytes available
-    // from the server, read them and print them:
-    while (client->available()) {
-        char c = client->read();
-        result += c;
+    // Reuse member staging buffer; avoid per-byte std::string growth.
+    size_t bodyLen = 0;
+    while (client->available() && bodyLen + 1 < WEB3_RPC_BUFFER_SIZE)
+    {
+        int c = client->read();
+        if (c < 0)
+            break;
+        rpcReadBuf[bodyLen++] = (char)c;
     }
     client->flush();
     client->stop();
 
     client->~WiFiClientSecure();
 
-    return result;
+    rpcResult.assign(rpcReadBuf, bodyLen);
+    // Copy so callers own the string; rpcResult keeps capacity for the next call.
+    return string(rpcResult);
 }
 
 int Web3::getInt(const string* json) {
@@ -305,20 +319,20 @@ string Web3::getString(const string *json)
 
     vector<string> *v = Util::ConvertStringHexToABIArray(&parseVal);
     
-    uint256_t length = uint256_t(v->at(1));
+    uint32_t length = (uint32_t)uint256_t(v->at(1));
     uint32_t lengthIndex = length;
+    uint32_t hexChars = length * 2;
 
     string asciiHex;
     int index = 2;
     while (lengthIndex > 0)
     {
-        Serial.println(index);
         asciiHex += v->at(index++);
         lengthIndex -= 32;
     }
 
     //convert ascii into string
-    string text = Util::ConvertHexToASCII(asciiHex.substr(0, length*2).c_str(), length*2);
+    string text = Util::ConvertHexToASCII(asciiHex.substr(0, hexChars).c_str(), hexChars);
     delete v;
 
     return text;

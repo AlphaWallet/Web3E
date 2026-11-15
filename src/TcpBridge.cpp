@@ -6,12 +6,8 @@
 static const uint16_t defaultPort = 8003;
 static const char *hostName = "scriptproxy.smarttokenlabs.com";
 
-#define PACKET_BUFFER_SIZE 512
-
 TcpBridge::TcpBridge()
 {
-    packetBuffer = new BYTE[PACKET_BUFFER_SIZE];
-    apiReturn = new APIReturn();
     port = defaultPort;
     connectionState = unconnected;
     Serial.println("Starting TCP Bridge");
@@ -81,8 +77,8 @@ void TcpBridge::checkClientAPI(TcpBridgeCallback callback)
 
         case 0x04:
             // API call
-            scanAPI(apiReturn, rLen - 1);
-            result = callback(apiReturn);
+            scanAPI(&apiReturn, rLen - 1);
+            result = callback(&apiReturn);
             Serial.print("Result ");
             Serial.println(result.c_str());
             sendResponse(result);
