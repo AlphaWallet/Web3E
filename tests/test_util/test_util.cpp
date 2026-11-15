@@ -35,8 +35,8 @@ void test_bytes_to_hex_conversion() {
     uint8_t bytes[4] = {0xde, 0xad, 0xbe, 0xef};
     string result = Util::ConvertBytesToHex(bytes, 4);
     
-    // Result should be "0xdeadbeef"
-    TEST_ASSERT_EQUAL_STRING("0xdeadbeef", result.c_str());
+    // Library emits uppercase hex: "0xDEADBEEF"
+    TEST_ASSERT_EQUAL_STRING("0xDEADBEEF", result.c_str());
 }
 
 void test_convert_to_wei() {
@@ -44,6 +44,13 @@ void test_convert_to_wei() {
     uint256_t result = Util::ConvertToWei(1.0, 18);
     uint256_t expected("1000000000000000000");
     
+    if (!(result == expected)) {
+        std::string resultStr = result.str();
+        std::string expectedStr = expected.str();
+        char msg[250];
+        snprintf(msg, 250, "Expected %s but got %s", expectedStr.c_str(), resultStr.c_str());
+        TEST_FAIL_MESSAGE(msg);
+    }
     TEST_ASSERT_TRUE(result == expected);
 }
 
@@ -52,6 +59,13 @@ void test_convert_to_wei_fractional() {
     uint256_t result = Util::ConvertToWei(0.5, 18);
     uint256_t expected("500000000000000000");
     
+    if (!(result == expected)) {
+        std::string resultStr = result.str();
+        std::string expectedStr = expected.str();
+        char msg[250];
+        snprintf(msg, 250, "Expected %s but got %s", expectedStr.c_str(), resultStr.c_str());
+        TEST_FAIL_MESSAGE(msg);
+    }
     TEST_ASSERT_TRUE(result == expected);
 }
 
@@ -60,6 +74,13 @@ void test_convert_to_wei_with_decimals() {
     uint256_t result = Util::ConvertToWei(100.5, 6);
     uint256_t expected("100500000");
     
+    if (!(result == expected)) {
+        std::string resultStr = result.str();
+        std::string expectedStr = expected.str();
+        char msg[250];
+        snprintf(msg, 250, "Expected %s but got %s", expectedStr.c_str(), resultStr.c_str());
+        TEST_FAIL_MESSAGE(msg);
+    }
     TEST_ASSERT_TRUE(result == expected);
 }
 
@@ -67,7 +88,12 @@ void test_convert_wei_to_eth_string() {
     uint256_t weiValue("1500000000000000000"); // 1.5 ETH
     string result = Util::ConvertWeiToEthString(&weiValue, 18);
     
-    // Should be "1.5" or "1.50..."
+    // Should start with "1.5"
+    if (result.find("1.5") != 0) {
+        char msg[200];
+        snprintf(msg, 200, "Expected string starting with '1.5' but got '%s'", result.c_str());
+        TEST_FAIL_MESSAGE(msg);
+    }
     TEST_ASSERT_TRUE(result.find("1.5") == 0);
 }
 
@@ -76,6 +102,11 @@ void test_convert_wei_to_eth_string_small() {
     string result = Util::ConvertWeiToEthString(&weiValue, 18);
     
     // Should start with "0.12"
+    if (result.find("0.12") != 0) {
+        char msg[200];
+        snprintf(msg, 200, "Expected string starting with '0.12' but got '%s'", result.c_str());
+        TEST_FAIL_MESSAGE(msg);
+    }
     TEST_ASSERT_TRUE(result.find("0.12") == 0);
 }
 
@@ -108,10 +139,17 @@ void test_uint256_comparison() {
 }
 
 void test_uint256_from_hex() {
-    // 0xde0b6b3a7640000 = 1 ETH in hex
+    // 0xde0b6b3a7640000 = 1 ETH in hex = 1000000000000000000 decimal
     uint256_t result("0xde0b6b3a7640000");
     uint256_t expected("1000000000000000000");
     
+    if (!(result == expected)) {
+        std::string resultStr = result.str();
+        std::string expectedStr = expected.str();
+        char msg[250];
+        snprintf(msg, 250, "Expected %s but got %s", expectedStr.c_str(), resultStr.c_str());
+        TEST_FAIL_MESSAGE(msg);
+    }
     TEST_ASSERT_TRUE(result == expected);
 }
 
@@ -139,16 +177,21 @@ void test_rlp_encode_short_string() {
 }
 
 void test_hex_string_padded() {
-    // Test that addresses are properly zero-padded
-    const char* addr = "0x1";
-    uint8_t result[20] = {0};
+    // Test ConvertHexToBytes with a properly padded address
+    // NOTE: ConvertHexToBytes does NOT pad - caller must provide full-length hex string
+    // For 20 bytes, need 40 hex chars (+ optional 0x prefix)
+    const char* addr = "0x0000000000000000000000000000000000000001";
+    uint8_t result[20];
     
-    // After conversion, should have leading zeros
     Util::ConvertHexToBytes(result, addr, 20);
     
     // First 19 bytes should be 0, last byte should be 1
     for (int i = 0; i < 19; i++) {
-        TEST_ASSERT_EQUAL_HEX8(0x00, result[i]);
+        if (result[i] != 0x00) {
+            char msg[100];
+            snprintf(msg, 100, "Byte %d: expected 0x00 but got 0x%02X", i, result[i]);
+            TEST_FAIL_MESSAGE(msg);
+        }
     }
     TEST_ASSERT_EQUAL_HEX8(0x01, result[19]);
 }

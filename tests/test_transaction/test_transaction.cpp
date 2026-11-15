@@ -77,11 +77,23 @@ void test_contract_data_encoding() {
     string data = contract.SetupContractData("transfer(address,uint256)", &recipient, &amount);
     
     // Should start with 0x + function selector (4 bytes = 8 hex chars)
-    TEST_ASSERT_TRUE(data.length() >= 10); // 0x + 8 hex chars
-    TEST_ASSERT_TRUE(data.substr(0, 2) == "0x");
+    if (data.length() < 10 || data.substr(0, 2) != "0x") {
+        char msg[200];
+        snprintf(msg, 200, "Expected data starting with 0x and at least 10 chars, got: %s", data.c_str());
+        TEST_FAIL_MESSAGE(msg);
+    }
     
-    // Function selector for transfer(address,uint256) is 0xa9059cbb
-    TEST_ASSERT_TRUE(data.substr(0, 10) == "0xa9059cbb");
+    // Function selector for transfer(address,uint256) is 0xa9059cbb (case-insensitive)
+    string selector = data.substr(0, 10);
+    // Convert to uppercase for comparison (library uses uppercase)
+    for (char &c : selector) c = toupper(c);
+    
+    if (selector != "0XA9059CBB") {
+        char msg[200];
+        snprintf(msg, 200, "Expected selector 0xA9059CBB but got %s", data.substr(0, 10).c_str());
+        TEST_FAIL_MESSAGE(msg);
+    }
+    TEST_ASSERT_TRUE(selector == "0XA9059CBB");
 }
 
 void test_contract_data_encoding_no_params() {
@@ -94,8 +106,22 @@ void test_contract_data_encoding_no_params() {
     
     // Function selector for totalSupply() is 0x18160ddd
     // Total length should be 10 chars (0x + 8 hex)
-    TEST_ASSERT_EQUAL(10, data.length());
-    TEST_ASSERT_TRUE(data == "0x18160ddd");
+    if (data.length() != 10) {
+        char msg[200];
+        snprintf(msg, 200, "Expected length 10 but got %zu: %s", data.length(), data.c_str());
+        TEST_FAIL_MESSAGE(msg);
+    }
+    
+    // Convert to uppercase for comparison (library uses uppercase)
+    string dataUpper = data;
+    for (char &c : dataUpper) c = toupper(c);
+    
+    if (dataUpper != "0X18160DDD") {
+        char msg[200];
+        snprintf(msg, 200, "Expected 0x18160DDD but got %s", data.c_str());
+        TEST_FAIL_MESSAGE(msg);
+    }
+    TEST_ASSERT_TRUE(dataUpper == "0X18160DDD");
 }
 
 void test_contract_data_encoding_address() {
@@ -107,11 +133,25 @@ void test_contract_data_encoding_address() {
     string address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
     string data = contract.SetupContractData("balanceOf(address)", &address);
     
-    // Function selector for balanceOf(address) is 0x70a08231
-    TEST_ASSERT_TRUE(data.substr(0, 10) == "0x70a08231");
+    // Function selector for balanceOf(address) is 0x70a08231 (case-insensitive)
+    string selector = data.substr(0, 10);
+    for (char &c : selector) c = toupper(c);
+    
+    if (selector != "0X70A08231") {
+        char msg[200];
+        snprintf(msg, 200, "Expected selector 0x70A08231 but got %s", data.substr(0, 10).c_str());
+        TEST_FAIL_MESSAGE(msg);
+    }
     
     // Total length: 0x (2) + selector (8) + padded address (64) = 74 chars
+    if (data.length() != 74) {
+        char msg[200];
+        snprintf(msg, 200, "Expected length 74 but got %zu: %s", data.length(), data.c_str());
+        TEST_FAIL_MESSAGE(msg);
+    }
+    
     TEST_ASSERT_EQUAL(74, data.length());
+    TEST_ASSERT_TRUE(selector == "0X70A08231");
 }
 
 void test_zero_value_transaction() {
