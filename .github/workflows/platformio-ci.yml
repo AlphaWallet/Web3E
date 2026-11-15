@@ -51,7 +51,7 @@ jobs:
             name: "Test Suite (Offline - USING_INFURA opt-in)"
             type: test
             env: esp32dev
-            extra_flags: '-DUSING_INFURA -DINFURA_API_KEY=\"test_key_12345678901234567890\"'
+            extra_flags: '-DUSING_INFURA -DINFURA_API_KEY=\\"test_key_12345678901234567890\\"'
     
     steps:
       - name: Checkout repository
