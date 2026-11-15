@@ -1,2 +1,13 @@
 # Visual Studio Code project files
 .vscode/
+
+# PlatformIO build artifacts
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# Other build artifacts
+*.o
+*.a
+*.bin
+*.elf

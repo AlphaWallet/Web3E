@@ -24,18 +24,18 @@ KeyID::KeyID(Web3* web3)
   }
 
   //fitst see if there's a stored key
-  if (byte(EEPROM.read(0)) == 64)
+  if (static_cast<uint8_t>(EEPROM.read(0)) == 64)
   {
     Serial.println();
     Serial.println("Recovering key from EEPROM");
     for (int i = 0; i < ETHERS_PRIVATEKEY_LENGTH; i++)
     {
-      privateKeyBytes[i] = byte(EEPROM.read(i + 1));
+      privateKeyBytes[i] = static_cast<uint8_t>(EEPROM.read(i + 1));
     }
 
     privateKey = Util::ConvertBytesToHex(privateKeyBytes, ETHERS_PRIVATEKEY_LENGTH);
 
-    if (privateKey[1] == 'x') privateKey.substr(2);
+    if (privateKey[1] == 'x') privateKey = privateKey.substr(2);
 
     initPrivateKey(privateKey, web3);
   }

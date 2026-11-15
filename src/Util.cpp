@@ -321,7 +321,7 @@ void Util::ConvertHexToBytes(uint8_t *_dst, const char *_src, int length)
     {
         char a = _src[2 * i];
         char b = _src[2 * i + 1];
-        byte extract = HexToInt(a) << 4 | HexToInt(b);
+        uint8_t extract = HexToInt(a) << 4 | HexToInt(b);
         _dst[i] = extract;
     }
 }

@@ -5,6 +5,12 @@
 ## [![PlatformIO Registry](https://badges.registry.platformio.org/packages/alphawallet/library/Web3E.svg)](https://registry.platformio.org/libraries/alphawallet/Web3E)
 
 What's New:
+v1.45:
+- Fix case-sensitive include issues for Linux/PlatformIO builds.
+- Fix `byte` type ambiguity with modern C++ compilers.
+- Add CI testing to verify library packaging.
+- Enable consumption via git URL with version tags.
+
 v1.44:
 - Fix type conversion ambiguity.
 - Add required method in TcpBridge.
@@ -80,24 +86,61 @@ It is possible that as Ethereum runs natively on embedded devices a new revoluti
 
 ## Installation
 
-- It is recommended to use [Platformio](https://platformio.org/install/) for best experience. Web3E is now part of the Platformio libraries so no need to clone the repo.
-- Using Web3E is a one step process:
-    1. Create a new project in Platformio and edit the platformio.ini so it looks similar to:
+- It is recommended to use [Platformio](https://platformio.org/install/) for best experience.
+- Web3E can be consumed in three ways:
 
-```
+### Option 1: PlatformIO Registry (Stable Releases)
+
+Web3E is part of the PlatformIO registry. Simply reference it by name:
+
+```ini
 [env:esp32dev]
 platform = espressif32
 board = esp32dev
 framework = arduino
 
-; Serial Monitor options
 monitor_speed = 115200
 
 lib_ldf_mode = deep
 lib_deps =
-  # Using a library name
   Web3E
 ```
+
+### Option 2: Git URL with Version Tag (Recommended for Reproducible Builds)
+
+Pin to a specific version for reproducible builds:
+
+```ini
+[env:esp32dev]
+platform = espressif32
+board = esp32dev
+framework = arduino
+
+monitor_speed = 115200
+
+lib_ldf_mode = deep
+lib_deps =
+  https://github.com/AlphaWallet/Web3E.git#v1.45
+```
+
+### Option 3: Git URL with Commit Hash (For Testing or Specific Fixes)
+
+Pin to a specific commit:
+
+```ini
+[env:esp32dev]
+platform = espressif32
+board = esp32dev
+framework = arduino
+
+monitor_speed = 115200
+
+lib_ldf_mode = deep
+lib_deps =
+  https://github.com/AlphaWallet/Web3E.git#abc1234
+```
+
+Replace `abc1234` with the full commit hash you want to use.
 
 **Please note: you may need to use 'lib_ldf_mode = deep' to locate some ESP32 libraries like 'EEPROM.h'**
 **also: if you use many other libraries in your application you may need to add 'board_build.partitions = no_ota.csv' to fit your firmware**
