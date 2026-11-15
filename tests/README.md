@@ -6,14 +6,18 @@ PlatformIO Unity test suite for Web3E library on ESP32.
 
 - **`test_crypto/`** - Cryptography tests (Keccak-256, key derivation, signing, recovery)
 - **`test_util/`** - Utility function tests (hex conversion, Wei/Eth conversion, uint256, RLP)
-- **`test_transaction/`** - Transaction signing and ABI encoding tests
-- **`test_network_rpc/`** - Network tests requiring Wi-Fi and RPC node:
+- **`test_transaction/`** - Transaction signing and ABI encoding tests (offline)
+- **`test_network_rpc/`** - Network RPC tests (read-only, no funds needed):
   - Wi-Fi connection using WiFiConnection class
   - Chain ID, block number queries
   - Native ETH balance queries
   - Transaction count (nonce) queries
   - ERC20 token balance, name, symbol queries
-  - Transaction preparation (dry-run, no actual sends)
+- **`test_network_tx/`** - Network transaction tests (SENDS REAL TRANSACTIONS):
+  - Transaction signing (dry-run)
+  - Send ETH transaction and verify
+  - Send ERC20 token transaction and verify
+  - Requires funded Sepolia testnet account
 
 ## Running Tests
 
@@ -152,17 +156,25 @@ Test vectors for cryptographic operations are verified against trusted reference
 
 **Read-only tests** (no funds needed):
 - All offline tests (`test_crypto`, `test_util`, `test_transaction`)
-- Wi-Fi connection test
-- Chain ID, block number queries
-- Balance queries (reads any address)
-- Transaction count queries
-- ERC20 token metadata (name, symbol, decimals, balances)
+- All tests in `test_network_rpc/`:
+  - Wi-Fi connection test
+  - Chain ID, block number queries
+  - Balance queries (reads any address)
+  - Transaction count queries
+  - ERC20 token metadata (name, symbol, decimals, balances)
 
 **Transaction tests** (require funded testnet account):
-- Currently disabled by default
+- Tests in `test_network_tx/` send REAL transactions on Sepolia testnet:
+  - `test_transaction_signing_only` - No funds needed (dry-run)
+  - `test_send_eth_transaction` - Sends ~0.001 ETH + gas (~0.002 ETH total)
+  - `test_send_erc20_transaction` - Sends 0.1 tokens + gas (~0.002 ETH for gas)
 - Set `TEST_PRIVATE_KEY` and `TEST_TO_ADDRESS` in `test_config.ini` to enable
-- **IMPORTANT**: Use Sepolia or other testnets only - never mainnet!
+- **SECURITY WARNING**: 
+  - Use Sepolia testnet ONLY - never mainnet!
+  - Generate a dedicated test key - never use keys with real funds
+  - Get testnet ETH from https://sepoliafaucet.com/
 - Tests will skip (TEST_IGNORE) if private key is not configured
+- Chain ID verification prevents accidental mainnet sends
 
 ## CI
 

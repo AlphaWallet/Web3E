@@ -1,4 +1,4 @@
-#include <WiFi.h>
+#include <WiFiConnection.h>
 #include <Web3.h>
 #include <Util.h>
 #include <Contract.h>
@@ -40,10 +40,8 @@ const char *password = "< your WiFi password >";
 // Copy/paste the private key from MetaMask in here
 const char *PRIVATE_KEY = "DabbaD00DabbaD00DabbaD00DabbaD00DabbaD00DabbaD00DabbaD00DabbaD00"; //32 Byte Private key 
 
-int wificounter = 0;
+WiFiConnection wifiConnection;
 Web3 *web3;
-
-void setup_wifi();
 void PushERC875Transaction(); 
 void queryERC721Balance(const char *userAddress);
 void sendEthToAddress(double eth, const char *destination);
@@ -51,9 +49,15 @@ void PushERC20Transaction(double tokens, const char *toAddr, const char *contrac
 
 void setup() {
     Serial.begin(115200);
+    
+    // Connect to WiFi using WiFiConnection helper
+    WiFiCredentials networks[] = {
+        {ssid, password},
+        {nullptr, nullptr}  // Terminator
+    };
+    wifiConnection.setupWifi(networks);
+    
     web3 = new Web3(SEPOLIA_ID);
-
-    setup_wifi();
 
     sendEthToAddress(0.01, TARGETADDRESS);
 	PushERC20Transaction(10, TARGETADDRESS, ERC20CONTRACT);
@@ -176,80 +180,4 @@ void queryERC721Balance(const char *userAddress)
     string contractName = web3->getString(&result);
     Serial.print("NAME: ");
     Serial.println(contractName.c_str());
-}
-
-//LEGACY NO LONGER USED (ERC-875 is dead)
-/*void PushERC875Transaction()
-{
-    Contract contract(web3, ERC875CONTRACT);
-    contract.SetPrivateKey(PRIVATE_KEY);
-    string addr = MY_ADDRESS;
-    uint32_t nonceVal = (uint32_t)web3->EthGetTransactionCount(&addr);
-
-    unsigned long long gasPriceVal = 22000000000ULL;
-    uint32_t  gasLimitVal = 4300000;
-    uint8_t dataStr[100];
-    memset(dataStr, 0, 100);
-    string address = TARGETADDRESS;
-    vector<uint32_t> indices;
-    indices.push_back(1); // transfer NFT index 1 (ie the second token, since index 0 is the first token)
-    string p = contract.SetupContractData("transfer(address,uint256[])", &address, &indices);
-    string contractAddr = ERC875CONTRACT;
-    string valueStrThis = "0x00";
-
-    string result = contract.SendTransaction(nonceVal, gasPriceVal, gasLimitVal, &contractAddr, &valueStrThis, &p);
-    Serial.println(result.c_str());
-    string transactionHash = web3->getString(&result);
-    Serial.println("TX on Etherscan:");
-    Serial.print(ETHERSCAN_TX);
-    Serial.println(transactionHash.c_str()); //you can go straight to etherscan and see the pending transaction
-}*/
-
-
-/* This routine is specifically geared for ESP32 perculiarities */
-/* You may need to change the code as required */
-/* It should work on 8266 as well */
-void setup_wifi()
-{
-    if (WiFi.status() == WL_CONNECTED)
-    {
-        return;
-    }
-
-    Serial.println();
-    Serial.print("Connecting to ");
-    Serial.println(ssid);
-
-    if (WiFi.status() != WL_CONNECTED)
-    {
-        WiFi.persistent(false);
-        WiFi.mode(WIFI_OFF);
-        WiFi.mode(WIFI_STA);
-
-        WiFi.begin(ssid, password);
-    }
-
-    wificounter = 0;
-    while (WiFi.status() != WL_CONNECTED && wificounter < 10)
-    {
-        for (int i = 0; i < 500; i++)
-        {
-            delay(1);
-        }
-        Serial.print(".");
-        wificounter++;
-    }
-
-    if (wificounter >= 10)
-    {
-        Serial.println("Restarting ...");
-        ESP.restart(); //targetting 8266 & Esp32 - you may need to replace this
-    }
-
-    delay(10);
-
-    Serial.println("");
-    Serial.println("WiFi connected.");
-    Serial.println("IP address: ");
-    Serial.println(WiFi.localIP());
 }

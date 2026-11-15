@@ -23,15 +23,19 @@ ERC20_CONTRACT=0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238
 ERC721_CONTRACT=0x
 
 # ===== Transaction tests (REQUIRE FUNDED TESTNET ACCOUNT) =====
+# WARNING: These tests send REAL transactions on Sepolia testnet!
 # Private key for transaction tests (Sepolia testnet only!)
-# Generate a new key for testing - NEVER use mainnet keys
+# Generate a dedicated test key - NEVER use mainnet keys or keys with real funds
+# Get testnet ETH from: https://sepoliafaucet.com/
 # Leave empty to skip transaction tests
 TEST_PRIVATE_KEY=
 
-# Destination address for test transfers
+# Destination address for test transfers (can be any valid address)
 TEST_TO_ADDRESS=
 
-# Token contract for transfer tests (must have balance)
+# ERC20 token contract for transfer tests (Sepolia)
+# Must have token balance in TEST_PRIVATE_KEY account
+# Leave empty to skip ERC20 transfer tests
 TEST_TOKEN_CONTRACT=
 
 # ===== Wallet Bridge / TokenScript tests =====

@@ -1,4 +1,4 @@
-#include <WiFi.h>
+#include <WiFiConnection.h>
 #include <Web3.h>
 #include <Util.h>
 #include <Contract.h>
@@ -28,24 +28,28 @@ const char *ssid = "<Your SSID>";
 const char *password = "<Your WiFi password>";
 #define MY_ADDRESS "0xDA358D1547238335Cc666E318c511Fed455Ed77C"      //Put your wallet address here
 #define TARGETADDRESS "0x007bEe82BDd9e866b2bd114780a47f2261C684E3"   //put your second address here
-#define ETHERSCAN_TX "https://kovan.etherscan.io/tx/"
+#define ETHERSCAN_TX "https://sepolia.etherscan.io/tx/"
 
 // Copy/paste the private key from MetaMask in here
 const char *PRIVATE_KEY = "DabbaD00DabbaD00DabbaD00DabbaD00DabbaD00DabbaD00DabbaD00DabbaD00"; //32 Byte Private key 
 
-int wificounter = 0;
+WiFiConnection wifiConnection;
 Web3 *web3;
 
-void setup_wifi();
 void sendEthToAddress(double eth, const char *destination); 
 double queryAccountBalance(const char *address);
 
 void setup() {
     Serial.begin(115200);
 
-    web3 = new Web3(KOVAN_ID);
+    // Connect to WiFi using WiFiConnection helper
+    WiFiCredentials networks[] = {
+        {ssid, password},
+        {nullptr, nullptr}  // Terminator
+    };
+    wifiConnection.setupWifi(networks);
 
-    setup_wifi();
+    web3 = new Web3(SEPOLIA_ID);
 
     double balance = queryAccountBalance(MY_ADDRESS);
     Serial.print("My Address: ");
@@ -69,7 +73,8 @@ void setup() {
 
 double queryAccountBalance(const char *address)
 {
-	uint256_t balance = web3->EthGetBalance(&address); //obtain balance in Wei
+	string addressStr = address;
+	uint256_t balance = web3->EthGetBalance(&addressStr); //obtain balance in Wei
 	string balanceStr = Util::ConvertWeiToEthString(&balance, 18); //Eth uses 18 decimal
 	Serial.print("Balance: ");
 	Serial.println(balanceStr.c_str());
@@ -89,9 +94,10 @@ void sendEthToAddress(double eth, const char *destination)
 	uint256_t weiValue = Util::ConvertToWei(eth, 18);
 	string emptyString = "";
 	string destinationAddress = destination;
+	string fromAddress = MY_ADDRESS;
 
 	Serial.print("Get Nonce: ");
-	uint32_t nonceVal = (uint32_t)web3->EthGetTransactionCount(&address);
+	uint32_t nonceVal = (uint32_t)web3->EthGetTransactionCount(&fromAddress);
 	Serial.println(nonceVal);
 	Serial.println("Send TX");
 	string result = contract.SendTransaction(nonceVal, gasPriceVal, gasLimitVal, &destinationAddress, &weiValue, &emptyString);
@@ -105,53 +111,4 @@ void sendEthToAddress(double eth, const char *destination)
 
 void loop() {
 
-}
-
-
-/* This routine is specifically geared for ESP32 perculiarities */
-/* You may need to change the code as required */
-/* It should work on 8266 as well */
-void setup_wifi()
-{
-    if (WiFi.status() == WL_CONNECTED)
-    {
-        return;
-    }
-
-    Serial.println();
-    Serial.print("Connecting to ");
-    Serial.println(ssid);
-
-    if (WiFi.status() != WL_CONNECTED)
-    {
-        WiFi.persistent(false);
-        WiFi.mode(WIFI_OFF);
-        WiFi.mode(WIFI_STA);
-
-        WiFi.begin(ssid, password);
-    }
-
-    wificounter = 0;
-    while (WiFi.status() != WL_CONNECTED && wificounter < 10)
-    {
-        for (int i = 0; i < 500; i++)
-        {
-            delay(1);
-        }
-        Serial.print(".");
-        wificounter++;
-    }
-
-    if (wificounter >= 10)
-    {
-        Serial.println("Restarting ...");
-        ESP.restart(); //targetting 8266 & Esp32 - you may need to replace this
-    }
-
-    delay(10);
-
-    Serial.println("");
-    Serial.println("WiFi connected.");
-    Serial.println("IP address: ");
-    Serial.println(WiFi.localIP());
 }
