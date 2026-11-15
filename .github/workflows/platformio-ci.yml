@@ -101,10 +101,8 @@ jobs:
           # Apply extra build flags if specified
           if [ -n "${{ matrix.extra_flags }}" ]; then
             export PLATFORMIO_BUILD_FLAGS="${{ matrix.extra_flags }}"
-            pio test --environment ${{ matrix.env }} --without-uploading --without-testing -- ${{ matrix.extra_flags }}
-          else
-            pio test --environment ${{ matrix.env }} --without-uploading --without-testing
           fi
+          pio test --environment ${{ matrix.env }} --without-uploading --without-testing
       
       - name: Show build artifacts size
         if: success() && matrix.type == 'build'
