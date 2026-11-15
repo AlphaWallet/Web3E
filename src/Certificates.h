@@ -174,6 +174,9 @@ const char* getCertificate(long long chainId)
     case PALM_TEST_ID:
     case RINKEBY_ID:
     case GOERLI_ID:
+    case SEPOLIA_ID:
+    case MUMBAI_TEST_ID:
+    case POLYGON_ID:
         return infura_ca_cert;
     case KLAYTN_ID:
     case KLAYTN_BOABAB_ID:
@@ -181,13 +184,12 @@ const char* getCertificate(long long chainId)
     case IOTEX_MAINNET_ID:
     case IOTEX_TESTNET_ID:
         return iotex_cert;
-    case SEPOLIA_ID:
-        return sepolia_cert;
-    case MUMBAI_TEST_ID:
-    case POLYGON_ID:
-        return ankr_cert;
     case FUJI_TEST_ID:
         return fuji_cert;
+    case BASE_SEPOLIA_ID:
+    case ARBITRUM_SEPOLIA_ID:
+        // Pocket public test RPC — no pinned CA yet; Web3::setupCert uses insecure mode.
+        return 0;
     default:
         return 0;
     }
