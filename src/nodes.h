@@ -7,9 +7,9 @@
 #define RINKEBY_INF_RPC_URL "rinkeby.infura.io/v3/"
 #define KOVAN_INF_RPC_URL "kovan.infura.io/v3/"
 #define GOERLI_INF_RPC_URL "goerli.infura.io/v3/"
-#define POLYGON_INF_RPC_URL "rpc.ankr.com/polygon"
+#define POLYGON_INF_RPC_URL "polygon-mainnet.infura.io/v3/"
 #define ARBITRUM_INF_RPC_URL "arbitrum-mainnet.infura.io/v3/"
-#define MUMBAI_INF_RPC_URL "rpc-mumbai.maticvigil.com"
+#define MUMBAI_INF_RPC_URL "polygon-mumbai.infura.io/v3/"
 #define OPTIMISM_INF_RPC_URL "optimism-mainnet.infura.io/v3/"
 #define OPTIMISM_INF_TEST_RPC_URL "optimism-kovan.infura.io/v3/"
 #define ARBITRUM_INF_TEST_RPC_URL "arbitrum-rinkeby.infura.io/v3/"
@@ -17,8 +17,9 @@
 #define PALM_INF_TEST_RPC_URL "palm-testnet.infura.io/v3/"
 #define OPTIMISM_INF_GOERLI_URL "optimism-goerli.infura.io/v3/"
 #define ARBITRUM_INF_GOERLI_URL "arbitrum-goerli.infura.io/v3/"
+#define SEPOLIA_INF_RPC_URL "sepolia.infura.io/v3/"
 
-#define SEPOLIA_URL "rpc.sepolia.org"
+#define SEPOLIA_URL "ethereum-sepolia-rpc.publicnode.com"
 #define CLASSIC_RPC_URL "www.ethercluster.com/etc"
 #define XDAI_RPC_URL "rpc.xdaichain.com"
 #define POA_RPC_URL "core.poa.network"
@@ -39,6 +40,8 @@
 #define KLAYTN_RPC "public-node-api.klaytnapi.com/v1/cypress"
 #define KLAYTN_BAOBAB_RPC "api.baobab.klaytn.net:8651"
 #define FUJI_TEST_RPC "api.avax-test.network/ext/bc/C/rpc"
+#define BASE_SEPOLIA_RPC_URL "base-testnet.api.pocket.network"
+#define ARBITRUM_SEPOLIA_RPC_URL "arbitrum-sepolia-testnet.api.pocket.network"
 
 const char* getNode(long long chainId)
 {
@@ -77,22 +80,25 @@ const char* getNode(long long chainId)
     case MILKOMEDA_C1_TEST_ID:
         return MILKOMEDA_C1_TEST_RPC;
     case ARBITRUM_MAIN_ID:
-        ARBITRUM_INF_RPC_URL;
+        return ARBITRUM_INF_RPC_URL;
     case OPTIMISTIC_MAIN_ID:
         return OPTIMISM_INF_RPC_URL;
     case ARBITRUM_RINKEBY_TEST_ID_DEPRECATED:
         return ARBITRUM_INF_TEST_RPC_URL;
     case OPTIMISTIC_KOVAN_TEST_ID_DEPRECATED:
-        return OPTIMISM_INF_RPC_URL;
+        return OPTIMISM_INF_TEST_RPC_URL;
     case SEPOLIA_ID:
-        return SEPOLIA_URL;
+        return SEPOLIA_INF_RPC_URL;
     case OPTIMISM_GOERLI_ID:
         return OPTIMISM_INF_GOERLI_URL;
     case ARBITRUM_GOERLI_ID:
         return ARBITRUM_INF_GOERLI_URL;
-	case FUJI_TEST_ID:
+    case FUJI_TEST_ID:
         return FUJI_TEST_RPC;
-		
+    case BASE_SEPOLIA_ID:
+        return BASE_SEPOLIA_RPC_URL;
+    case ARBITRUM_SEPOLIA_ID:
+        return ARBITRUM_SEPOLIA_RPC_URL;
     default:
         return "";
     }
