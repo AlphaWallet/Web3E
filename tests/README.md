@@ -7,7 +7,13 @@ PlatformIO Unity test suite for Web3E library on ESP32.
 - **`test_crypto/`** - Cryptography tests (Keccak-256, key derivation, signing, recovery)
 - **`test_util/`** - Utility function tests (hex conversion, Wei/Eth conversion, uint256, RLP)
 - **`test_transaction/`** - Transaction signing and ABI encoding tests
-- **`test_network_rpc/`** - Network tests requiring Wi-Fi and RPC node (optional)
+- **`test_network_rpc/`** - Network tests requiring Wi-Fi and RPC node:
+  - Wi-Fi connection using WiFiConnection class
+  - Chain ID, block number queries
+  - Native ETH balance queries
+  - Transaction count (nonce) queries
+  - ERC20 token balance, name, symbol queries
+  - Transaction preparation (dry-run, no actual sends)
 
 ## Running Tests
 
@@ -40,10 +46,25 @@ Network tests require Wi-Fi credentials and an Ethereum RPC endpoint.
 
 2. Edit `test_config.ini` with your credentials:
    ```ini
+   # Wi-Fi credentials
    WIFI_SSID=YourNetworkName
    WIFI_PASS=YourWiFiPassword
+   
+   # RPC endpoint (Sepolia testnet recommended)
    RPC_URL=https://sepolia.infura.io/v3/your-api-key
+   
+   # Address for balance queries (defaults to Vitalik's address)
+   TEST_ADDRESS=0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
+   
+   # ERC20 contract for token queries (e.g. USDC on Sepolia)
+   ERC20_CONTRACT=0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238
+   
+   # Optional: For transaction tests (TESTNET ONLY - requires funded account)
+   TEST_PRIVATE_KEY=
+   TEST_TO_ADDRESS=
    ```
+   
+   **Security Warning**: Never use mainnet private keys in tests! Generate a dedicated testnet key for testing.
 
 3. Run network tests:
    ```bash
@@ -118,12 +139,31 @@ void test_network_feature() {
 
 ## Test Vectors
 
-Test vectors for cryptographic operations are documented in each test file. They are generated using trusted reference implementations:
+Test vectors for cryptographic operations are verified against trusted reference implementations:
 
-- **Keccak-256, signing:** ethers.js v6
-- **RLP encoding:** web3.py rlp library
-- **Transaction encoding:** ethers.js Transaction class
+- **Keccak-256**: pycryptodome `Crypto.Hash.keccak`
+- **Key derivation**: eth-keys library `PrivateKey.public_key.to_bytes()`
+- **Address derivation**: eth-utils `to_checksum_address()`
+- **Signing**: eth-account library personal_sign
+- **RLP encoding**: web3.py rlp library
+- **Transaction encoding**: ethers.js Transaction class
+
+## Which Tests Need Funds?
+
+**Read-only tests** (no funds needed):
+- All offline tests (`test_crypto`, `test_util`, `test_transaction`)
+- Wi-Fi connection test
+- Chain ID, block number queries
+- Balance queries (reads any address)
+- Transaction count queries
+- ERC20 token metadata (name, symbol, decimals, balances)
+
+**Transaction tests** (require funded testnet account):
+- Currently disabled by default
+- Set `TEST_PRIVATE_KEY` and `TEST_TO_ADDRESS` in `test_config.ini` to enable
+- **IMPORTANT**: Use Sepolia or other testnets only - never mainnet!
+- Tests will skip (TEST_IGNORE) if private key is not configured
 
 ## CI
 
-The GitHub Actions workflow compiles all tests to ensure they build correctly. Network tests are compiled but not executed in CI (no credentials available).
+The GitHub Actions workflow compiles all tests to ensure they build correctly. Network tests are compiled but not executed in CI (no credentials or hardware available).

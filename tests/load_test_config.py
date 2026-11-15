@@ -23,7 +23,13 @@ if os.path.exists(config_file):
                         value = value.strip().strip('"').strip("'")
                         
                         # Inject as build flag
-                        if key in ['WIFI_SSID', 'WIFI_PASS', 'RPC_URL']:
+                        valid_keys = [
+                            'WIFI_SSID', 'WIFI_PASS', 'RPC_URL',
+                            'TEST_ADDRESS', 'ERC20_CONTRACT', 'ERC721_CONTRACT',
+                            'TEST_PRIVATE_KEY', 'TEST_TO_ADDRESS', 'TEST_TOKEN_CONTRACT',
+                            'BRIDGE_URL', 'BRIDGE_PORT', 'EXPECTED_CHALLENGE'
+                        ]
+                        if key in valid_keys:
                             # Escape quotes for C preprocessor
                             value_escaped = value.replace('\\', '\\\\').replace('"', '\\"')
                             env.Append(CPPDEFINES=[(key, f'\\"{value_escaped}\\"')])

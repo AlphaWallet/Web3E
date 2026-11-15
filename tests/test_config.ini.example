@@ -6,9 +6,38 @@
 WIFI_SSID=YourNetworkName
 WIFI_PASS=YourWiFiPassword
 
-# Ethereum RPC endpoint (e.g. Infura, Alchemy, or local node)
+# Ethereum RPC endpoint (Sepolia testnet recommended)
 # Examples:
 #   RPC_URL=https://sepolia.infura.io/v3/your-api-key
 #   RPC_URL=https://eth-sepolia.g.alchemy.com/v2/your-api-key
-#   RPC_URL=http://localhost:8545
 RPC_URL=https://sepolia.infura.io/v3/your-api-key-here
+
+# ===== Read-only tests (no funds needed) =====
+# Well-known address to query (Vitalik's address by default)
+TEST_ADDRESS=0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
+
+# ERC20 token contract for balance queries (USDC on Sepolia)
+ERC20_CONTRACT=0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238
+
+# ERC721 token contract for NFT balance queries
+ERC721_CONTRACT=0x
+
+# ===== Transaction tests (REQUIRE FUNDED TESTNET ACCOUNT) =====
+# Private key for transaction tests (Sepolia testnet only!)
+# Generate a new key for testing - NEVER use mainnet keys
+# Leave empty to skip transaction tests
+TEST_PRIVATE_KEY=
+
+# Destination address for test transfers
+TEST_TO_ADDRESS=
+
+# Token contract for transfer tests (must have balance)
+TEST_TOKEN_CONTRACT=
+
+# ===== Wallet Bridge / TokenScript tests =====
+# TokenScript bridge proxy settings (optional)
+BRIDGE_URL=
+BRIDGE_PORT=8082
+
+# Challenge response testing
+EXPECTED_CHALLENGE=
