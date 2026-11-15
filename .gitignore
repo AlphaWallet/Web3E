@@ -9,6 +9,10 @@
 # Test credentials (never commit!)
 tests/test_config.ini
 
+# Node.js
+node_modules/
+package-lock.json
+
 # Other build artifacts
 *.o
 *.a

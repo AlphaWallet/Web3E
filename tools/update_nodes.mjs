@@ -12,10 +12,34 @@ const __dirname = path.dirname(__filename);
 const FEED_URL = 'https://pub-947f58bf7fb442f7a0d0686fcf757d76.r2.dev/rpc-rankings.json';
 const NODES_H_PATH = path.join(__dirname, '..', 'src', 'nodes.h');
 const CERTIFICATES_H_PATH = path.join(__dirname, '..', 'src', 'Certificates.h');
+const INFURA_CHAINS_PATH = path.join(__dirname, 'infura-chains.json');
+const RETIRED_CHAINS_PATH = path.join(__dirname, 'retired-chains.json');
 const MAX_URLS_PER_CHAIN = 3;
 
 const isDryRun = process.argv.includes('--dry-run') || process.argv.includes('--check');
 const skipCerts = process.argv.includes('--skip-certs');
+
+// Load Infura chains config
+let infuraChains = new Map();
+try {
+  const infuraConfig = JSON.parse(fs.readFileSync(INFURA_CHAINS_PATH, 'utf8'));
+  for (const chain of infuraConfig.chains) {
+    infuraChains.set(chain.chainId, chain.host);
+  }
+} catch (error) {
+  console.warn('Warning: Could not load infura-chains.json, Infura support disabled');
+}
+
+// Load retired chains denylist
+let retiredChainIds = new Set();
+try {
+  const retiredConfig = JSON.parse(fs.readFileSync(RETIRED_CHAINS_PATH, 'utf8'));
+  for (const chain of retiredConfig.deniedChainIds) {
+    retiredChainIds.add(chain.chainId);
+  }
+} catch (error) {
+  console.warn('Warning: Could not load retired-chains.json');
+}
 
 // Chain ID to constant name mapping (from chainIds.h)
 const CHAIN_ID_MAP = {
@@ -160,15 +184,46 @@ function extractHostname(url) {
   }
 }
 
-function generateNodesH(existingChains, feedData) {
-  const chainUpdates = new Map();
+function generateNodesH(existingChains, chainUpdates, chainsToRemove, feedData) {
+  // Build set of active chain IDs (not removed)
+  const activeChainIds = new Set();
+  for (const [chainId] of existingChains.entries()) {
+    if (!chainsToRemove.find(r => r.chainId === chainId)) {
+      activeChainIds.add(chainId);
+    }
+  }
   
-  // Process feed data
-  for (const chain of feedData.chains) {
-    if (existingChains.has(chain.chainId)) {
-      const topRpcs = selectTopRpcs(chain.rpcs);
-      if (topRpcs.length > 0) {
-        chainUpdates.set(chain.chainId, topRpcs);
+  // Read ALL existing defines from nodes.h
+  const oldNodesContent = fs.readFileSync(NODES_H_PATH, 'utf8');
+  
+  // Extract the generated section
+  const genStart = oldNodesContent.indexOf('// =============================================================================\n// GENERATED RPC NODE DEFINITIONS');
+  const genEnd = oldNodesContent.indexOf('// =============================================================================\n// END GENERATED SECTION');
+  
+  const existingDefines = new Map(); // defineName -> URL
+  if (genStart !== -1 && genEnd !== -1) {
+    const generatedSection = oldNodesContent.substring(genStart, genEnd);
+    const defineRegex = /#define\s+(\w+)\s+"([^"]+)"/g;
+    let match;
+    while ((match = defineRegex.exec(generatedSection)) !== null) {
+      existingDefines.set(match[1], match[2]);
+    }
+  }
+  
+  // Build set of define names that will be updated
+  const updatedDefineNames = new Set();
+  for (const [chainId, updates] of chainUpdates.entries()) {
+    const existingInfo = existingChains.get(chainId);
+    if (existingInfo) {
+      for (let i = 0; i < MAX_URLS_PER_CHAIN; i++) {
+        const defineName = `${existingInfo.constant}_URL${i > 0 ? '_' + (i + 1) : ''}`;
+        updatedDefineNames.add(defineName);
+      }
+      
+      // Also add Infura define if applicable
+      if (infuraChains.has(chainId)) {
+        const infuraDefineName = `${existingInfo.constant}_INFURA_URL`;
+        updatedDefineNames.add(infuraDefineName);
       }
     }
   }
@@ -176,8 +231,15 @@ function generateNodesH(existingChains, feedData) {
   // Generate URL defines
   let defines = [];
   const urlToDefine = new Map();
-  let defineCounter = 0;
   
+  // First, add all existing defines that are NOT being updated
+  for (const [defineName, url] of existingDefines.entries()) {
+    if (!updatedDefineNames.has(defineName)) {
+      defines.push({ name: defineName, url: url, preserve: true });
+    }
+  }
+  
+  // Then add updated URLs from feed and map preserved chains
   for (const [chainId, existingInfo] of existingChains.entries()) {
     const updates = chainUpdates.get(chainId);
     
@@ -190,17 +252,20 @@ function generateNodesH(existingChains, feedData) {
         urlToDefine.set(`${chainId}_${i}`, defineName);
       }
     } else {
-      // Keep existing (placeholder or Infura URLs that need API keys)
+      // Keep existing URL definitions for this chain
       for (let i = 0; i < existingInfo.urls.length; i++) {
         const defineName = existingInfo.urls[i];
-        defines.push({ name: defineName, url: null, chainId: chainId, index: i, keepExisting: true });
+        // Map the chain to its preserved define
         urlToDefine.set(`${chainId}_${i}`, defineName);
       }
     }
   }
   
-  // Sort defines by chain ID for deterministic output
+  // Sort defines: preserved ones first (in existing order), then new/updated ones by chainId
   defines.sort((a, b) => {
+    if (a.preserve && !b.preserve) return -1;
+    if (!a.preserve && b.preserve) return 1;
+    if (a.preserve && b.preserve) return 0; // Keep existing order for preserved
     if (a.chainId !== b.chainId) return a.chainId - b.chainId;
     return a.index - b.index;
   });
@@ -223,16 +288,7 @@ function generateNodesH(existingChains, feedData) {
   
   // Add defines
   for (const def of defines) {
-    if (def.keepExisting) {
-      // Read the existing define from the file
-      const content = fs.readFileSync(NODES_H_PATH, 'utf8');
-      const defineMatch = content.match(new RegExp(`#define\\s+${def.name}\\s+"([^"]+)"`));
-      if (defineMatch) {
-        header += `#define ${def.name} "${defineMatch[1]}"\n`;
-      }
-    } else {
-      header += `#define ${def.name} "${def.url}"\n`;
-    }
+    header += `#define ${def.name} "${def.url}"\n`;
   }
   
   header += `
@@ -252,18 +308,37 @@ function generateNodesH(existingChains, feedData) {
   // Sort chains by ID for deterministic output
   const sortedChains = Array.from(existingChains.entries()).sort((a, b) => a[0] - b[0]);
   
+  // Build set of removed chain IDs
+  const removedChainIds = new Set(chainsToRemove.map(r => r.chainId));
+  
   for (const [chainId, info] of sortedChains) {
+    // Skip removed chains
+    if (removedChainIds.has(chainId)) {
+      continue;
+    }
+    
     const updates = chainUpdates.get(chainId);
-    const primaryDefine = updates && updates.length > 0 
-      ? urlToDefine.get(`${chainId}_0`)
-      : info.urls[0];
+    let primaryDefine;
+    
+    if (updates && updates.length > 0) {
+      // Chain has updates from feed - use new URL
+      primaryDefine = urlToDefine.get(`${chainId}_0`);
+    } else {
+      // Chain not in feed - keep existing URL define
+      // urlToDefine should have been populated for this chain too
+      primaryDefine = urlToDefine.get(`${chainId}_0`);
+      if (!primaryDefine) {
+        // Fallback to the direct define name
+        primaryDefine = info.urls[0];
+      }
+    }
     
     header += `    case ${info.constant}:\n`;
     header += `        return ${primaryDefine};\n`;
   }
   
   header += `    default:
-        return "";
+        return NULL;
     }
 }
 
@@ -627,34 +702,83 @@ async function main() {
   
   console.log('Parsing existing nodes.h...');
   const existingChains = parseExistingNodesH();
-  console.log(`Found ${existingChains.size} chains in nodes.h\n`);
+  console.log(`Found ${existingChains.size} chains in nodes.h`);
+  
+  // Debug: Check SOKOL
+  const sokol = existingChains.get(77);
+  if (sokol) {
+    console.log(`  Debug SOKOL (77): constant=${sokol.constant}, urls=[${sokol.urls.join(', ')}]`);
+  }
+  console.log('');
   
   console.log('Processing updates...');
   const chainUpdates = new Map();
+  const chainsToRemove = [];
   let totalUpdates = 0;
   
+  // Build feed chain set
+  const feedChainIds = new Set();
   for (const chain of feedData.chains) {
-    if (existingChains.has(chain.chainId)) {
-      const topRpcs = selectTopRpcs(chain.rpcs);
-      if (topRpcs.length > 0) {
-        chainUpdates.set(chain.chainId, topRpcs);
-        totalUpdates++;
-        const chainInfo = existingChains.get(chain.chainId);
-        console.log(`  Chain ${chain.chainId} (${chainInfo.name}): ${topRpcs.length} URL(s)`);
-        topRpcs.forEach((rpc, i) => {
-          console.log(`    ${i + 1}. ${rpc.url} (${rpc.responseTimeMs.toFixed(2)}ms)`);
-        });
+    const topRpcs = selectTopRpcs(chain.rpcs);
+    if (topRpcs.length > 0) {
+      feedChainIds.add(chain.chainId);
+    }
+  }
+  
+  // Process each existing chain
+  for (const [chainId, chainInfo] of existingChains.entries()) {
+    // Check retired/denied chains first
+    if (retiredChainIds.has(chainId)) {
+      chainsToRemove.push({
+        chainId: chainId,
+        name: chainInfo.name,
+        reason: 'Retired/reassigned chain ID'
+      });
+      continue;
+    }
+    
+    // Check if chain has usable RPCs in feed
+    if (!feedChainIds.has(chainId)) {
+      chainsToRemove.push({
+        chainId: chainId,
+        name: chainInfo.name,
+        reason: 'No usable RPCs in feed'
+      });
+      continue;
+    }
+    
+    // Chain is valid, process updates
+    for (const chain of feedData.chains) {
+      if (chain.chainId === chainId) {
+        const topRpcs = selectTopRpcs(chain.rpcs);
+        if (topRpcs.length > 0) {
+          chainUpdates.set(chainId, topRpcs);
+          totalUpdates++;
+          console.log(`  Chain ${chainId} (${chainInfo.name}): ${topRpcs.length} URL(s)`);
+          topRpcs.forEach((rpc, i) => {
+            console.log(`    ${i + 1}. ${rpc.url} (${rpc.responseTimeMs.toFixed(2)}ms)`);
+          });
+        }
+        break;
       }
     }
   }
   
-  console.log(`\nProcessed ${totalUpdates} chain(s) with available RPCs\n`);
+  console.log(`\nProcessed ${totalUpdates} chain(s) with available RPCs`);
+  
+  if (chainsToRemove.length > 0) {
+    console.log(`\nChains to remove (${chainsToRemove.length}):`);
+    for (const removed of chainsToRemove) {
+      console.log(`  - Chain ${removed.chainId} (${removed.name}): ${removed.reason}`);
+    }
+  }
+  console.log('');
   
   // Read existing content
   const oldContent = fs.readFileSync(NODES_H_PATH, 'utf8');
   
   // Generate new content
-  const newContent = generateNodesH(existingChains, feedData);
+  const newContent = generateNodesH(existingChains, chainUpdates, chainsToRemove, feedData);
   
   // Detect changes
   const changes = detectChanges(oldContent, newContent, existingChains, chainUpdates, feedData);
@@ -672,7 +796,14 @@ async function main() {
   }
   
   // Fetch certificates for chains with updates
-  const { certMap, uniqueCerts } = await fetchCertificatesForChains(chainUpdates, existingChains);
+  let certMap = new Map();
+  let uniqueCerts = new Map();
+  
+  if (!skipCerts) {
+    const certResult = await fetchCertificatesForChains(chainUpdates, existingChains);
+    certMap = certResult.certMap;
+    uniqueCerts = certResult.uniqueCerts;
+  }
   
   // Generate new Certificates.h
   const newCertificatesContent = generateCertificatesH(existingChains, certMap, uniqueCerts, feedData);

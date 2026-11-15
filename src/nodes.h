@@ -12,14 +12,14 @@
 // Run tools/update_nodes to update from latest rankings
 // =============================================================================
 
+#define KOVAN_ID_URL "public-lukso.nownodes.io"
+#define KOVAN_ID_URL_2 "rpc.mainnet.lukso.network"
 #define MAINNET_ID_URL "ethereum-rpc.publicnode.com"
 #define MAINNET_ID_URL_2 "eth.drpc.org"
 #define MAINNET_ID_URL_3 "rpc.flashbots.net/fast"
 #define OPTIMISTIC_MAIN_ID_URL "optimism.drpc.org"
 #define OPTIMISTIC_MAIN_ID_URL_2 "optimism-rpc.publicnode.com"
 #define OPTIMISTIC_MAIN_ID_URL_3 "gateway.tenderly.co/public/optimism"
-#define KOVAN_ID_URL "public-lukso.nownodes.io"
-#define KOVAN_ID_URL_2 "rpc.mainnet.lukso.network"
 #define CLASSIC_ID_URL "ethereum-classic-mainnet.gateway.tatum.io"
 #define CLASSIC_ID_URL_2 "rpc.swiftnodes.io/rpc/etc"
 #define CLASSIC_ID_URL_3 "0xrpc.io/etc"
@@ -65,32 +65,16 @@ const char* getNode(long long chainId)
     {
     case MAINNET_ID:
         return MAINNET_ID_URL;
-    case RINKEBY_ID:
-        return NULL;
-    case GOERLI_ID:
-        return NULL;
     case OPTIMISTIC_MAIN_ID:
         return OPTIMISTIC_MAIN_ID_URL;
-    case KOVAN_ID:
-        return KOVAN_ID_URL;
     case CLASSIC_ID:
         return CLASSIC_ID_URL;
-    case OPTIMISTIC_KOVAN_TEST_ID_DEPRECATED:
-        return NULL;
-    case SOKOL_ID:
-        return NULL;
-    case POA_ID:
-        return NULL;
     case XDAI_ID:
         return XDAI_ID_URL;
     case POLYGON_ID:
         return POLYGON_ID_URL;
-    case OPTIMISM_GOERLI_ID:
-        return NULL;
     case KLAYTN_BOABAB_ID:
         return KLAYTN_BOABAB_ID_URL;
-    case MILKOMEDA_C1_ID:
-        return NULL;
     case IOTEX_MAINNET_ID:
         return IOTEX_MAINNET_ID_URL;
     case IOTEX_TESTNET_ID:
@@ -101,22 +85,14 @@ const char* getNode(long long chainId)
         return ARBITRUM_MAIN_ID_URL;
     case FUJI_TEST_ID:
         return FUJI_TEST_ID_URL;
-    case MUMBAI_TEST_ID:
-        return NULL;
     case BASE_SEPOLIA_ID:
         return BASE_SEPOLIA_ID_URL;
-    case MILKOMEDA_C1_TEST_ID:
-        return NULL;
-    case ARBITRUM_RINKEBY_TEST_ID_DEPRECATED:
-        return NULL;
-    case ARBITRUM_GOERLI_ID:
-        return NULL;
     case ARBITRUM_SEPOLIA_ID:
         return ARBITRUM_SEPOLIA_ID_URL;
     case SEPOLIA_ID:
         return SEPOLIA_ID_URL;
     default:
-        return "";
+        return NULL;
     }
 }
 
@@ -158,15 +134,7 @@ const char* getNodeUrls(long long chainId, int index)
             return NULL;
         }
     case KOVAN_ID:
-        switch (index)
-        {
-        case 0:
-            return KOVAN_ID_URL;
-        case 1:
-            return KOVAN_ID_URL_2;
-        default:
-            return NULL;
-        }
+        return index == 0 ? getNode(chainId) : NULL;
     case CLASSIC_ID:
         switch (index)
         {

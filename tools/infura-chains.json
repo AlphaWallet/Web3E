@@ -1,0 +1,23 @@
+{
+  "comment": "Chains supported by Infura (https://docs.infura.io/networks/ethereum/supported-networks)",
+  "chains": [
+    { "chainId": 1, "name": "mainnet", "host": "mainnet.infura.io/v3/" },
+    { "chainId": 11155111, "name": "sepolia", "host": "sepolia.infura.io/v3/" },
+    { "chainId": 17000, "name": "holesky", "host": "holesky.infura.io/v3/" },
+    { "chainId": 137, "name": "polygon", "host": "polygon-mainnet.infura.io/v3/" },
+    { "chainId": 80002, "name": "polygon-amoy", "host": "polygon-amoy.infura.io/v3/" },
+    { "chainId": 10, "name": "optimism", "host": "optimism-mainnet.infura.io/v3/" },
+    { "chainId": 11155420, "name": "optimism-sepolia", "host": "optimism-sepolia.infura.io/v3/" },
+    { "chainId": 42161, "name": "arbitrum", "host": "arbitrum-mainnet.infura.io/v3/" },
+    { "chainId": 421614, "name": "arbitrum-sepolia", "host": "arbitrum-sepolia.infura.io/v3/" },
+    { "chainId": 8453, "name": "base", "host": "base-mainnet.infura.io/v3/" },
+    { "chainId": 84532, "name": "base-sepolia", "host": "base-sepolia.infura.io/v3/" },
+    { "chainId": 59144, "name": "linea", "host": "linea-mainnet.infura.io/v3/" },
+    { "chainId": 59141, "name": "linea-sepolia", "host": "linea-sepolia.infura.io/v3/" },
+    { "chainId": 43114, "name": "avalanche-c", "host": "avalanche-mainnet.infura.io/ext/bc/C/rpc" },
+    { "chainId": 43113, "name": "avalanche-fuji", "host": "avalanche-fuji.infura.io/ext/bc/C/rpc" },
+    { "chainId": 100, "name": "gnosis", "host": "gnosis-mainnet.infura.io/v3/" },
+    { "chainId": 534352, "name": "scroll", "host": "scroll-mainnet.infura.io/v3/" },
+    { "chainId": 534351, "name": "scroll-sepolia", "host": "scroll-sepolia.infura.io/v3/" }
+  ]
+}
