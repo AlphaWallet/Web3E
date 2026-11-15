@@ -24,10 +24,9 @@ if os.path.exists(config_file):
                         
                         # Inject as build flag
                         valid_keys = [
-                            'WIFI_SSID', 'WIFI_PASS', 'RPC_URL',
-                            'TEST_ADDRESS', 'ERC20_CONTRACT', 'ERC721_CONTRACT',
-                            'TEST_PRIVATE_KEY', 'TEST_TO_ADDRESS', 'TEST_TOKEN_CONTRACT',
-                            'BRIDGE_URL', 'BRIDGE_PORT', 'EXPECTED_CHALLENGE'
+                            'WIFI_SSID', 'WIFI_PASS',
+                            'TEST_PRIVATE_KEY', 'TEST_TO_ADDRESS',
+                            'TEST_TOKEN_CONTRACT', 'ERC721_CONTRACT'
                         ]
                         if key in valid_keys:
                             # Escape quotes for C preprocessor

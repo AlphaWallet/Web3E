@@ -1,18 +1,12 @@
 /**
  * Web3E Network RPC Tests
  * 
- * Converted from examples: Query Token Balance, Send Eth, Push Transaction, Wallet Bridge
- * 
- * These tests require Wi-Fi and an RPC endpoint.
- * They are only compiled when ENABLE_NETWORK_TESTS is defined.
+ * Read-only network tests (no funds required).
+ * Tests Web3E's built-in node selection and RPC functionality.
  * 
  * Configure credentials in test_config.ini:
  * - WIFI_SSID, WIFI_PASS: Wi-Fi credentials
- * - RPC_URL: Ethereum RPC endpoint (Sepolia testnet recommended)
- * - TEST_ADDRESS: Address for balance queries
- * - ERC20_CONTRACT: ERC20 token contract address
- * - TEST_PRIVATE_KEY: Private key for transaction tests (TESTNET ONLY, optional)
- * - TEST_TO_ADDRESS: Destination for test transfers (optional)
+ * - ERC721_CONTRACT: Optional mainnet ERC721 for query test
  */
 
 #include <Arduino.h>
@@ -25,7 +19,6 @@
 #include <Web3.h>
 #include <Contract.h>
 #include <Util.h>
-#include <KeyID.h>
 
 // Credentials from build flags
 #ifndef WIFI_SSID
@@ -36,25 +29,19 @@
 #define WIFI_PASS ""
 #endif
 
-#ifndef RPC_URL
-#define RPC_URL ""
+#ifndef ERC721_CONTRACT
+#define ERC721_CONTRACT ""
 #endif
 
-#ifndef TEST_ADDRESS
-#define TEST_ADDRESS "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"
-#endif
+// Web3E uses built-in node selection based on chain ID
+#define SEPOLIA_CHAIN_ID 11155111
+#define MAINNET_CHAIN_ID 1
 
-#ifndef ERC20_CONTRACT
-#define ERC20_CONTRACT ""
-#endif
+// Vitalik's mainnet address for testing
+#define VITALIK_ADDRESS "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"
 
-#ifndef TEST_PRIVATE_KEY
-#define TEST_PRIVATE_KEY ""
-#endif
-
-#ifndef TEST_TO_ADDRESS
-#define TEST_TO_ADDRESS ""
-#endif
+// USDC on mainnet for ERC20 read test
+#define USDC_MAINNET "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
 
 WiFiConnection wifiConnection;
 bool wifiConnected = false;
@@ -65,14 +52,14 @@ void connectWiFi() {
     Serial.println("\n=== Connecting to WiFi ===");
     WiFiCredentials networks[] = {
         {WIFI_SSID, WIFI_PASS},
-        {nullptr, nullptr}  // Terminator
+        {nullptr, nullptr}
     };
     
     wifiConnection.setupWifi(networks);
     wifiConnected = (WiFi.status() == WL_CONNECTED);
 }
 
-// ===== Read-Only Tests (No Funds Required) =====
+// ===== WiFi Tests =====
 
 void test_wifi_connection() {
     connectWiFi();
@@ -80,168 +67,184 @@ void test_wifi_connection() {
     TEST_ASSERT_EQUAL(WL_CONNECTED, WiFi.status());
 }
 
-void test_get_chain_id() {
+// ===== Sepolia Tests =====
+
+void test_sepolia_chain_id() {
     connectWiFi();
     TEST_ASSERT_TRUE(wifiConnected);
     
-    Web3 web3(11155111); // Sepolia
+    Serial.println("\n=== Sepolia Chain ID Test ===");
+    
+    Web3 web3(SEPOLIA_CHAIN_ID);
     long long chainId = web3.getChainId();
     
     Serial.print("Chain ID: ");
     Serial.println((long)chainId);
     
-    TEST_ASSERT_EQUAL(11155111, chainId);
+    TEST_ASSERT_EQUAL(SEPOLIA_CHAIN_ID, (long)chainId);
 }
 
-void test_get_block_number() {
+void test_sepolia_block_number() {
     connectWiFi();
     TEST_ASSERT_TRUE(wifiConnected);
     
-    Web3 web3(11155111); // Sepolia
-    int blockNumber = web3.EthBlockNumber();
+    Serial.println("\n=== Sepolia Block Number Test ===");
     
-    Serial.print("Current block number: ");
-    Serial.println(blockNumber);
+    Web3 web3(SEPOLIA_CHAIN_ID);
+    long long blockNumber = web3.getBlockNumber();
     
-    // Sepolia should have blocks > 1M
-    TEST_ASSERT_GREATER_THAN(1000000, blockNumber);
+    Serial.print("Current block: ");
+    Serial.println((long)blockNumber);
+    
+    // Sepolia well past block 1M
+    TEST_ASSERT_GREATER_THAN(1000000, (long)blockNumber);
 }
 
-void test_get_balance() {
+// ===== Mainnet Tests =====
+
+void test_mainnet_chain_id() {
     connectWiFi();
     TEST_ASSERT_TRUE(wifiConnected);
     
-    Web3 web3(11155111); // Sepolia
-    string address = TEST_ADDRESS;
+    Serial.println("\n=== Mainnet Chain ID Test ===");
+    
+    Web3 web3(MAINNET_CHAIN_ID);
+    long long chainId = web3.getChainId();
+    
+    Serial.print("Chain ID: ");
+    Serial.println((long)chainId);
+    
+    TEST_ASSERT_EQUAL(MAINNET_CHAIN_ID, (long)chainId);
+}
+
+void test_mainnet_vitalik_balance() {
+    connectWiFi();
+    TEST_ASSERT_TRUE(wifiConnected);
+    
+    Serial.println("\n=== Mainnet Balance Test (Vitalik) ===");
+    
+    Web3 web3(MAINNET_CHAIN_ID);
+    string address = VITALIK_ADDRESS;
     uint256_t balance = web3.EthGetBalance(&address);
     
-    Serial.print("Native balance for ");
-    Serial.print(address.c_str());
-    Serial.print(": ");
-    Serial.println(balance.str().c_str());
-    
-    // Just verify we got a response (balance could be 0)
-    // Non-negative balance is valid
-    TEST_ASSERT_TRUE(balance >= 0);
-}
-
-void test_get_transaction_count() {
-    connectWiFi();
-    TEST_ASSERT_TRUE(wifiConnected);
-    
-    Web3 web3(11155111); // Sepolia
-    string address = TEST_ADDRESS;
-    int nonce = web3.EthGetTransactionCount(&address);
-    
-    Serial.print("Transaction count for ");
-    Serial.print(address.c_str());
-    Serial.print(": ");
-    Serial.println(nonce);
-    
-    TEST_ASSERT_GREATER_OR_EQUAL(0, nonce);
-}
-
-void test_query_erc20_balance() {
-    connectWiFi();
-    TEST_ASSERT_TRUE(wifiConnected);
-    
-    if (strlen(ERC20_CONTRACT) == 0) {
-        TEST_IGNORE_MESSAGE("ERC20_CONTRACT not configured - skipping");
-        return;
-    }
-    
-    Web3 web3(11155111); // Sepolia
-    Contract contract(&web3, ERC20_CONTRACT);
-    string address = TEST_ADDRESS;
-    
-    // Query decimals
-    string param = contract.SetupContractData("decimals()");
-    string result = contract.ViewCall(&param);
-    int decimals = web3.getInt(&result);
-    
-    Serial.print("Token decimals: ");
-    Serial.println(decimals);
-    TEST_ASSERT_GREATER_OR_EQUAL(0, decimals);
-    TEST_ASSERT_LESS_OR_EQUAL(255, decimals);
-    
-    // Query balance
-    param = contract.SetupContractData("balanceOf(address)", &address);
-    result = contract.ViewCall(&param);
-    uint256_t baseBalance = web3.getUint256(&result);
-    
-    string balanceStr = Util::ConvertWeiToEthString(&baseBalance, decimals);
-    
-    Serial.print("ERC20 balance for ");
-    Serial.print(address.c_str());
-    Serial.print(": ");
+    string balanceStr = Util::ConvertWeiToEthString(&balance, 18);
+    Serial.print("Vitalik balance: ");
     Serial.print(balanceStr.c_str());
-    Serial.println(" tokens");
+    Serial.println(" ETH");
     
-    // Balance should be non-negative
-    TEST_ASSERT_TRUE(baseBalance >= 0);
+    // Vitalik should have ETH on mainnet
+    TEST_ASSERT_TRUE(balance > 0);
 }
 
-void test_query_erc20_name_symbol() {
+void test_mainnet_transaction_count() {
     connectWiFi();
     TEST_ASSERT_TRUE(wifiConnected);
     
-    if (strlen(ERC20_CONTRACT) == 0) {
-        TEST_IGNORE_MESSAGE("ERC20_CONTRACT not configured - skipping");
-        return;
-    }
+    Serial.println("\n=== Mainnet Nonce Test (Vitalik) ===");
     
-    Web3 web3(11155111); // Sepolia
-    Contract contract(&web3, ERC20_CONTRACT);
+    Web3 web3(MAINNET_CHAIN_ID);
+    string address = VITALIK_ADDRESS;
+    long long nonce = web3.EthGetTransactionCount(&address);
     
-    // Query name
+    Serial.print("Vitalik nonce: ");
+    Serial.println((long)nonce);
+    
+    // Vitalik has sent many transactions
+    TEST_ASSERT_GREATER_THAN(100, (long)nonce);
+}
+
+// ===== ERC20 Tests (Mainnet USDC) =====
+
+void test_erc20_name() {
+    connectWiFi();
+    TEST_ASSERT_TRUE(wifiConnected);
+    
+    Serial.println("\n=== ERC20 Name Test (USDC Mainnet) ===");
+    
+    Web3 web3(MAINNET_CHAIN_ID);
+    Contract contract(&web3, USDC_MAINNET);
+    
     string param = contract.SetupContractData("name()");
     string result = contract.ViewCall(&param);
-    string name = web3.getString(&result);
+    string name = Util::InterpretStringResult(web3.getString(&result).c_str());
     
     Serial.print("Token name: ");
     Serial.println(name.c_str());
     
-    // Query symbol
-    param = contract.SetupContractData("symbol()");
-    result = contract.ViewCall(&param);
-    string symbol = web3.getString(&result);
-    
-    Serial.print("Token symbol: ");
-    Serial.println(symbol.c_str());
-    
-    // Name and symbol should not be empty
-    TEST_ASSERT_GREATER_THAN(0, name.length());
-    TEST_ASSERT_GREATER_THAN(0, symbol.length());
+    // USDC name should contain "USD"
+    TEST_ASSERT_TRUE(name.find("USD") != string::npos);
 }
 
-// ===== Transaction Tests (Require Funded Account) =====
-
-void test_prepare_eth_transfer() {
+void test_erc20_decimals() {
     connectWiFi();
     TEST_ASSERT_TRUE(wifiConnected);
     
-    if (strlen(TEST_PRIVATE_KEY) == 0 || strlen(TEST_TO_ADDRESS) == 0) {
-        TEST_IGNORE_MESSAGE("TEST_PRIVATE_KEY or TEST_TO_ADDRESS not configured - skipping");
+    Serial.println("\n=== ERC20 Decimals Test (USDC Mainnet) ===");
+    
+    Web3 web3(MAINNET_CHAIN_ID);
+    Contract contract(&web3, USDC_MAINNET);
+    
+    string param = contract.SetupContractData("decimals()");
+    string result = contract.ViewCall(&param);
+    int decimals = web3.getInt(&result);
+    
+    Serial.print("USDC decimals: ");
+    Serial.println(decimals);
+    
+    // USDC has 6 decimals
+    TEST_ASSERT_EQUAL(6, decimals);
+}
+
+void test_erc20_balance() {
+    connectWiFi();
+    TEST_ASSERT_TRUE(wifiConnected);
+    
+    Serial.println("\n=== ERC20 Balance Test (USDC Mainnet) ===");
+    
+    Web3 web3(MAINNET_CHAIN_ID);
+    Contract contract(&web3, USDC_MAINNET);
+    
+    string address = VITALIK_ADDRESS;
+    string param = contract.SetupContractData("balanceOf(address)", &address);
+    string result = contract.ViewCall(&param);
+    uint256_t balance = web3.getUint256(&result);
+    
+    string balanceStr = Util::ConvertWeiToEthString(&balance, 6);  // USDC has 6 decimals
+    Serial.print("Vitalik USDC balance: ");
+    Serial.println(balanceStr.c_str());
+    
+    // Just verify we got a response (balance could be 0)
+    TEST_ASSERT_TRUE(balance >= 0);
+}
+
+// ===== ERC721 Tests (Optional) =====
+
+void test_erc721_vitalik_balance() {
+    connectWiFi();
+    TEST_ASSERT_TRUE(wifiConnected);
+    
+    if (strlen(ERC721_CONTRACT) == 0) {
+        TEST_IGNORE_MESSAGE("ERC721_CONTRACT not configured in test_config.ini");
         return;
     }
     
-    Web3 web3(11155111); // Sepolia
-    Contract contract(&web3, "");
-    contract.SetPrivateKey(TEST_PRIVATE_KEY);
+    Serial.println("\n=== ERC721 Balance Test (Vitalik, Mainnet) ===");
+    Serial.print("Contract: ");
+    Serial.println(ERC721_CONTRACT);
     
-    // Get nonce (don't actually send)
-    // Extract address from private key first
-    KeyID keyID(&web3, TEST_PRIVATE_KEY);
-    string fromAddress = keyID.getAddress();
+    Web3 web3(MAINNET_CHAIN_ID);
+    Contract contract(&web3, ERC721_CONTRACT);
     
-    int nonce = web3.EthGetTransactionCount(&fromAddress);
-    Serial.print("Nonce for test account: ");
-    Serial.println(nonce);
+    string address = VITALIK_ADDRESS;
+    string param = contract.SetupContractData("balanceOf(address)", &address);
+    string result = contract.ViewCall(&param);
+    long balance = web3.getInt(&result);
     
-    TEST_ASSERT_GREATER_OR_EQUAL(0, nonce);
+    Serial.print("Vitalik NFT balance: ");
+    Serial.println(balance);
     
-    Serial.println("NOTE: Transaction not sent - this is a dry-run test");
-    Serial.println("To send real transactions, implement full transaction tests");
+    // Vitalik should own at least one NFT in the configured contract
+    TEST_ASSERT_GREATER_THAN(0, balance);
 }
 
 #endif // ENABLE_NETWORK_TESTS
@@ -250,34 +253,38 @@ void setup() {
     delay(2000);
     
     Serial.begin(115200);
-    Serial.println("\n\n=== Web3E Network Tests ===");
+    Serial.println("\n\n=== Web3E Network RPC Tests ===");
     
 #ifdef ENABLE_NETWORK_TESTS
-    Serial.println("Network tests ENABLED");
-    Serial.print("WIFI_SSID: ");
-    Serial.println(WIFI_SSID);
+    Serial.println("Network RPC tests ENABLED");
+    Serial.println("Tests use Web3E's built-in node selection");
     Serial.println();
     
     UNITY_BEGIN();
     
-    // Connection tests
+    // WiFi
     RUN_TEST(test_wifi_connection);
-    RUN_TEST(test_get_chain_id);
-    RUN_TEST(test_get_block_number);
     
-    // Read-only tests
-    RUN_TEST(test_get_balance);
-    RUN_TEST(test_get_transaction_count);
-    RUN_TEST(test_query_erc20_balance);
-    RUN_TEST(test_query_erc20_name_symbol);
+    // Sepolia tests
+    RUN_TEST(test_sepolia_chain_id);
+    RUN_TEST(test_sepolia_block_number);
     
-    // Transaction tests (require funded account)
-    RUN_TEST(test_prepare_eth_transfer);
+    // Mainnet tests
+    RUN_TEST(test_mainnet_chain_id);
+    RUN_TEST(test_mainnet_vitalik_balance);
+    RUN_TEST(test_mainnet_transaction_count);
+    
+    // ERC20 tests (USDC on mainnet)
+    RUN_TEST(test_erc20_name);
+    RUN_TEST(test_erc20_decimals);
+    RUN_TEST(test_erc20_balance);
+    
+    // ERC721 test (optional)
+    RUN_TEST(test_erc721_vitalik_balance);
     
     UNITY_END();
 #else
-    Serial.println("Network tests DISABLED (OFFLINE_ONLY defined)");
-    Serial.println("To run network tests, use: pio test -e esp32dev_network");
+    Serial.println("Network tests DISABLED");
     
     UNITY_BEGIN();
     UNITY_END();

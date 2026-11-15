@@ -40,9 +40,10 @@ void test_bytes_to_hex_conversion() {
 }
 
 void test_convert_to_wei() {
-    // 1 ETH = 1,000,000,000,000,000,000 Wei
+    // 1 ETH = 1,000,000,000,000,000,000 Wei = 0xde0b6b3a7640000
     uint256_t result = Util::ConvertToWei(1.0, 18);
-    uint256_t expected("1000000000000000000");
+    // uint256_t constructor treats strings as HEX, so use hex value or direct integer
+    uint256_t expected((uint64_t)1000000000000000000ULL);  // 10^18 fits in uint64_t
     
     if (!(result == expected)) {
         std::string resultStr = result.str();
@@ -55,9 +56,9 @@ void test_convert_to_wei() {
 }
 
 void test_convert_to_wei_fractional() {
-    // 0.5 ETH = 500,000,000,000,000,000 Wei
+    // 0.5 ETH = 500,000,000,000,000,000 Wei = 0x6f05b59d3b20000
     uint256_t result = Util::ConvertToWei(0.5, 18);
-    uint256_t expected("500000000000000000");
+    uint256_t expected((uint64_t)500000000000000000ULL);
     
     if (!(result == expected)) {
         std::string resultStr = result.str();
@@ -72,7 +73,7 @@ void test_convert_to_wei_fractional() {
 void test_convert_to_wei_with_decimals() {
     // For ERC20 with 6 decimals: 100.5 tokens = 100,500,000 base units
     uint256_t result = Util::ConvertToWei(100.5, 6);
-    uint256_t expected("100500000");
+    uint256_t expected((uint32_t)100500000);
     
     if (!(result == expected)) {
         std::string resultStr = result.str();
@@ -85,7 +86,8 @@ void test_convert_to_wei_with_decimals() {
 }
 
 void test_convert_wei_to_eth_string() {
-    uint256_t weiValue("1500000000000000000"); // 1.5 ETH
+    // 1.5 ETH = 1,500,000,000,000,000,000 Wei
+    uint256_t weiValue((uint64_t)1500000000000000000ULL);
     string result = Util::ConvertWeiToEthString(&weiValue, 18);
     
     // Should start with "1.5"
@@ -98,7 +100,8 @@ void test_convert_wei_to_eth_string() {
 }
 
 void test_convert_wei_to_eth_string_small() {
-    uint256_t weiValue("123456789012345678"); // 0.123456789012345678 ETH
+    // 0.123456789012345678 ETH = 123,456,789,012,345,678 Wei
+    uint256_t weiValue((uint64_t)123456789012345678ULL);
     string result = Util::ConvertWeiToEthString(&weiValue, 18);
     
     // Should start with "0.12"
@@ -141,7 +144,7 @@ void test_uint256_comparison() {
 void test_uint256_from_hex() {
     // 0xde0b6b3a7640000 = 1 ETH in hex = 1000000000000000000 decimal
     uint256_t result("0xde0b6b3a7640000");
-    uint256_t expected("1000000000000000000");
+    uint256_t expected((uint64_t)1000000000000000000ULL);
     
     if (!(result == expected)) {
         std::string resultStr = result.str();

@@ -166,7 +166,11 @@ void test_sign_personal_message() {
     uint8_t signature[65];
     bool success = crypto.Sign(messageHash, signature);
     
+    if (!success) {
+        TEST_FAIL_MESSAGE("Crypto::Sign returned false");
+    }
     TEST_ASSERT_TRUE(success);
+    
     // Verify non-zero signature
     bool hasNonZero = false;
     for (int i = 0; i < 65; i++) {
@@ -174,6 +178,14 @@ void test_sign_personal_message() {
             hasNonZero = true;
             break;
         }
+    }
+    
+    if (!hasNonZero) {
+        char msg[150];
+        snprintf(msg, 150, "Signature is all zeros. First 8 bytes: %02X %02X %02X %02X %02X %02X %02X %02X",
+                 signature[0], signature[1], signature[2], signature[3],
+                 signature[4], signature[5], signature[6], signature[7]);
+        TEST_FAIL_MESSAGE(msg);
     }
     TEST_ASSERT_TRUE(hasNonZero);
 }

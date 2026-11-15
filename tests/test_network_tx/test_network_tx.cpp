@@ -1,16 +1,21 @@
 /**
  * Web3E Network Transaction Tests
  * 
- * Tests that actually send transactions and verify receipts.
- * Converted from examples: Send Eth to Address, Push Transaction
+ * Tests that send real transactions on Sepolia testnet.
  * 
  * IMPORTANT: These tests send real transactions on testnet.
  * Configure test_config.ini with:
- * - TEST_PRIVATE_KEY: Private key with testnet funds (TESTNET ONLY!)
- * - TEST_TO_ADDRESS: Destination address
- * - TEST_TOKEN_CONTRACT: ERC20 contract address (for token transfers)
+ * - TEST_PRIVATE_KEY: Private key with Sepolia ETH (TESTNET ONLY!)
+ * - TEST_TO_ADDRESS: Destination address for transfers
+ * - TEST_TOKEN_CONTRACT: TestERC20 contract on Sepolia (see tests/contracts/)
  * 
- * Tests skip if credentials not configured. Uses Sepolia testnet by default.
+ * Contract must support:
+ * - mint(address,uint256): Open mint for testing
+ * - transfer(address,uint256): Standard ERC20 transfer
+ * - balanceOf(address): Query balance
+ * - decimals(): Query decimals
+ * 
+ * Tests skip gracefully if credentials not configured.
  */
 
 #include <Arduino.h>
@@ -47,11 +52,12 @@
 #endif
 
 #define SEPOLIA_CHAIN_ID 11155111
-#define TEST_ETH_AMOUNT 0.001  // Small amount for testing
+#define TEST_ETH_AMOUNT 0.001  // Small amount for testing (0.001 ETH)
+#define TEST_TOKEN_MINT_AMOUNT 1.0  // Mint 1 token
+#define TEST_TOKEN_TRANSFER_AMOUNT 0.1  // Transfer 0.1 tokens
 
 WiFiConnection wifiConnection;
 bool wifiConnected = false;
-Web3* web3 = nullptr;
 
 void connectWiFi() {
     if (wifiConnected) return;
@@ -64,10 +70,6 @@ void connectWiFi() {
     
     wifiConnection.setupWifi(networks);
     wifiConnected = (WiFi.status() == WL_CONNECTED);
-    
-    if (wifiConnected && web3 == nullptr) {
-        web3 = new Web3(SEPOLIA_CHAIN_ID);
-    }
 }
 
 bool hasTestCredentials() {
@@ -108,11 +110,11 @@ void test_send_eth_transaction() {
     Serial.println("\n=== Send ETH Transaction Test ===");
     
     // Setup contract for sending ETH (no contract address needed)
-    Contract contract(web3, "");
+    Contract contract(&web3, "");
     contract.SetPrivateKey(TEST_PRIVATE_KEY);
     
     // Get sender address from private key
-    KeyID keyID(web3, TEST_PRIVATE_KEY);
+    KeyID keyID(&web3, TEST_PRIVATE_KEY);
     string fromAddress = keyID.getAddress();
     
     Serial.print("From address: ");
@@ -121,7 +123,7 @@ void test_send_eth_transaction() {
     Serial.println(TEST_TO_ADDRESS);
     
     // Check balance before
-    uint256_t balanceBefore = web3->EthGetBalance(&fromAddress);
+    uint256_t balanceBefore = web3.EthGetBalance(&fromAddress);
     Serial.print("Balance before: ");
     Serial.println(Util::ConvertWeiToEthString(&balanceBefore, 18).c_str());
     
