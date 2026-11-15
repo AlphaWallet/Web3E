@@ -12,6 +12,7 @@
 // Run tools/update_nodes to update from latest rankings
 // =============================================================================
 
+// Public RPC node URLs (default)
 #define KOVAN_ID_URL "public-lukso.nownodes.io"
 #define KOVAN_ID_URL_2 "rpc.mainnet.lukso.network"
 #define MAINNET_ID_URL "ethereum-rpc.publicnode.com"
@@ -55,6 +56,19 @@
 #define SEPOLIA_ID_URL_2 "sepolia.gateway.tenderly.co"
 #define SEPOLIA_ID_URL_3 "public.1rpc.io/sepolia"
 
+// Infura RPC URLs (opt-in via -DUSING_INFURA)
+#ifdef USING_INFURA
+#define MAINNET_ID_INFURA_URL "mainnet.infura.io/v3/"
+#define OPTIMISTIC_MAIN_ID_INFURA_URL "optimism-mainnet.infura.io/v3/"
+#define XDAI_ID_INFURA_URL "gnosis-mainnet.infura.io/v3/"
+#define POLYGON_ID_INFURA_URL "polygon-mainnet.infura.io/v3/"
+#define ARBITRUM_MAIN_ID_INFURA_URL "arbitrum-mainnet.infura.io/v3/"
+#define FUJI_TEST_ID_INFURA_URL "avalanche-fuji.infura.io/ext/bc/C/rpc"
+#define BASE_SEPOLIA_ID_INFURA_URL "base-sepolia.infura.io/v3/"
+#define ARBITRUM_SEPOLIA_ID_INFURA_URL "arbitrum-sepolia.infura.io/v3/"
+#define SEPOLIA_ID_INFURA_URL "sepolia.infura.io/v3/"
+#endif // USING_INFURA
+
 // =============================================================================
 // END GENERATED SECTION
 // =============================================================================
@@ -64,15 +78,31 @@ const char* getNode(long long chainId)
     switch (chainId)
     {
     case MAINNET_ID:
+#ifdef USING_INFURA
+        return MAINNET_ID_INFURA_URL;
+#else
         return MAINNET_ID_URL;
+#endif
     case OPTIMISTIC_MAIN_ID:
+#ifdef USING_INFURA
+        return OPTIMISTIC_MAIN_ID_INFURA_URL;
+#else
         return OPTIMISTIC_MAIN_ID_URL;
+#endif
     case CLASSIC_ID:
         return CLASSIC_ID_URL;
     case XDAI_ID:
+#ifdef USING_INFURA
+        return XDAI_ID_INFURA_URL;
+#else
         return XDAI_ID_URL;
+#endif
     case POLYGON_ID:
+#ifdef USING_INFURA
+        return POLYGON_ID_INFURA_URL;
+#else
         return POLYGON_ID_URL;
+#endif
     case KLAYTN_BOABAB_ID:
         return KLAYTN_BOABAB_ID_URL;
     case IOTEX_MAINNET_ID:
@@ -82,15 +112,35 @@ const char* getNode(long long chainId)
     case KLAYTN_ID:
         return KLAYTN_ID_URL;
     case ARBITRUM_MAIN_ID:
+#ifdef USING_INFURA
+        return ARBITRUM_MAIN_ID_INFURA_URL;
+#else
         return ARBITRUM_MAIN_ID_URL;
+#endif
     case FUJI_TEST_ID:
+#ifdef USING_INFURA
+        return FUJI_TEST_ID_INFURA_URL;
+#else
         return FUJI_TEST_ID_URL;
+#endif
     case BASE_SEPOLIA_ID:
+#ifdef USING_INFURA
+        return BASE_SEPOLIA_ID_INFURA_URL;
+#else
         return BASE_SEPOLIA_ID_URL;
+#endif
     case ARBITRUM_SEPOLIA_ID:
+#ifdef USING_INFURA
+        return ARBITRUM_SEPOLIA_ID_INFURA_URL;
+#else
         return ARBITRUM_SEPOLIA_ID_URL;
+#endif
     case SEPOLIA_ID:
+#ifdef USING_INFURA
+        return SEPOLIA_ID_INFURA_URL;
+#else
         return SEPOLIA_ID_URL;
+#endif
     default:
         return NULL;
     }

@@ -231,6 +231,7 @@ function generateNodesH(existingChains, chainUpdates, chainsToRemove, feedData) 
   // Generate URL defines
   let defines = [];
   const urlToDefine = new Map();
+  const infuraDefines = []; // Infura-specific defines
   
   // First, add all existing defines that are NOT being updated
   for (const [defineName, url] of existingDefines.entries()) {
@@ -244,7 +245,17 @@ function generateNodesH(existingChains, chainUpdates, chainsToRemove, feedData) 
     const updates = chainUpdates.get(chainId);
     
     if (updates && updates.length > 0) {
-      // Use updated URLs from feed
+      // Check if this chain has Infura support
+      const hasInfura = infuraChains.has(chainId);
+      
+      if (hasInfura) {
+        // Add Infura URL define
+        const infuraUrl = infuraChains.get(chainId);
+        const infuraDefineName = `${existingInfo.constant}_INFURA_URL`;
+        infuraDefines.push({ name: infuraDefineName, url: infuraUrl, chainId: chainId, isInfura: true });
+      }
+      
+      // Use updated public URLs from feed
       for (let i = 0; i < updates.length; i++) {
         const url = updates[i].url.replace('https://', '');
         const defineName = `${existingInfo.constant}_URL${i > 0 ? '_' + (i + 1) : ''}`;
@@ -284,11 +295,25 @@ function generateNodesH(existingChains, chainUpdates, chainsToRemove, feedData) 
 // Run tools/update_nodes to update from latest rankings
 // =============================================================================
 
+// Public RPC node URLs (default)
 `;
   
-  // Add defines
+  // Add public defines
   for (const def of defines) {
     header += `#define ${def.name} "${def.url}"\n`;
+  }
+  
+  // Add Infura-specific defines (opt-in only)
+  if (infuraDefines.length > 0) {
+    header += `
+// Infura RPC URLs (opt-in via -DUSING_INFURA)
+#ifdef USING_INFURA
+`;
+    for (const def of infuraDefines) {
+      header += `#define ${def.name} "${def.url}"\n`;
+    }
+    header += `#endif // USING_INFURA
+`;
   }
   
   header += `
@@ -318,10 +343,11 @@ function generateNodesH(existingChains, chainUpdates, chainsToRemove, feedData) 
     }
     
     const updates = chainUpdates.get(chainId);
+    const hasInfura = infuraChains.has(chainId) && updates && updates.length > 0;
     let primaryDefine;
     
     if (updates && updates.length > 0) {
-      // Chain has updates from feed - use new URL
+      // Chain has updates from feed - use new URL (or Infura if enabled)
       primaryDefine = urlToDefine.get(`${chainId}_0`);
     } else {
       // Chain not in feed - keep existing URL define
@@ -334,7 +360,18 @@ function generateNodesH(existingChains, chainUpdates, chainsToRemove, feedData) 
     }
     
     header += `    case ${info.constant}:\n`;
-    header += `        return ${primaryDefine};\n`;
+    
+    if (hasInfura) {
+      // Use Infura URL when USING_INFURA is defined, otherwise public URL
+      const infuraDefineName = `${info.constant}_INFURA_URL`;
+      header += `#ifdef USING_INFURA\n`;
+      header += `        return ${infuraDefineName};\n`;
+      header += `#else\n`;
+      header += `        return ${primaryDefine};\n`;
+      header += `#endif\n`;
+    } else {
+      header += `        return ${primaryDefine};\n`;
+    }
   }
   
   header += `    default:
@@ -597,7 +634,7 @@ function formatCertificateConstant(pem, name, index) {
   return result;
 }
 
-function generateCertificatesH(existingChains, certMap, uniqueCerts, feedData) {
+function generateCertificatesH(existingChains, certMap, uniqueCerts, feedData, chainsToRemove) {
   let header = `#ifndef WEB3E_CERTS_H
 #define WEB3E_CERTS_H
 
@@ -639,7 +676,37 @@ function generateCertificatesH(existingChains, certMap, uniqueCerts, feedData) {
     header += '\n';
   }
 
-  header += `// =============================================================================
+  // Add Infura root CA
+  const infuraRootCA = `-----BEGIN CERTIFICATE-----
+MIIDQTCCAimgAwIBAgITBmyfz5m/jAo54vB4ikPmljZbyjANBgkqhkiG9w0BAQsF
+ADA5MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRkwFwYDVQQDExBBbWF6
+b24gUm9vdCBDQSAxMB4XDTE1MDUyNjAwMDAwMFoXDTM4MDExNzAwMDAwMFowOTEL
+MAkGA1UEBhMCVVMxDzANBgNVBAoTBkFtYXpvbjEZMBcGA1UEAxMQQW1hem9uIFJv
+b3QgQ0EgMTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALJ4gHHKeNXj
+ca9HgFB0fW7Y14h29Jlo91ghYPl0hAEvrAIthtOgQ3pOsqTQNroBvo3bSMgHFzZM
+9O6II8c+6zf1tRn4SWiw3te5djgdYZ6k/oI2peVKVuRF4fn9tBb6dNqcmzU5L/qw
+IFAGbHrQgLKm+a/sRxmPUDgH3KKHOVj4utWp+UhnMJbulHheb4mjUcAwhmahRWa6
+VOujw5H5SNz/0egwLX0tdHA114gk957EWW67c4cX8jJGKLhD+rcdqsq08p8kDi1L
+93FcXmn/6pUCyziKrlA4b9v7LWIbxcceVOF34GfID5yHI9Y/QCB/IIDEgEw+OyQm
+jgSubJrIqg0CAwEAAaNCMEAwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMC
+AYYwHQYDVR0OBBYEFIQYzIU07LwMlJQuCFmcx7IQTgoIMA0GCSqGSIb3DQEBCwUA
+A4IBAQCY8jdaQZChGsV2USggNiMOruYou6r4lK5IpDB/G/wkjUu0yKGX9rbxenDI
+U5PMCCjjmCXPI6T53iHTfIUJrU6adTrCC2qJeHZERxhlbI1Bjjt/msv0tadQ1wUs
+N+gDS63pYaACbvXy8MWy7Vu33PqUXHeeE6V/Uq2V8viTO96LXFvKWlJbYK8U90vv
+o/ufQJVtMVT8QtPHRh8jrdkPSHCa2XV4cdFyQzR1bldZwgJcJmApzyMZFo6IQ6XU
+5MsI+yMRQ+hDKXJioaldXgjUkK642M4UwtBV8ob2xJNDd2ZhwLnoQdeXeGADbkpy
+rqXRfboQnoZsG4q5WTP468SQvvG5
+-----END CERTIFICATE-----`;
+
+  header += `
+// Infura root certificate (opt-in via -DUSING_INFURA)
+#ifdef USING_INFURA
+// Root CA for Infura (Amazon Root CA 1)
+`;
+  header += formatCertificateConstant(infuraRootCA, 'infura_root_ca', 0);
+  header += `#endif // USING_INFURA
+
+// =============================================================================
 // END GENERATED SECTION
 // =============================================================================
 
@@ -662,13 +729,39 @@ const char* getCertificate(long long chainId)
   // Sort chains by ID for deterministic output
   const sortedChains = Array.from(existingChains.entries()).sort((a, b) => a[0] - b[0]);
   
+  // Build set of removed chain IDs
+  const removedChainIds = new Set(chainsToRemove.map(r => r.chainId));
+  
   for (const [chainId, info] of sortedChains) {
+    // Skip removed chains
+    if (removedChainIds.has(chainId)) {
+      continue;
+    }
+    
     const fingerprint = certMap.get(chainId);
+    const hasInfura = infuraChains.has(chainId);
     
     if (fingerprint && uniqueCerts.has(fingerprint)) {
       const certInfo = uniqueCerts.get(fingerprint);
       header += `    case ${info.constant}:\n`;
-      header += `        return ${certInfo.finalName}_cert;\n`;
+      
+      if (hasInfura) {
+        header += `#ifdef USING_INFURA\n`;
+        header += `        return infura_root_ca_cert;\n`;
+        header += `#else\n`;
+        header += `        return ${certInfo.finalName}_cert;\n`;
+        header += `#endif\n`;
+      } else {
+        header += `        return ${certInfo.finalName}_cert;\n`;
+      }
+    } else if (hasInfura) {
+      // Chain has no public cert yet but has Infura
+      header += `    case ${info.constant}:\n`;
+      header += `#ifdef USING_INFURA\n`;
+      header += `        return infura_root_ca_cert;\n`;
+      header += `#else\n`;
+      header += `        return NULL; // No public certificate available\n`;
+      header += `#endif\n`;
     }
   }
 
@@ -806,7 +899,7 @@ async function main() {
   }
   
   // Generate new Certificates.h
-  const newCertificatesContent = generateCertificatesH(existingChains, certMap, uniqueCerts, feedData);
+  const newCertificatesContent = generateCertificatesH(existingChains, certMap, uniqueCerts, feedData, chainsToRemove);
   
   // Read old Certificates.h to detect changes
   const oldCertificatesContent = fs.existsSync(CERTIFICATES_H_PATH) 

@@ -38,6 +38,20 @@ jobs:
             name: "Test Suite (Network - compile only)"
             type: test
             env: esp32dev_network
+          
+          # Test with Infura enabled (public RPCs default)
+          - project: tests
+            name: "Test Suite (Offline - default public RPCs)"
+            type: test
+            env: esp32dev
+            extra_flags: ""
+          
+          # Test with Infura opt-in enabled
+          - project: tests
+            name: "Test Suite (Offline - USING_INFURA opt-in)"
+            type: test
+            env: esp32dev
+            extra_flags: "-DUSING_INFURA -DINFURA_API_KEY=\\\"test-key-12345678901234567890\\\""
     
     steps:
       - name: Checkout repository
@@ -84,7 +98,13 @@ jobs:
         run: |
           cd "${{ matrix.project }}"
           # Compile tests without uploading or running them
-          pio test --environment ${{ matrix.env }} --without-uploading --without-testing
+          # Apply extra build flags if specified
+          if [ -n "${{ matrix.extra_flags }}" ]; then
+            export PLATFORMIO_BUILD_FLAGS="${{ matrix.extra_flags }}"
+            pio test --environment ${{ matrix.env }} --without-uploading --without-testing -- ${{ matrix.extra_flags }}
+          else
+            pio test --environment ${{ matrix.env }} --without-uploading --without-testing
+          fi
       
       - name: Show build artifacts size
         if: success() && matrix.type == 'build'

@@ -16,7 +16,11 @@
 #include "nodes.h"
 
 Web3::Web3(long long networkId) {
+#ifdef USING_INFURA
     infura_key = INFURA_API_KEY;
+#else
+    infura_key = nullptr;
+#endif
     mem = new BYTE[sizeof(WiFiClientSecure)];
     chainId = networkId;
     rpcResult.reserve(WEB3_RPC_BUFFER_SIZE);
@@ -25,6 +29,8 @@ Web3::Web3(long long networkId) {
 
 Web3::Web3(long long networkId, const char* infura_key_str) {
     mem = new BYTE[sizeof(WiFiClientSecure)];
+    
+#ifdef USING_INFURA
     if (strnlen(infura_key_str, 34) != 32)
     {
         Serial.println("Incorrect Infura Key spec, fallback to staging API key");
@@ -36,6 +42,13 @@ Web3::Web3(long long networkId, const char* infura_key_str) {
         Serial.print("Setting Infura Key: ");
         Serial.println(infura_key);
     }
+#else
+    // Infura disabled - ignore the key
+    infura_key = nullptr;
+    if (infura_key_str) {
+        Serial.println("Warning: Infura key provided but USING_INFURA not defined - using public RPCs");
+    }
+#endif
 
     chainId = networkId;
     rpcResult.reserve(WEB3_RPC_BUFFER_SIZE);
@@ -374,10 +387,12 @@ void Web3::selectHost()
 {
     std::string node = getNode(chainId);
 
-    if (node.find("infura.io") != std::string::npos)
+#ifdef USING_INFURA
+    if (node.find("infura.io") != std::string::npos && infura_key)
     {
         node += infura_key;
     }
+#endif
 
     if (node.length() == 0)
     {

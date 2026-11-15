@@ -171,6 +171,27 @@ Common partition schemes:
 
 Without adequate flash space, you'll see: `Image length XXXXXX doesn't fit in partition length YYYYYY` and boot loops.
 
+### Infura Support (Opt-In)
+
+By default, Web3E uses **public RPC nodes** for maximum portability and zero configuration. Infura support is **opt-in only** and requires compile-time flags.
+
+**To enable Infura:**
+
+Add these build flags to your `platformio.ini`:
+
+```ini
+build_flags =
+    -DARDUINO_LOOP_STACK_SIZE=16384
+    -DUSING_INFURA
+    -DINFURA_API_KEY=\"your-infura-api-key-here\"
+```
+
+**Without these flags:** The library will use public RPCs from the curated rankings feed. The `Web3(chainId, infura_key)` constructor will ignore the key parameter and log a warning.
+
+**With `-DUSING_INFURA` defined:** Infura endpoints become the primary RPC for supported chains (Ethereum, Polygon, Optimism, Arbitrum, Base, Avalanche testnets), with public nodes as fallback. The appropriate Infura root CA certificate is used for TLS verification.
+
+**Supported Infura chains:** See `tools/infura-chains.json` for the complete list of chains with Infura endpoints.
+
 ## Example TokenScript flow
 
 - Two API end points are exposed on the embedded device, '/api/getChallenge' and 'api/checkSignature?sig=<sig>'

@@ -172,3 +172,34 @@ The feed is generated regularly with fresh response time measurements. Running t
 **Recommended schedule**: Weekly or bi-weekly
 
 The updater preserves URLs for chains not present in the feed, and does not automatically add new chains (maintainer must add chain IDs to both `chainIds.h` and the initial `nodes.h` manually).
+
+### Infura Opt-In System
+
+By default, Web3E uses **public RPCs only**. Infura support is **opt-in** via compile-time flags.
+
+**Configuration Files:**
+- `tools/infura-chains.json` - Maps chain IDs to Infura endpoints
+- `tools/retired-chains.json` - Deny list for retired/reassigned chain IDs
+
+**Generated Code:**
+- `src/nodes.h` - Contains both public and Infura URL definitions with `#ifdef USING_INFURA` guards
+- `src/Certificates.h` - Contains both public root CAs and Infura root CA (Amazon Root CA 1)
+- `src/Web3.cpp` - Appends API key only when `USING_INFURA` is defined
+- `src/Web3.h` - Guards `INFURA_API_KEY` with `#ifndef` and `#ifdef USING_INFURA`
+
+**Usage:**
+```ini
+; platformio.ini - Default (public RPCs)
+build_flags =
+    -DARDUINO_LOOP_STACK_SIZE=16384
+
+; platformio.ini - With Infura enabled
+build_flags =
+    -DARDUINO_LOOP_STACK_SIZE=16384
+    -DUSING_INFURA
+    -DINFURA_API_KEY="your-api-key-here"
+```
+
+**Behavior:**
+- **Without `-DUSING_INFURA`**: Uses public RPCs from the feed, ignores Infura key in constructor
+- **With `-DUSING_INFURA`**: Uses Infura as primary for supported chains, public RPCs as fallback
