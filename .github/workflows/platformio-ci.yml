@@ -16,13 +16,28 @@ jobs:
           # Test consumer project - verifies library can be consumed from git
           - project: test-consumer
             name: "Test Consumer (Git Dependency)"
+            type: build
           
           # Example projects - verify examples still build
           - project: examples/Wallet Bridge 1
             name: "Example: Wallet Bridge 1"
+            type: build
           
           - project: examples/Wallet Bridge 2
             name: "Example: Wallet Bridge 2"
+            type: build
+          
+          # Test suite - verify tests compile (offline tests)
+          - project: tests
+            name: "Test Suite (Offline)"
+            type: test
+            env: esp32dev
+          
+          # Test suite - verify network tests compile (not run, just build)
+          - project: tests
+            name: "Test Suite (Network - compile only)"
+            type: test
+            env: esp32dev_network
     
     steps:
       - name: Checkout repository
@@ -55,6 +70,7 @@ jobs:
           pip install platformio
       
       - name: Build ${{ matrix.name }}
+        if: matrix.type == 'build'
         run: |
           cd "${{ matrix.project }}"
           # For examples, install Web3E from local repository instead of registry
@@ -63,8 +79,15 @@ jobs:
           fi
           pio run --environment esp32dev
       
+      - name: Compile Tests ${{ matrix.name }}
+        if: matrix.type == 'test'
+        run: |
+          cd "${{ matrix.project }}"
+          # Compile tests without uploading or running them
+          pio test --environment ${{ matrix.env }} --without-uploading --without-testing
+      
       - name: Show build artifacts size
-        if: success()
+        if: success() && matrix.type == 'build'
         run: |
           cd "${{ matrix.project }}"
           if [ -f .pio/build/esp32dev/firmware.bin ]; then

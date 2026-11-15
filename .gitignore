@@ -6,6 +6,9 @@
 .pioenvs/
 .piolibdeps/
 
+# Test credentials (never commit!)
+tests/test_config.ini
+
 # Other build artifacts
 *.o
 *.a

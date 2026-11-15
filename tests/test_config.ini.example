@@ -1,0 +1,14 @@
+# Web3E Test Configuration
+# Copy this file to test_config.ini and fill in your credentials
+# test_config.ini is in .gitignore and will never be committed
+
+# Wi-Fi credentials for network tests
+WIFI_SSID=YourNetworkName
+WIFI_PASS=YourWiFiPassword
+
+# Ethereum RPC endpoint (e.g. Infura, Alchemy, or local node)
+# Examples:
+#   RPC_URL=https://sepolia.infura.io/v3/your-api-key
+#   RPC_URL=https://eth-sepolia.g.alchemy.com/v2/your-api-key
+#   RPC_URL=http://localhost:8545
+RPC_URL=https://sepolia.infura.io/v3/your-api-key-here
