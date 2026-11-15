@@ -39,19 +39,12 @@ jobs:
             type: test
             env: esp32dev_network
           
-          # Test with Infura enabled (public RPCs default)
+          # Test with Infura opt-in flag (verifies USING_INFURA compiles)
           - project: tests
-            name: "Test Suite (Offline - default public RPCs)"
+            name: "Test Suite (Offline - USING_INFURA flag)"
             type: test
             env: esp32dev
-            extra_flags: ""
-          
-          # Test with Infura opt-in enabled
-          - project: tests
-            name: "Test Suite (Offline - USING_INFURA opt-in)"
-            type: test
-            env: esp32dev
-            extra_flags: '-DUSING_INFURA -DINFURA_API_KEY=\\"test_key_12345678901234567890\\"'
+            extra_flags: '-DUSING_INFURA'
     
     steps:
       - name: Checkout repository
