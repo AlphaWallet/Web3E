@@ -171,17 +171,19 @@ void test_send_erc20_transaction() {
         return;
     }
     
+    Web3 web3(SEPOLIA_CHAIN_ID);
+    
     // Safety: Verify we're on a testnet
-    long long chainId = web3->getChainId();
+    long long chainId = web3.getChainId();
     TEST_ASSERT_EQUAL(SEPOLIA_CHAIN_ID, chainId);
     
     Serial.println("\n=== Send ERC20 Transaction Test ===");
     
-    Contract contract(web3, TEST_TOKEN_CONTRACT);
+    Contract contract(&web3, TEST_TOKEN_CONTRACT);
     contract.SetPrivateKey(TEST_PRIVATE_KEY);
     
     // Get sender address
-    KeyID keyID(web3, TEST_PRIVATE_KEY);
+    KeyID keyID(&web3, TEST_PRIVATE_KEY);
     string fromAddress = keyID.getAddress();
     
     Serial.print("Token contract: ");
@@ -194,7 +196,7 @@ void test_send_erc20_transaction() {
     // Get token decimals
     string param = contract.SetupContractData("decimals()");
     string result = contract.ViewCall(&param);
-    int decimals = web3->getInt(&result);
+    int decimals = web3.getInt(&result);
     
     Serial.print("Token decimals: ");
     Serial.println(decimals);
@@ -203,7 +205,7 @@ void test_send_erc20_transaction() {
     // Check balance before
     param = contract.SetupContractData("balanceOf(address)", &fromAddress);
     result = contract.ViewCall(&param);
-    uint256_t balanceBefore = web3->getUint256(&result);
+    uint256_t balanceBefore = web3.getUint256(&result);
     
     Serial.print("Token balance before: ");
     Serial.println(Util::ConvertWeiToEthString(&balanceBefore, decimals).c_str());
@@ -259,13 +261,14 @@ void test_transaction_signing_only() {
     
     Serial.println("\n=== Transaction Signing Test (No Send) ===");
     
-    Contract contract(web3, "");
+    Web3 web3(SEPOLIA_CHAIN_ID);
+    Contract contract(&web3, "");
     contract.SetPrivateKey(TEST_PRIVATE_KEY);
     
-    KeyID keyID(web3, TEST_PRIVATE_KEY);
+    KeyID keyID(&web3, TEST_PRIVATE_KEY);
     string fromAddress = keyID.getAddress();
     
-    uint32_t nonce = (uint32_t)web3->EthGetTransactionCount(&fromAddress);
+    uint32_t nonce = (uint32_t)web3.EthGetTransactionCount(&fromAddress);
     unsigned long long gasPrice = 2000000000ULL;
     uint32_t gasLimit = 21000;
     string toAddress = TEST_TO_ADDRESS;

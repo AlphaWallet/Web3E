@@ -91,7 +91,7 @@ void test_sepolia_block_number() {
     Serial.println("\n=== Sepolia Block Number Test ===");
     
     Web3 web3(SEPOLIA_CHAIN_ID);
-    long long blockNumber = web3.getBlockNumber();
+    long long blockNumber = web3.EthBlockNumber();
     
     Serial.print("Current block: ");
     Serial.println((long)blockNumber);
