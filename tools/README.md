@@ -37,13 +37,27 @@ cd tools
 node update_nodes.mjs
 ```
 
-This fetches the latest RPC rankings and updates `src/nodes.h` with:
+This fetches the latest RPC rankings and updates both `src/nodes.h` and `src/Certificates.h`:
+
+**nodes.h updates:**
 - Up to 3 URLs per chain (fastest first)
 - Only HTTPS URLs (no websockets)
 - No URLs with API key placeholders
 - Deterministic output (same input = same output)
 
-The generated section in `nodes.h` is clearly marked with comments.
+**Certificates.h updates:**
+- Fetches TLS root CA certificate for each primary RPC URL
+- Walks the certificate chain to extract the root CA
+- Deduplicates identical roots (multiple hosts may share root CAs)
+- Generates PEM-encoded certificates as const char* constants
+- **Requires network access** - connects to each hostname via TLS
+
+The generated sections are clearly marked with comments.
+
+**To skip certificate fetching** (e.g., for testing nodes.h changes only):
+```bash
+node update_nodes.mjs --skip-certs
+```
 
 ### Automated Updates (Windows)
 
@@ -100,14 +114,28 @@ gh auth login
      - URLs with API key placeholders (`${...}`, `YOUR_API_KEY`)
      - URLs flagged as rate-limited (future-proof)
 
-3. **Output**:
-   - Primary URL: Available via `getNode(chainId)` (backwards compatible)
-   - Alternate URLs: Available via `getNodeUrls(chainId, index)` where index is 0-2
-   - All URLs stored as `PROGMEM` const char* for flash efficiency
+3. **Certificate Fetching** (requires network access):
+   - Connects to each primary RPC hostname via TLS (port 443)
+   - Uses SNI (Server Name Indication) for modern TLS
+   - Walks the certificate chain to find the root CA
+   - Extracts root CA as PEM-encoded certificate
+   - Deduplicates identical root CAs (e.g., many hosts use Google Trust Services)
+   - Chains without successful cert fetch will use insecure mode (not recommended for mainnet)
 
-4. **Determinism**:
+4. **Output**:
+   - **nodes.h**:
+     - Primary URL: Available via `getNode(chainId)` (backwards compatible)
+     - Alternate URLs: Available via `getNodeUrls(chainId, index)` where index is 0-2
+     - All URLs stored as `PROGMEM` const char* for flash efficiency
+   - **Certificates.h**:
+     - Root CA certificates as PEM-encoded const char* constants
+     - `getCertificate(chainId)` returns the root CA for the primary URL
+     - If NULL, Web3::setupCert() uses insecure mode
+
+5. **Determinism**:
    - URLs are sorted by chain ID
-   - Same feed = same output
+   - Certificates are sorted by fingerprint
+   - Same feed + same TLS responses = same output
    - No changes = no diff
 
 ### API Changes in nodes.h

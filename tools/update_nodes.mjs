@@ -3,15 +3,19 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import tls from 'tls';
+import { URL } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const FEED_URL = 'https://pub-947f58bf7fb442f7a0d0686fcf757d76.r2.dev/rpc-rankings.json';
 const NODES_H_PATH = path.join(__dirname, '..', 'src', 'nodes.h');
+const CERTIFICATES_H_PATH = path.join(__dirname, '..', 'src', 'Certificates.h');
 const MAX_URLS_PER_CHAIN = 3;
 
 const isDryRun = process.argv.includes('--dry-run') || process.argv.includes('--check');
+const skipCerts = process.argv.includes('--skip-certs');
 
 // Chain ID to constant name mapping (from chainIds.h)
 const CHAIN_ID_MAP = {
@@ -343,12 +347,277 @@ function detectChanges(oldContent, newContent, existingChains, chainUpdates, fee
   return changes;
 }
 
+async function fetchRootCertificate(hostname) {
+  return new Promise((resolve, reject) => {
+    const options = {
+      host: hostname,
+      port: 443,
+      servername: hostname, // SNI - critical for modern TLS
+      rejectUnauthorized: false, // We want to fetch the cert even if it doesn't validate
+      requestCert: false,
+      agent: false,
+      checkServerIdentity: () => undefined // Skip hostname validation
+    };
+
+    const timeout = setTimeout(() => {
+      if (socket) socket.destroy();
+      reject(new Error(`Timeout connecting to ${hostname}`));
+    }, 15000);
+
+    const socket = tls.connect(options, () => {
+      clearTimeout(timeout);
+      
+      try {
+        const cert = socket.getPeerCertificate(true);
+        
+        if (!cert || !cert.raw) {
+          socket.end();
+          reject(new Error(`No certificate from ${hostname}`));
+          return;
+        }
+
+        // Walk the chain to find the root CA
+        let current = cert;
+        let rootCert = null;
+        const seenFingerprints = new Set();
+        
+        while (current && current.raw) {
+          const fingerprint = current.fingerprint;
+          
+          // Detect self-signed (root) certificate
+          if (current.issuerCertificate) {
+            if (current.issuerCertificate.fingerprint === fingerprint) {
+              rootCert = current;
+              break;
+            }
+            
+            // Prevent infinite loops
+            if (seenFingerprints.has(current.issuerCertificate.fingerprint)) {
+              rootCert = current;
+              break;
+            }
+            
+            seenFingerprints.add(fingerprint);
+            current = current.issuerCertificate;
+          } else {
+            rootCert = current;
+            break;
+          }
+        }
+
+        if (!rootCert) {
+          socket.end();
+          reject(new Error(`Could not find root certificate for ${hostname}`));
+          return;
+        }
+
+        // Convert DER to PEM
+        const derBuffer = rootCert.raw;
+        const base64Cert = derBuffer.toString('base64');
+        
+        // Split into 64-character lines
+        const lines = [];
+        for (let i = 0; i < base64Cert.length; i += 64) {
+          lines.push(base64Cert.substring(i, i + 64));
+        }
+        
+        const pem = '-----BEGIN CERTIFICATE-----\n' + 
+                    lines.join('\n') + '\n' +
+                    '-----END CERTIFICATE-----';
+
+        socket.end();
+        resolve({
+          pem: pem,
+          subject: rootCert.subject,
+          issuer: rootCert.issuer,
+          fingerprint: rootCert.fingerprint
+        });
+      } catch (error) {
+        socket.end();
+        reject(error);
+      }
+    });
+
+    socket.on('error', (error) => {
+      clearTimeout(timeout);
+      reject(error);
+    });
+  });
+}
+
+async function fetchCertificatesForChains(chainUpdates, existingChains) {
+  if (skipCerts) {
+    console.log('\nSkipping certificate fetch (--skip-certs)\n');
+    return new Map();
+  }
+
+  console.log('\nFetching TLS certificates for updated chains...');
+  console.log('(This requires network access and may take a minute)\n');
+  
+  const certMap = new Map(); // chainId -> cert info
+  const uniqueCerts = new Map(); // fingerprint -> { pem, name, hosts }
+  
+  for (const [chainId, rpcs] of chainUpdates.entries()) {
+    const chainInfo = existingChains.get(chainId);
+    const primaryUrl = rpcs[0].url;
+    const hostname = extractHostname(primaryUrl);
+    
+    try {
+      console.log(`  Chain ${chainId} (${chainInfo.name}): Fetching cert for ${hostname}...`);
+      const certInfo = await fetchRootCertificate(hostname);
+      
+      const fingerprint = certInfo.fingerprint;
+      
+      if (!uniqueCerts.has(fingerprint)) {
+        // Generate a short name for this cert based on the subject
+        const subjectCN = certInfo.subject.CN || certInfo.subject.O || 'Unknown';
+        const certName = subjectCN
+          .replace(/[^a-zA-Z0-9]/g, '_')
+          .toLowerCase()
+          .substring(0, 30);
+        
+        uniqueCerts.set(fingerprint, {
+          pem: certInfo.pem,
+          name: certName,
+          hosts: [hostname],
+          subject: certInfo.subject,
+          issuer: certInfo.issuer
+        });
+      } else {
+        const existing = uniqueCerts.get(fingerprint);
+        if (!existing.hosts.includes(hostname)) {
+          existing.hosts.push(hostname);
+        }
+      }
+      
+      certMap.set(chainId, fingerprint);
+      
+    } catch (error) {
+      console.error(`    ERROR: Could not fetch certificate: ${error.message}`);
+      console.error(`    Chain ${chainId} will use insecure mode (no pinned cert)`);
+    }
+  }
+  
+  console.log(`\nFetched ${uniqueCerts.size} unique root certificate(s)\n`);
+  
+  return { certMap, uniqueCerts };
+}
+
+function formatCertificateConstant(pem, name, index) {
+  const lines = pem.split('\n').filter(line => line.length > 0);
+  
+  let result = `const char* ${name}_cert`;
+  if (index > 0) result += `_${index}`;
+  result += ' = ';
+  
+  for (let i = 0; i < lines.length; i++) {
+    if (i === 0) {
+      result += `"${lines[i]}\\n"`;
+    } else {
+      result += ` \\\n"${lines[i]}\\n"`;
+    }
+  }
+  
+  result += ';\n';
+  return result;
+}
+
+function generateCertificatesH(existingChains, certMap, uniqueCerts, feedData) {
+  let header = `#ifndef WEB3E_CERTS_H
+#define WEB3E_CERTS_H
+
+#include "chainIds.h"
+
+// =============================================================================
+// GENERATED ROOT CA CERTIFICATES
+// Generated at: ${feedData.generatedAt}
+// Source: ${FEED_URL}
+// 
+// Root CAs extracted via TLS connection to each RPC endpoint's hostname.
+// DO NOT MANUALLY EDIT THE GENERATED SECTION BELOW
+// Run tools/update_nodes to update from latest rankings
+// =============================================================================
+
+`;
+
+  // Generate certificate constants
+  const certsByName = new Map();
+  let certIndex = 0;
+  
+  for (const [fingerprint, certInfo] of uniqueCerts.entries()) {
+    const baseName = certInfo.name;
+    let finalName = baseName;
+    let counter = 0;
+    
+    // Ensure unique names
+    while (certsByName.has(finalName)) {
+      counter++;
+      finalName = `${baseName}_${counter}`;
+    }
+    
+    certsByName.set(finalName, fingerprint);
+    certInfo.finalName = finalName;
+    
+    header += `// Root CA for: ${certInfo.hosts.join(', ')}\n`;
+    header += `// Subject: CN=${certInfo.subject.CN || certInfo.subject.O || 'N/A'}\n`;
+    header += formatCertificateConstant(certInfo.pem, finalName, 0);
+    header += '\n';
+  }
+
+  header += `// =============================================================================
+// END GENERATED SECTION
+// =============================================================================
+
+/**
+ * @brief Get the root CA certificate for a chain ID
+ * 
+ * Returns the pinned root CA certificate for the primary RPC endpoint of the
+ * given chain. If no certificate is available, returns NULL and Web3::setupCert
+ * will use insecure mode (not recommended for mainnet).
+ * 
+ * @param chainId Chain ID (e.g., MAINNET_ID, SEPOLIA_ID)
+ * @return const char* PEM-encoded root CA certificate, or NULL if unavailable
+ */
+const char* getCertificate(long long chainId)
+{
+    switch (chainId)
+    {
+`;
+
+  // Sort chains by ID for deterministic output
+  const sortedChains = Array.from(existingChains.entries()).sort((a, b) => a[0] - b[0]);
+  
+  for (const [chainId, info] of sortedChains) {
+    const fingerprint = certMap.get(chainId);
+    
+    if (fingerprint && uniqueCerts.has(fingerprint)) {
+      const certInfo = uniqueCerts.get(fingerprint);
+      header += `    case ${info.constant}:\n`;
+      header += `        return ${certInfo.finalName}_cert;\n`;
+    }
+  }
+
+  header += `    default:
+        return NULL;
+    }
+}
+
+#endif
+`;
+
+  return header;
+}
+
 async function main() {
   console.log('Web3E RPC Node Updater');
   console.log('======================\n');
   
   if (isDryRun) {
     console.log('Running in DRY RUN mode - no files will be modified\n');
+  }
+  
+  if (skipCerts) {
+    console.log('Note: Certificate fetching will be skipped (--skip-certs)\n');
   }
   
   console.log('Fetching RPC rankings feed...');
@@ -402,13 +671,39 @@ async function main() {
     }
   }
   
+  // Fetch certificates for chains with updates
+  const { certMap, uniqueCerts } = await fetchCertificatesForChains(chainUpdates, existingChains);
+  
+  // Generate new Certificates.h
+  const newCertificatesContent = generateCertificatesH(existingChains, certMap, uniqueCerts, feedData);
+  
+  // Read old Certificates.h to detect changes
+  const oldCertificatesContent = fs.existsSync(CERTIFICATES_H_PATH) 
+    ? fs.readFileSync(CERTIFICATES_H_PATH, 'utf8')
+    : '';
+  
+  const certsChanged = oldCertificatesContent !== newCertificatesContent;
+  
   if (isDryRun) {
     console.log('Dry run complete. Use without --check/--dry-run to apply changes.');
-    process.exit(changes.length > 0 ? 1 : 0);
+    const anyChanges = changes.length > 0 || certsChanged;
+    if (certsChanged) {
+      console.log(`\nCertificates.h would be updated with ${uniqueCerts.size} root CA(s)`);
+    }
+    process.exit(anyChanges ? 1 : 0);
   } else {
     console.log('Writing updated nodes.h...');
     fs.writeFileSync(NODES_H_PATH, newContent, 'utf8');
-    console.log('Done!\n');
+    console.log('Done!');
+    
+    if (!skipCerts) {
+      console.log('\nWriting updated Certificates.h...');
+      fs.writeFileSync(CERTIFICATES_H_PATH, newCertificatesContent, 'utf8');
+      console.log('Done!');
+      console.log(`\nGenerated ${uniqueCerts.size} unique root certificate(s)`);
+    }
+    
+    console.log('');
     process.exit(0);
   }
 }

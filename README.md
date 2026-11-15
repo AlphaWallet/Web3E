@@ -145,18 +145,31 @@ Replace `abc1234` with the full commit hash you want to use.
 **Please note: you may need to use 'lib_ldf_mode = deep' to locate some ESP32 libraries like 'EEPROM.h'**
 **also: if you use many other libraries in your application you may need to add 'board_build.partitions = no_ota.csv' to fit your firmware**
 
-### ESP32 Stack Requirements
+### ESP32 Requirements
 
-Web3E uses TLS/SSL for secure RPC connections, which requires adequate stack space for the mbedTLS handshake. The default Arduino `loopTask` stack size (8KB) may overflow during HTTPS operations.
+Web3E uses TLS/SSL for secure RPC connections, which requires adequate stack space and flash storage.
 
-**Recommended:** Increase the loop stack size to 16KB in your `platformio.ini`:
+**Stack Size:** Increase the loop stack size to 16KB in your `platformio.ini`:
 
 ```ini
 build_flags =
     -DARDUINO_LOOP_STACK_SIZE=16384
 ```
 
-This is especially important when making multiple RPC calls or using mainnet nodes. Without this, you may encounter `Guru Meditation` errors with `Stack canary watchpoint triggered` messages during TLS handshakes.
+This prevents `Guru Meditation` errors with `Stack canary watchpoint triggered` messages during TLS handshakes.
+
+**Flash Partition:** For larger applications (especially with network tests), use a bigger app partition:
+
+```ini
+board_build.partitions = huge_app.csv
+```
+
+Common partition schemes:
+- `default.csv` - 1.3MB app (may be too small for complex apps)
+- `min_spiffs.csv` - 1.9MB app, 190KB SPIFFS
+- `huge_app.csv` - 3MB app, minimal SPIFFS (recommended for Web3E apps)
+
+Without adequate flash space, you'll see: `Image length XXXXXX doesn't fit in partition length YYYYYY` and boot loops.
 
 ## Example TokenScript flow
 

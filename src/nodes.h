@@ -15,8 +15,6 @@
 #define MAINNET_ID_URL "ethereum-rpc.publicnode.com"
 #define MAINNET_ID_URL_2 "eth.drpc.org"
 #define MAINNET_ID_URL_3 "rpc.flashbots.net/fast"
-#define RINKEBY_INF_RPC_URL "rinkeby.infura.io/v3/"
-#define GOERLI_INF_RPC_URL "goerli.infura.io/v3/"
 #define OPTIMISTIC_MAIN_ID_URL "optimism.drpc.org"
 #define OPTIMISTIC_MAIN_ID_URL_2 "optimism-rpc.publicnode.com"
 #define OPTIMISTIC_MAIN_ID_URL_3 "gateway.tenderly.co/public/optimism"
@@ -25,20 +23,15 @@
 #define CLASSIC_ID_URL "ethereum-classic-mainnet.gateway.tatum.io"
 #define CLASSIC_ID_URL_2 "rpc.swiftnodes.io/rpc/etc"
 #define CLASSIC_ID_URL_3 "0xrpc.io/etc"
-#define OPTIMISM_INF_TEST_RPC_URL "optimism-kovan.infura.io/v3/"
-#define SOKOL_RPC_URL "sokol.poa.network"
-#define POA_RPC_URL "core.poa.network"
 #define XDAI_ID_URL "gnosis-rpc.publicnode.com"
 #define XDAI_ID_URL_2 "gno-mainnet.gateway.tatum.io"
 #define XDAI_ID_URL_3 "gnosis-rpc.blockreq.com/v1/rpc/public"
 #define POLYGON_ID_URL "polygon-bor-rpc.publicnode.com"
 #define POLYGON_ID_URL_2 "polygon.drpc.org"
 #define POLYGON_ID_URL_3 "polygon.gateway.tenderly.co"
-#define OPTIMISM_INF_GOERLI_URL "optimism-goerli.infura.io/v3/"
 #define KLAYTN_BOABAB_ID_URL "public-en-kairos.node.kaia.io"
 #define KLAYTN_BOABAB_ID_URL_2 "lb.routeme.sh/rpc/evm/1001"
 #define KLAYTN_BOABAB_ID_URL_3 "klaytn-baobab.drpc.org"
-#define MILKOMEDA_C1_RPC "rpc-mainnet-cardano-evm.c1.milkomeda.com"
 #define IOTEX_MAINNET_ID_URL "babel-api.mainnet.iotex.one"
 #define IOTEX_MAINNET_ID_URL_2 "babel-api.fastblocks.io"
 #define IOTEX_MAINNET_ID_URL_3 "babel-api.mainnet.iotex.io"
@@ -52,13 +45,9 @@
 #define FUJI_TEST_ID_URL "api.avax-test.network/ext/bc/C/rpc"
 #define FUJI_TEST_ID_URL_2 "avalanche-fuji-c-chain-rpc.publicnode.com"
 #define FUJI_TEST_ID_URL_3 "avalanche-fuji.drpc.org"
-#define MUMBAI_INF_RPC_URL "polygon-mumbai.infura.io/v3/"
 #define BASE_SEPOLIA_ID_URL "base-sepolia-rpc.publicnode.com"
 #define BASE_SEPOLIA_ID_URL_2 "base-sepolia.rpc.sentio.xyz"
 #define BASE_SEPOLIA_ID_URL_3 "sepolia.base.org"
-#define MILKOMEDA_C1_TEST_RPC "rpc-devnet-cardano-evm.c1.milkomeda.com"
-#define ARBITRUM_INF_TEST_RPC_URL "arbitrum-rinkeby.infura.io/v3/"
-#define ARBITRUM_INF_GOERLI_URL "arbitrum-goerli.infura.io/v3/"
 #define ARBITRUM_SEPOLIA_ID_URL "arbitrum-sepolia.gateway.tenderly.co"
 #define ARBITRUM_SEPOLIA_ID_URL_2 "arbitrum-sepolia-rpc.publicnode.com"
 #define ARBITRUM_SEPOLIA_ID_URL_3 "sepolia-rollup.arbitrum.io/rpc"
@@ -77,9 +66,9 @@ const char* getNode(long long chainId)
     case MAINNET_ID:
         return MAINNET_ID_URL;
     case RINKEBY_ID:
-        return RINKEBY_INF_RPC_URL;
+        return undefined;
     case GOERLI_ID:
-        return GOERLI_INF_RPC_URL;
+        return undefined;
     case OPTIMISTIC_MAIN_ID:
         return OPTIMISTIC_MAIN_ID_URL;
     case KOVAN_ID:
@@ -87,21 +76,21 @@ const char* getNode(long long chainId)
     case CLASSIC_ID:
         return CLASSIC_ID_URL;
     case OPTIMISTIC_KOVAN_TEST_ID_DEPRECATED:
-        return OPTIMISM_INF_TEST_RPC_URL;
+        return undefined;
     case SOKOL_ID:
-        return SOKOL_RPC_URL;
+        return undefined;
     case POA_ID:
-        return POA_RPC_URL;
+        return undefined;
     case XDAI_ID:
         return XDAI_ID_URL;
     case POLYGON_ID:
         return POLYGON_ID_URL;
     case OPTIMISM_GOERLI_ID:
-        return OPTIMISM_INF_GOERLI_URL;
+        return undefined;
     case KLAYTN_BOABAB_ID:
         return KLAYTN_BOABAB_ID_URL;
     case MILKOMEDA_C1_ID:
-        return MILKOMEDA_C1_RPC;
+        return undefined;
     case IOTEX_MAINNET_ID:
         return IOTEX_MAINNET_ID_URL;
     case IOTEX_TESTNET_ID:
@@ -113,15 +102,15 @@ const char* getNode(long long chainId)
     case FUJI_TEST_ID:
         return FUJI_TEST_ID_URL;
     case MUMBAI_TEST_ID:
-        return MUMBAI_INF_RPC_URL;
+        return undefined;
     case BASE_SEPOLIA_ID:
         return BASE_SEPOLIA_ID_URL;
     case MILKOMEDA_C1_TEST_ID:
-        return MILKOMEDA_C1_TEST_RPC;
+        return undefined;
     case ARBITRUM_RINKEBY_TEST_ID_DEPRECATED:
-        return ARBITRUM_INF_TEST_RPC_URL;
+        return undefined;
     case ARBITRUM_GOERLI_ID:
-        return ARBITRUM_INF_GOERLI_URL;
+        return undefined;
     case ARBITRUM_SEPOLIA_ID:
         return ARBITRUM_SEPOLIA_ID_URL;
     case SEPOLIA_ID:
