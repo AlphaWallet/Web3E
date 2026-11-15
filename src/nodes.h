@@ -66,9 +66,9 @@ const char* getNode(long long chainId)
     case MAINNET_ID:
         return MAINNET_ID_URL;
     case RINKEBY_ID:
-        return undefined;
+        return NULL;
     case GOERLI_ID:
-        return undefined;
+        return NULL;
     case OPTIMISTIC_MAIN_ID:
         return OPTIMISTIC_MAIN_ID_URL;
     case KOVAN_ID:
@@ -76,21 +76,21 @@ const char* getNode(long long chainId)
     case CLASSIC_ID:
         return CLASSIC_ID_URL;
     case OPTIMISTIC_KOVAN_TEST_ID_DEPRECATED:
-        return undefined;
+        return NULL;
     case SOKOL_ID:
-        return undefined;
+        return NULL;
     case POA_ID:
-        return undefined;
+        return NULL;
     case XDAI_ID:
         return XDAI_ID_URL;
     case POLYGON_ID:
         return POLYGON_ID_URL;
     case OPTIMISM_GOERLI_ID:
-        return undefined;
+        return NULL;
     case KLAYTN_BOABAB_ID:
         return KLAYTN_BOABAB_ID_URL;
     case MILKOMEDA_C1_ID:
-        return undefined;
+        return NULL;
     case IOTEX_MAINNET_ID:
         return IOTEX_MAINNET_ID_URL;
     case IOTEX_TESTNET_ID:
@@ -102,15 +102,15 @@ const char* getNode(long long chainId)
     case FUJI_TEST_ID:
         return FUJI_TEST_ID_URL;
     case MUMBAI_TEST_ID:
-        return undefined;
+        return NULL;
     case BASE_SEPOLIA_ID:
         return BASE_SEPOLIA_ID_URL;
     case MILKOMEDA_C1_TEST_ID:
-        return undefined;
+        return NULL;
     case ARBITRUM_RINKEBY_TEST_ID_DEPRECATED:
-        return undefined;
+        return NULL;
     case ARBITRUM_GOERLI_ID:
-        return undefined;
+        return NULL;
     case ARBITRUM_SEPOLIA_ID:
         return ARBITRUM_SEPOLIA_ID_URL;
     case SEPOLIA_ID:
