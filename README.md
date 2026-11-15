@@ -192,6 +192,24 @@ Note, if you have an Infura API key and wish to use Infura where possible, edit 
 
 Web3E will adjust the node endpoint to use Infura for all Infura supported networks. Note that you will need to enable Infura in the dashboard for all these networks; otherwise use the free connections.
 
+### RPC Node Updates
+
+Web3E's RPC node URLs in `src/nodes.h` are automatically updated from a performance-ranked feed using the build-time updater in `tools/`. The updater selects the fastest public nodes (up to 3 per chain) based on response time measurements.
+
+Each chain now supports up to 3 URLs for future failover/rotation:
+
+``` C++
+// Get primary URL (backward compatible)
+const char* primaryUrl = getNode(SEPOLIA_ID);
+
+// Get alternate URLs for failover
+const char* url1 = getNodeUrls(SEPOLIA_ID, 0);  // Primary
+const char* url2 = getNodeUrls(SEPOLIA_ID, 1);  // Alternate 1
+const char* url3 = getNodeUrls(SEPOLIA_ID, 2);  // Alternate 2
+```
+
+See `tools/README.md` for details on updating node URLs.
+
 ## Example Web3E DApp flow
 
 - Device creates a challenge string, lets say 'Oranges 22853'. 
