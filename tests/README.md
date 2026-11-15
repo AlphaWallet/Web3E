@@ -154,27 +154,59 @@ Test vectors for cryptographic operations are verified against trusted reference
 
 ## Which Tests Need Funds?
 
-**Read-only tests** (no funds needed):
-- All offline tests (`test_crypto`, `test_util`, `test_transaction`)
-- All tests in `test_network_rpc/`:
-  - Wi-Fi connection test
-  - Chain ID, block number queries
-  - Balance queries (reads any address)
-  - Transaction count queries
-  - ERC20 token metadata (name, symbol, decimals, balances)
+### No Funds Needed (Free to Run)
 
-**Transaction tests** (require funded testnet account):
-- Tests in `test_network_tx/` send REAL transactions on Sepolia testnet:
-  - `test_transaction_signing_only` - No funds needed (dry-run)
-  - `test_send_eth_transaction` - Sends ~0.001 ETH + gas (~0.002 ETH total)
-  - `test_send_erc20_transaction` - Sends 0.1 tokens + gas (~0.002 ETH for gas)
-- Set `TEST_PRIVATE_KEY` and `TEST_TO_ADDRESS` in `test_config.ini` to enable
-- **SECURITY WARNING**: 
-  - Use Sepolia testnet ONLY - never mainnet!
-  - Generate a dedicated test key - never use keys with real funds
-  - Get testnet ETH from https://sepoliafaucet.com/
-- Tests will skip (TEST_IGNORE) if private key is not configured
-- Chain ID verification prevents accidental mainnet sends
+**Offline tests** (no network):
+- `test_crypto` - Cryptography (Keccak-256, key derivation, signing, recovery)
+- `test_util` - Utility functions (hex conversion, Wei/Eth, uint256, RLP)
+- `test_transaction` - Transaction signing and ABI encoding (offline)
+
+**Network read-only tests** (WiFi only, no funds):
+- `test_network_rpc` - All tests:
+  - WiFi connection
+  - Chain ID queries (Sepolia, Mainnet)
+  - Block number queries
+  - Balance queries (Vitalik's address)
+  - Transaction count queries
+  - ERC20 token metadata (USDC on mainnet)
+  - ERC721 balance query (optional, requires ERC721_CONTRACT configured)
+
+### Funds Required (Sepolia Testnet ETH)
+
+**Transaction tests** (`test_network_tx/`):
+
+| Test | Requires | Cost (Sepolia) | Notes |
+|------|----------|----------------|-------|
+| `test_transaction_signing_only` | TEST_PRIVATE_KEY | **FREE** | Dry-run only |
+| `test_send_eth_transaction` | TEST_PRIVATE_KEY + ETH | ~0.002 ETH | Sends 0.001 ETH + gas |
+| `test_erc20_mint` | TEST_PRIVATE_KEY + ETH | ~0.002 ETH | Mints 1 token + gas |
+| `test_erc20_transfer` | TEST_PRIVATE_KEY + ETH + tokens | ~0.002 ETH | Transfers 0.1 tokens + gas |
+
+**Total cost for full transaction test suite**: ~0.006 Sepolia ETH
+
+**Get testnet ETH**: https://sepoliafaucet.com/ (0.5 ETH/day, requires GitHub/Gmail)
+
+### ERC20 Test Setup
+
+To run ERC20 tests:
+1. Deploy `tests/contracts/TestERC20.sol` to Sepolia (see `tests/contracts/README.md`)
+2. Copy contract address to `test_config.ini` as `TEST_TOKEN_CONTRACT`
+3. Tests will automatically mint tokens (open mint, no restrictions)
+
+**Contract requirements**:
+- `mint(address,uint256)` - Open mint function
+- `transfer(address,uint256)` - Standard ERC20 transfer
+- `balanceOf(address)` view - Check balance
+- `decimals()` view - Query decimals
+
+### Security Warnings
+
+⚠️ **CRITICAL**: 
+- **TESTNET ONLY** - Never use mainnet keys or mainnet contracts
+- **Dedicated test key** - Generate new key for testing, never use keys with real funds
+- **Chain ID guards** - Tests verify Sepolia chain ID before sending transactions
+- **Open mint** - TestERC20 has no access control (anyone can mint) - testnet only!
+- Tests will skip (TEST_IGNORE) if credentials not configured
 
 ## CI
 
