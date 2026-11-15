@@ -217,7 +217,7 @@ void test_send_erc20_transaction() {
     TEST_ASSERT_TRUE(balanceBefore >= transferAmount);
     
     // Get nonce
-    uint32_t nonce = (uint32_t)web3->EthGetTransactionCount(&fromAddress);
+    uint32_t nonce = (uint32_t)web3.EthGetTransactionCount(&fromAddress);
     Serial.print("Nonce: ");
     Serial.println(nonce);
     
