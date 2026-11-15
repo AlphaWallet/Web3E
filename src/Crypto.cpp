@@ -40,7 +40,7 @@ bool Crypto::Sign(BYTE* digest, BYTE* result)
         result[64] = pby;
     }
 
-	return (res == 1);
+	return (res == 0);
 }
 
 void Crypto::SetPrivateKey(const char *key) 
