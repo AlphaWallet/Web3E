@@ -103,6 +103,8 @@ void test_send_eth_transaction() {
         return;
     }
     
+    Web3 web3(SEPOLIA_CHAIN_ID);
+    
     // Safety: Verify we're on a testnet
     long long chainId = web3.getChainId();
     TEST_ASSERT_EQUAL(SEPOLIA_CHAIN_ID, chainId);
