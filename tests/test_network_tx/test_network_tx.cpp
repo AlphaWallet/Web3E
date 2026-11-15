@@ -104,7 +104,7 @@ void test_send_eth_transaction() {
     }
     
     // Safety: Verify we're on a testnet
-    long long chainId = web3->getChainId();
+    long long chainId = web3.getChainId();
     TEST_ASSERT_EQUAL(SEPOLIA_CHAIN_ID, chainId);
     
     Serial.println("\n=== Send ETH Transaction Test ===");
@@ -132,7 +132,7 @@ void test_send_eth_transaction() {
     TEST_ASSERT_TRUE(balanceBefore >= required);
     
     // Get nonce
-    uint32_t nonce = (uint32_t)web3->EthGetTransactionCount(&fromAddress);
+    uint32_t nonce = (uint32_t)web3.EthGetTransactionCount(&fromAddress);
     Serial.print("Nonce: ");
     Serial.println(nonce);
     
@@ -151,7 +151,7 @@ void test_send_eth_transaction() {
     Serial.println(result.c_str());
     
     // Extract transaction hash
-    string txHash = web3->getResult(&result);
+    string txHash = web3.getResult(&result);
     Serial.print("Transaction hash: ");
     Serial.println(txHash.c_str());
     
@@ -239,7 +239,7 @@ void test_send_erc20_transaction() {
     Serial.println(result.c_str());
     
     // Extract transaction hash
-    string txHash = web3->getResult(&result);
+    string txHash = web3.getResult(&result);
     Serial.print("Transaction hash: ");
     Serial.println(txHash.c_str());
     
