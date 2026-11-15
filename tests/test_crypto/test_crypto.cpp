@@ -139,6 +139,18 @@ void test_private_key_to_address_full_derivation() {
     TEST_ASSERT_EQUAL_HEX8_ARRAY(expectedAddress, address, 20);
 }
 
+void test_sign_without_private_key() {
+    // Sign should return false when no private key is set
+    Web3 web3(1);
+    Crypto crypto(&web3);
+    
+    uint8_t digest[32] = {0};
+    uint8_t signature[65];
+    
+    bool success = crypto.Sign(digest, signature);
+    TEST_ASSERT_FALSE(success);
+}
+
 void test_sign_personal_message() {
     // Test signing with EIP-191 personal_sign prefix
     // Private key: 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
@@ -244,6 +256,7 @@ void setup() {
     RUN_TEST(test_private_key_to_public_key);
     RUN_TEST(test_public_key_to_address);
     RUN_TEST(test_private_key_to_address_full_derivation);
+    RUN_TEST(test_sign_without_private_key);
     RUN_TEST(test_sign_personal_message);
     RUN_TEST(test_signature_recovery);
     
