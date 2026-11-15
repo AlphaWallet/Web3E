@@ -13,7 +13,7 @@
 // Run tools/update_nodes to update from latest rankings
 // =============================================================================
 
-// Root CA for: ethereum-rpc.publicnode.com, optimism.drpc.org, gnosis-rpc.publicnode.com, polygon-bor-rpc.publicnode.com, public.1rpc.io, arbitrum-one-rpc.publicnode.com, base-sepolia-rpc.publicnode.com, ethereum-sepolia-rpc.publicnode.com
+// Root CA for: ethereum-rpc.publicnode.com, optimism.drpc.org, gnosis-rpc.publicnode.com, polygon-bor-rpc.publicnode.com, rpc2.monad.xyz, evm-rpc-testnet.sei-apis.com, evm-rpc.sei-apis.com, base.drpc.org, arbitrum-one-rpc.publicnode.com, linea-sepolia-rpc.publicnode.com, rpc.linea.build, base-sepolia-rpc.publicnode.com, ethereum-sepolia-rpc.publicnode.com
 // Subject: CN=GTS Root R4
 const char* gts_root_r4_cert = "-----BEGIN CERTIFICATE-----\n" \
 "MIIDejCCAmKgAwIBAgIQf+UwvzMTQ77dghYQST2KGzANBgkqhkiG9w0BAQsFADBX\n" \
@@ -150,69 +150,43 @@ const char* getCertificate(long long chainId)
     switch (chainId)
     {
     case MAINNET_ID:
-#ifdef USING_INFURA
-        return infura_root_ca_cert;
-#else
         return gts_root_r4_cert;
-#endif
     case OPTIMISTIC_MAIN_ID:
-#ifdef USING_INFURA
-        return infura_root_ca_cert;
-#else
         return gts_root_r4_cert;
-#endif
     case CLASSIC_ID:
         return gts_root_r1_cert;
     case XDAI_ID:
-#ifdef USING_INFURA
-        return infura_root_ca_cert;
-#else
         return gts_root_r4_cert;
-#endif
     case POLYGON_ID:
-#ifdef USING_INFURA
-        return infura_root_ca_cert;
-#else
         return gts_root_r4_cert;
-#endif
+    case MONAD_MAINNET_ID:
+        return gts_root_r4_cert;
     case KLAYTN_BOABAB_ID:
         return gts_root_r1_cert;
+    case SEI_TESTNET_ID:
+        return gts_root_r4_cert;
+    case SEI_MAINNET_ID:
+        return gts_root_r4_cert;
     case IOTEX_MAINNET_ID:
         return isrg_root_x1_cert;
     case IOTEX_TESTNET_ID:
         return isrg_root_x1_cert;
-    case KLAYTN_ID:
+    case BASE_MAINNET_ID:
         return gts_root_r4_cert;
     case ARBITRUM_MAIN_ID:
-#ifdef USING_INFURA
-        return infura_root_ca_cert;
-#else
         return gts_root_r4_cert;
-#endif
     case FUJI_TEST_ID:
-#ifdef USING_INFURA
-        return infura_root_ca_cert;
-#else
         return isrg_root_x1_cert;
-#endif
+    case LINEA_SEPOLIA_ID:
+        return gts_root_r4_cert;
+    case LINEA_MAINNET_ID:
+        return gts_root_r4_cert;
     case BASE_SEPOLIA_ID:
-#ifdef USING_INFURA
-        return infura_root_ca_cert;
-#else
         return gts_root_r4_cert;
-#endif
     case ARBITRUM_SEPOLIA_ID:
-#ifdef USING_INFURA
-        return infura_root_ca_cert;
-#else
         return isrg_root_x1_cert;
-#endif
     case SEPOLIA_ID:
-#ifdef USING_INFURA
-        return infura_root_ca_cert;
-#else
         return gts_root_r4_cert;
-#endif
     default:
         return NULL;
     }

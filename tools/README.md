@@ -10,7 +10,10 @@ The RPC node updater automatically fetches the latest RPC endpoint rankings and 
 
 - **`update_nodes.mjs`** - Node.js script that fetches rankings and updates nodes.h
 - **`auto-update.ps1`** - PowerShell wrapper for automated updates and PR creation
-- **`package.json`** - Node.js dependencies
+- **`chains.json`** - Supported chains configuration (define name → chain ID mapping)
+- **`infura-chains.json`** - Infura endpoint mappings for supported chains
+- **`retired-chains.json`** - Deny list for retired/reassigned chain IDs
+- **`package.json`** - Node.js dependencies (no runtime dependencies required)
 
 ### Requirements
 
@@ -98,16 +101,60 @@ winget install --id GitHub.cli
 gh auth login
 ```
 
+### Adding New Chains
+
+To add a new blockchain to Web3E:
+
+1. **Add the chain ID constant** to `src/chainIds.h`:
+   ```c
+   #define NEW_CHAIN_ID 12345
+   ```
+
+2. **Add the chain to** `tools/chains.json`:
+   ```json
+   {
+     "12345": { "id": "NEW_CHAIN_ID", "name": "New Chain" }
+   }
+   ```
+
+3. **(Optional) Add Infura support** to `tools/infura-chains.json`:
+   ```json
+   {
+     "12345": "new-chain.infura.io/v3/"
+   }
+   ```
+
+4. **Add a placeholder entry** to `src/nodes.h` (in both `getNode()` and `getNodeUrls()` functions):
+   ```c
+   case NEW_CHAIN_ID:
+       return NEW_CHAIN_ID_URL;  // Placeholder - generator will update
+   ```
+
+5. **Run the generator** to fetch real URLs from the feed:
+   ```bash
+   cd tools
+   node update_nodes.mjs
+   ```
+
+The generator will automatically:
+- Fetch the top 3 fastest URLs from the feed
+- Extract TLS certificates
+- Generate both public and Infura endpoint definitions
+- Update `nodes.h` and `Certificates.h` with the new chain
+
 ### How It Works
 
-1. **Feed Source**: The updater fetches RPC rankings from:
+1. **Supported Chains**: The updater loads supported chains from `tools/chains.json`, which maps chain IDs to their constant names (e.g., `"8453": { "id": "BASE_MAINNET_ID", "name": "Base" }`). This makes adding new chains a simple one-line change to the JSON file.
+
+2. **Feed Source**: The updater fetches RPC rankings from:
    ```
    https://pub-947f58bf7fb442f7a0d0686fcf757d76.r2.dev/rpc-rankings.json
    ```
 
-2. **Selection Criteria**:
-   - Only updates chains already present in `nodes.h`
-   - Selects top 3 URLs based on response time (fastest first)
+3. **Selection Criteria**:
+   - Only updates chains listed in `tools/chains.json` and already present in `nodes.h`
+   - Deduplicates URLs (feed can contain duplicates for the same chain)
+   - Selects top 3 unique URLs based on response time (fastest first)
    - Filters out:
      - Non-HTTPS URLs
      - Websocket URLs (ws://, wss://)

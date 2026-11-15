@@ -78,15 +78,37 @@ void test_multiple_chains_have_urls() {
         MAINNET_ID,
         SEPOLIA_ID,
         POLYGON_ID,
+        BASE_MAINNET_ID,
+        LINEA_MAINNET_ID,
+        LINEA_SEPOLIA_ID,
+        SEI_MAINNET_ID,
+        SEI_TESTNET_ID,
+        MONAD_MAINNET_ID,
         ARBITRUM_MAIN_ID,
         OPTIMISTIC_MAIN_ID
     };
     
-    for (int i = 0; i < 5; i++) {
+    int numChains = sizeof(testChains) / sizeof(testChains[0]);
+    for (int i = 0; i < numChains; i++) {
         const char* url = getNode(testChains[i]);
         TEST_ASSERT_NOT_NULL(url);
         TEST_ASSERT_TRUE(strlen(url) > 0);
     }
+}
+
+void test_chain_with_single_url() {
+    // Test Sei Testnet which currently has only 1 URL in the feed
+    const char* url0 = getNodeUrls(SEI_TESTNET_ID, 0);
+    const char* url1 = getNodeUrls(SEI_TESTNET_ID, 1);
+    const char* url2 = getNodeUrls(SEI_TESTNET_ID, 2);
+    
+    // Primary URL should exist
+    TEST_ASSERT_NOT_NULL(url0);
+    TEST_ASSERT_TRUE(strlen(url0) > 0);
+    
+    // Alternates should return NULL (only 1 URL available)
+    TEST_ASSERT_NULL(url1);
+    TEST_ASSERT_NULL(url2);
 }
 
 void test_node_urls_consistency() {
@@ -111,6 +133,7 @@ void setup() {
     RUN_TEST(test_get_node_urls_out_of_range);
     RUN_TEST(test_get_node_urls_unknown_chain);
     RUN_TEST(test_multiple_chains_have_urls);
+    RUN_TEST(test_chain_with_single_url);
     RUN_TEST(test_node_urls_consistency);
     
     UNITY_END();

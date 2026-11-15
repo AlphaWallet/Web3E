@@ -41,50 +41,20 @@ try {
   console.warn('Warning: Could not load retired-chains.json');
 }
 
-// Chain ID to constant name mapping (from chainIds.h)
-const CHAIN_ID_MAP = {
-  1: { id: 'MAINNET_ID', name: 'Mainnet' },
-  61: { id: 'CLASSIC_ID', name: 'Ethereum Classic' },
-  99: { id: 'POA_ID', name: 'POA Network' },
-  42: { id: 'KOVAN_ID', name: 'Kovan (deprecated)' },
-  3: { id: 'ROPSTEN_ID', name: 'Ropsten (deprecated)' },
-  77: { id: 'SOKOL_ID', name: 'Sokol' },
-  4: { id: 'RINKEBY_ID', name: 'Rinkeby (deprecated)' },
-  100: { id: 'XDAI_ID', name: 'Gnosis Chain' },
-  5: { id: 'GOERLI_ID', name: 'Goerli' },
-  246529: { id: 'ARTIS_SIGMA1_ID', name: 'ARTIS Sigma1' },
-  246785: { id: 'ARTIS_TAU1_ID', name: 'ARTIS Tau1' },
-  97: { id: 'BINANCE_TEST_ID', name: 'BSC Testnet' },
-  56: { id: 'BINANCE_MAIN_ID', name: 'BSC' },
-  128: { id: 'HECO_ID', name: 'HECO' },
-  256: { id: 'HECO_TEST_ID', name: 'HECO Testnet' },
-  250: { id: 'FANTOM_ID', name: 'Fantom' },
-  4002: { id: 'FANTOM_TEST_ID', name: 'Fantom Testnet' },
-  43114: { id: 'AVALANCHE_ID', name: 'Avalanche' },
-  43113: { id: 'FUJI_TEST_ID', name: 'Avalanche Fuji' },
-  137: { id: 'POLYGON_ID', name: 'Polygon' },
-  80001: { id: 'MUMBAI_TEST_ID', name: 'Mumbai' },
-  10: { id: 'OPTIMISTIC_MAIN_ID', name: 'Optimism' },
-  69: { id: 'OPTIMISTIC_KOVAN_TEST_ID_DEPRECATED', name: 'Optimism Kovan (deprecated)' },
-  338: { id: 'CRONOS_TEST_ID', name: 'Cronos Testnet' },
-  42161: { id: 'ARBITRUM_MAIN_ID', name: 'Arbitrum One' },
-  421611: { id: 'ARBITRUM_RINKEBY_TEST_ID_DEPRECATED', name: 'Arbitrum Rinkeby (deprecated)' },
-  11297108109: { id: 'PALM_ID', name: 'Palm' },
-  11297108099: { id: 'PALM_TEST_ID', name: 'Palm Testnet' },
-  8217: { id: 'KLAYTN_ID', name: 'Klaytn' },
-  1001: { id: 'KLAYTN_BOABAB_ID', name: 'Klaytn Baobab' },
-  4689: { id: 'IOTEX_MAINNET_ID', name: 'IoTeX' },
-  4690: { id: 'IOTEX_TESTNET_ID', name: 'IoTeX Testnet' },
-  1313161554: { id: 'AURORA_MAINNET_ID', name: 'Aurora' },
-  1313161555: { id: 'AURORA_TESTNET_ID', name: 'Aurora Testnet' },
-  2001: { id: 'MILKOMEDA_C1_ID', name: 'Milkomeda C1' },
-  200101: { id: 'MILKOMEDA_C1_TEST_ID', name: 'Milkomeda C1 Testnet' },
-  11155111: { id: 'SEPOLIA_ID', name: 'Sepolia' },
-  420: { id: 'OPTIMISM_GOERLI_ID', name: 'Optimism Goerli' },
-  421613: { id: 'ARBITRUM_GOERLI_ID', name: 'Arbitrum Goerli' },
-  84532: { id: 'BASE_SEPOLIA_ID', name: 'Base Sepolia' },
-  421614: { id: 'ARBITRUM_SEPOLIA_ID', name: 'Arbitrum Sepolia' }
-};
+// Load supported chains configuration (define name -> chainId mapping)
+// This allows adding new chains by editing chains.json (one-line change)
+let CHAIN_ID_MAP = {};
+try {
+  const chainsConfig = JSON.parse(fs.readFileSync(path.join(__dirname, 'chains.json'), 'utf8'));
+  // Convert numeric string keys to integers
+  for (const [chainId, info] of Object.entries(chainsConfig)) {
+    CHAIN_ID_MAP[parseInt(chainId, 10)] = info;
+  }
+} catch (error) {
+  console.error('Error: Could not load chains.json');
+  console.error(error.message);
+  process.exit(1);
+}
 
 async function fetchFeed() {
   try {
@@ -172,7 +142,17 @@ function selectTopRpcs(rpcs) {
     return isValidUrl(rpc.url);
   });
   
-  return validRpcs.slice(0, MAX_URLS_PER_CHAIN);
+  // Deduplicate URLs (feed can contain duplicates for the same chain)
+  const seenUrls = new Set();
+  const uniqueRpcs = [];
+  for (const rpc of validRpcs) {
+    if (!seenUrls.has(rpc.url)) {
+      seenUrls.add(rpc.url);
+      uniqueRpcs.push(rpc);
+    }
+  }
+  
+  return uniqueRpcs.slice(0, MAX_URLS_PER_CHAIN);
 }
 
 function extractHostname(url) {
