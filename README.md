@@ -145,6 +145,19 @@ Replace `abc1234` with the full commit hash you want to use.
 **Please note: you may need to use 'lib_ldf_mode = deep' to locate some ESP32 libraries like 'EEPROM.h'**
 **also: if you use many other libraries in your application you may need to add 'board_build.partitions = no_ota.csv' to fit your firmware**
 
+### ESP32 Stack Requirements
+
+Web3E uses TLS/SSL for secure RPC connections, which requires adequate stack space for the mbedTLS handshake. The default Arduino `loopTask` stack size (8KB) may overflow during HTTPS operations.
+
+**Recommended:** Increase the loop stack size to 16KB in your `platformio.ini`:
+
+```ini
+build_flags =
+    -DARDUINO_LOOP_STACK_SIZE=16384
+```
+
+This is especially important when making multiple RPC calls or using mainnet nodes. Without this, you may encounter `Guru Meditation` errors with `Stack canary watchpoint triggered` messages during TLS handshakes.
+
 ## Example TokenScript flow
 
 - Two API end points are exposed on the embedded device, '/api/getChallenge' and 'api/checkSignature?sig=<sig>'

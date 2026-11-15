@@ -253,6 +253,18 @@ string Web3::exec(const string* data) {
     client->~WiFiClientSecure();
 
     rpcResult.assign(rpcReadBuf, bodyLen);
+    
+#if defined(TEST_BUILD) || defined(DEBUG)
+    // In debug/test builds, check for JSON-RPC error responses
+    if (rpcResult.find("\"error\"") != string::npos) {
+        Serial.println("\n=== RPC ERROR RESPONSE ===");
+        // Truncate to ~300 chars for readability
+        string truncated = rpcResult.length() > 300 ? rpcResult.substr(0, 300) + "..." : rpcResult;
+        Serial.println(truncated.c_str());
+        Serial.println("==========================\n");
+    }
+#endif
+    
     // Copy so callers own the string; rpcResult keeps capacity for the next call.
     return string(rpcResult);
 }

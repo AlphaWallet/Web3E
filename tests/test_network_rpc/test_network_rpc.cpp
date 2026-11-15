@@ -116,8 +116,17 @@ void test_sepolia_block_number() {
     
     Serial.println("\n=== Sepolia Block Number Test ===");
     
+    delay(500); // Rate limit protection
+    
     Web3 web3(SEPOLIA_CHAIN_ID);
     long long blockNumber = web3.EthBlockNumber();
+    
+    // Retry once on failure (RPC error or rate limit)
+    if (blockNumber == 0) {
+        Serial.println("Block number 0, retrying...");
+        delay(1000);
+        blockNumber = web3.EthBlockNumber();
+    }
     
     Serial.print("Current block: ");
     Serial.println((long)blockNumber);
@@ -134,6 +143,8 @@ void test_mainnet_chain_id() {
     
     Serial.println("\n=== Mainnet Chain ID Test ===");
     
+    delay(500); // Rate limit protection
+    
     Web3 web3(MAINNET_CHAIN_ID);
     long long chainId = web3.getChainId();
     
@@ -149,9 +160,18 @@ void test_mainnet_vitalik_balance() {
     
     Serial.println("\n=== Mainnet Balance Test (Vitalik) ===");
     
+    delay(500); // Rate limit protection
+    
     Web3 web3(MAINNET_CHAIN_ID);
     string address = VITALIK_ADDRESS;
     uint256_t balance = web3.EthGetBalance(&address);
+    
+    // Retry once on failure
+    if (balance == 0) {
+        Serial.println("Balance 0, retrying...");
+        delay(1000);
+        balance = web3.EthGetBalance(&address);
+    }
     
     string balanceStr = Util::ConvertWeiToEthString(&balance, 18);
     Serial.print("Vitalik balance: ");
@@ -167,6 +187,8 @@ void test_mainnet_transaction_count() {
     TEST_ASSERT_TRUE(wifiConnected);
     
     Serial.println("\n=== Mainnet Nonce Test (Vitalik) ===");
+    
+    delay(500); // Rate limit protection
     
     Web3 web3(MAINNET_CHAIN_ID);
     string address = VITALIK_ADDRESS;
@@ -186,6 +208,8 @@ void test_erc20_name() {
     TEST_ASSERT_TRUE(wifiConnected);
     
     Serial.println("\n=== ERC20 Name Test (USDC Mainnet) ===");
+    
+    delay(500); // Rate limit protection
     
     Web3 web3(MAINNET_CHAIN_ID);
     Contract contract(&web3, USDC_MAINNET);
@@ -207,6 +231,8 @@ void test_erc20_decimals() {
     
     Serial.println("\n=== ERC20 Decimals Test (USDC Mainnet) ===");
     
+    delay(500); // Rate limit protection
+    
     Web3 web3(MAINNET_CHAIN_ID);
     Contract contract(&web3, USDC_MAINNET);
     
@@ -226,6 +252,8 @@ void test_erc20_balance() {
     TEST_ASSERT_TRUE(wifiConnected);
     
     Serial.println("\n=== ERC20 Balance Test (USDC Mainnet) ===");
+    
+    delay(500); // Rate limit protection
     
     Web3 web3(MAINNET_CHAIN_ID);
     Contract contract(&web3, USDC_MAINNET);
@@ -255,6 +283,8 @@ void test_erc721_vitalik_balance() {
     }
     
     Serial.println("\n=== ERC721 Balance Test (Vitalik, Mainnet) ===");
+    
+    delay(500); // Rate limit protection
     Serial.print("Contract: ");
     Serial.println(ERC721_CONTRACT);
     
