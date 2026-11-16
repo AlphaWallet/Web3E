@@ -45,6 +45,11 @@ jobs:
             type: test
             env: esp32dev
             extra_flags: '-DUSING_INFURA'
+          
+          # Native tests - actually run on CI (not just compile)
+          - project: tests/test_http_parser
+            name: "Native Tests (HTTP Parser)"
+            type: native_test
     
     steps:
       - name: Checkout repository
@@ -96,6 +101,13 @@ jobs:
             export PLATFORMIO_BUILD_FLAGS="${{ matrix.extra_flags }}"
           fi
           pio test --environment ${{ matrix.env }} --without-uploading --without-testing
+      
+      - name: Run Native Tests ${{ matrix.name }}
+        if: matrix.type == 'native_test'
+        run: |
+          cd "${{ matrix.project }}"
+          # Run native tests (they execute on the CI runner)
+          pio test -e native
       
       - name: Show build artifacts size
         if: success() && matrix.type == 'build'
