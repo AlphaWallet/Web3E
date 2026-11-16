@@ -32,5 +32,20 @@
     ],
     "name": "Web3E", 
     "version": "1.45", 
-    "homepage": "https://www.smarttokenlabs.com/"
+    "homepage": "https://www.smarttokenlabs.com/",
+    "export": {
+        "exclude": [
+            "tests",
+            "test-consumer",
+            "tools",
+            ".github",
+            ".git",
+            ".gitignore",
+            ".vscode",
+            "docs",
+            "*.log",
+            ".pio",
+            ".platformio"
+        ]
+    }
 }
