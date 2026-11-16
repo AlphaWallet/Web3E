@@ -1,0 +1,53 @@
+# Web3E Network Test Configuration (TESTNET ONLY!)
+# Copy this file to test_config.ini and fill in your values
+# test_config.ini is gitignored - never commit credentials
+
+# ===== WiFi credentials =====
+WIFI_SSID=YourWiFiSSID
+WIFI_PASS=YourWiFiPassword
+
+# ===== Transaction tests (REQUIRE FUNDED TESTNET ACCOUNT) =====
+# WARNING: These tests send REAL transactions on Sepolia testnet!
+# Private key for transaction tests (Sepolia testnet only!)
+# Generate a dedicated test key - NEVER use mainnet keys or keys with real funds
+# Get testnet ETH from: https://sepoliafaucet.com/
+# Leave empty to skip transaction tests
+TEST_PRIVATE_KEY=
+
+# Destination address for test transfers (can be any valid address)
+TEST_TO_ADDRESS=
+
+# ===== ERC20 Token Tests (Sepolia) =====
+# Deploy tests/contracts/TestERC20.sol to Sepolia and paste address here
+# Contract must have open mint() function and standard ERC20 interface
+# Tests will:
+#   1. Mint tokens to TEST_PRIVATE_KEY address
+#   2. Transfer tokens to TEST_TO_ADDRESS
+#   3. Verify balance changes
+# Required contract functions:
+#   - mint(address,uint256)
+#   - transfer(address,uint256)
+#   - balanceOf(address) view returns (uint256)
+#   - decimals() view returns (uint8)
+# Leave empty to skip ERC20 tests (requires TEST_PRIVATE_KEY with Sepolia ETH for gas)
+TEST_TOKEN_CONTRACT=
+
+# ===== ERC721 Query Tests (MAINNET, read-only) =====
+# ERC721 contract address to query on mainnet (NO FUNDS NEEDED - read only)
+# Tests query balanceOf(holder) and expect balance > 0
+# Popular NFT examples:
+#   CryptoPunks: 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB
+#   Bored Apes: 0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D
+#   Azuki: 0xED5AF388653567Af2F388E6224dC7C4b3241C544
+# Leave empty to skip ERC721 test
+ERC721_CONTRACT=
+
+# Holder address to query (must own at least 1 NFT in the contract above)
+# Leave empty to skip ERC721 test
+ERC721_NFT_TEST_ADDRESS=
+
+# ===== Wallet Bridge Tests =====
+# Bridge tests use the service bridge URL (built-in to Web3E)
+# No configuration needed - tests connect to default bridge service
+# Tests exercise challenge-response flow and signature verification
+# Requires TEST_PRIVATE_KEY for signing

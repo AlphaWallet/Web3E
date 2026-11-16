@@ -30,13 +30,16 @@
 #include <Arduino.h>
 #include <Web3.h>
 #include <WiFi.h>
+#include <WiFiConnection.h>
 #include <functional>
 #include <string>
 #include <Ticker.h>
 #include <TcpBridge.h>
 
 const char *ssid = "<your SSID>";
-const char *password = "<your password";
+const char *password = "<your password>";
+
+WiFiConnection wifiConnection;
 
 #define BLUE_LED 22 // Little blue LED on the ESP32 TTGO
 
@@ -78,10 +81,17 @@ void Initialize()
 void setup() 
 {
   Serial.begin(115200);
-  web3 = new Web3(KOVAN_ID);
+  
+  // Connect to WiFi using WiFiConnection helper
+  WiFiCredentials networks[] = {
+      {ssid, password},
+      {nullptr, nullptr}  // Terminator
+  };
+  wifiConnection.setupWifi(networks);
+  
+  web3 = new Web3(SEPOLIA_ID);
   keyID = new KeyID(web3);
   pinMode(BLUE_LED, OUTPUT);
-  setupWifi();
   Initialize(); //init after wifi setup to change startup delay
 
   tcpConnection = new TcpBridge();
@@ -92,55 +102,9 @@ void setup()
 
 void loop() 
 {
-  setupWifi();
   delay(1);
   tcpConnection->checkClientAPI(&handleTCPAPI);
   blinkTicker.update();
-}
-
-/* This routine is specifically geared for ESP32 perculiarities */
-/* You may need to change the code as required */
-/* It should work on 8266 as well */
-void setupWifi()
-{
-  if (WiFi.status() == WL_CONNECTED)
-  {
-    return;
-  }
-
-  Serial.println();
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
-
-  if (WiFi.status() != WL_CONNECTED)
-  {
-    WiFi.persistent(false);
-    WiFi.mode(WIFI_OFF);
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(ssid, password);
-  }
-
-  int wificounter = 0;
-  while (WiFi.status() != WL_CONNECTED && wificounter < 10)
-  {
-    delay(500);
-    Serial.print(".");
-    wificounter++;
-  }
-
-  if (wificounter >= 10)
-  {
-    Serial.println("Restarting ...");
-    ESP.restart(); //targetting 8266 & Esp32 - you may need to replace this
-  }
-
-  esp_wifi_set_ps(WIFI_PS_NONE);
-  delay(10);
-
-  Serial.println("");
-  Serial.println("WiFi connected.");
-  Serial.println("IP address: ");
-  Serial.println(WiFi.localIP());
 }
 
 // Handle API call from tokenscript

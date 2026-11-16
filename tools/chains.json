@@ -1,0 +1,22 @@
+{
+  "1": { "id": "MAINNET_ID", "name": "Mainnet" },
+  "61": { "id": "CLASSIC_ID", "name": "Ethereum Classic" },
+  "100": { "id": "XDAI_ID", "name": "Gnosis Chain" },
+  "10": { "id": "OPTIMISTIC_MAIN_ID", "name": "Optimism" },
+  "137": { "id": "POLYGON_ID", "name": "Polygon" },
+  "143": { "id": "MONAD_MAINNET_ID", "name": "Monad" },
+  "1001": { "id": "KLAYTN_BOABAB_ID", "name": "Klaytn Baobab" },
+  "1328": { "id": "SEI_TESTNET_ID", "name": "Sei Testnet" },
+  "1329": { "id": "SEI_MAINNET_ID", "name": "Sei" },
+  "4689": { "id": "IOTEX_MAINNET_ID", "name": "IoTeX" },
+  "4690": { "id": "IOTEX_TESTNET_ID", "name": "IoTeX Testnet" },
+  "8217": { "id": "KLAYTN_MAINNET_ID", "name": "Klaytn" },
+  "8453": { "id": "BASE_MAINNET_ID", "name": "Base" },
+  "42161": { "id": "ARBITRUM_MAIN_ID", "name": "Arbitrum One" },
+  "43113": { "id": "FUJI_TEST_ID", "name": "Avalanche Fuji" },
+  "59141": { "id": "LINEA_SEPOLIA_ID", "name": "Linea Sepolia" },
+  "59144": { "id": "LINEA_MAINNET_ID", "name": "Linea" },
+  "84532": { "id": "BASE_SEPOLIA_ID", "name": "Base Sepolia" },
+  "421614": { "id": "ARBITRUM_SEPOLIA_ID", "name": "Arbitrum Sepolia" },
+  "11155111": { "id": "SEPOLIA_ID", "name": "Sepolia" }
+}

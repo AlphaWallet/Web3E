@@ -321,7 +321,7 @@ void Util::ConvertHexToBytes(uint8_t *_dst, const char *_src, int length)
     {
         char a = _src[2 * i];
         char b = _src[2 * i + 1];
-        byte extract = HexToInt(a) << 4 | HexToInt(b);
+        uint8_t extract = HexToInt(a) << 4 | HexToInt(b);
         _dst[i] = extract;
     }
 }
@@ -612,8 +612,28 @@ string Util::InterpretStringResult(const char *result)
             if (dyn == 32) //array marker
             {
                 long length = strtol(itr++->c_str(), NULL, 16);
+                
+                // Validate length is reasonable and we have enough data
+                if (length < 0 || length > 10000) // sanity check
+                {
+                    return retVal;
+                }
+                
+                // Calculate required words and validate size
+                size_t words = (length + 31) / 32;
+                if (breakDown.size() < 2 + words)
+                {
+                    return retVal;
+                }
+                
                 //now get a pointer to string immediately after the length marker
-                const char *strPtr = result + 2 + (2*64);
+                size_t resultLen = strlen(result);
+                size_t offset = 2 + (2*64); // skip "0x" + offset word + length word
+                if (offset + (length * 2) > resultLen)
+                {
+                    return retVal;
+                }
+                const char *strPtr = result + offset;
                 retVal = ConvertHexToASCII(strPtr, length*2);
             }
         }

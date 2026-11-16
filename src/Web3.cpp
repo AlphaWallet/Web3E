@@ -11,12 +11,18 @@
 #include "Certificates.h"
 #include "Util.h"
 #include "TagReader/TagReader.h"
+#include "HttpParser.h"
 #include <iostream>
 #include <sstream>
+#include <memory>
 #include "nodes.h"
 
 Web3::Web3(long long networkId) {
+#ifdef USING_INFURA
     infura_key = INFURA_API_KEY;
+#else
+    infura_key = nullptr;
+#endif
     mem = new BYTE[sizeof(WiFiClientSecure)];
     chainId = networkId;
     rpcResult.reserve(WEB3_RPC_BUFFER_SIZE);
@@ -25,6 +31,8 @@ Web3::Web3(long long networkId) {
 
 Web3::Web3(long long networkId, const char* infura_key_str) {
     mem = new BYTE[sizeof(WiFiClientSecure)];
+    
+#ifdef USING_INFURA
     if (strnlen(infura_key_str, 34) != 32)
     {
         Serial.println("Incorrect Infura Key spec, fallback to staging API key");
@@ -36,6 +44,13 @@ Web3::Web3(long long networkId, const char* infura_key_str) {
         Serial.print("Setting Infura Key: ");
         Serial.println(infura_key);
     }
+#else
+    // Infura disabled - ignore the key
+    infura_key = nullptr;
+    if (infura_key_str) {
+        Serial.println("Warning: Infura key provided but USING_INFURA not defined - using public RPCs");
+    }
+#endif
 
     chainId = networkId;
     rpcResult.reserve(WEB3_RPC_BUFFER_SIZE);
@@ -135,6 +150,14 @@ int Web3::EthBlockNumber() {
     return getInt(&output);
 }
 
+long long int Web3::EthChainId() {
+    string m = "eth_chainId";
+    string p = "[]";
+    string input = generateJson(&m, &p);
+    string output = exec(&input);
+    return getLongLong(&output);
+}
+
 uint256_t Web3::EthGetBalance(const string* address) {
     string m = "eth_getBalance";
     string p = "[\"" + *address + "\",\"latest\"]";
@@ -151,6 +174,47 @@ string Web3::EthViewCall(const string* data, const char* to)
     p += "\",\"to\":\"";
     p += to;
     p += "\"}, \"latest\"]";
+    string input = generateJson(&m, &p);
+    return exec(&input);
+}
+
+long long int Web3::EthEstimateGas(const string* from, const char* to, const string* value, const string* data)
+{
+    string m = "eth_estimateGas";
+    string p = "[{";
+    
+    if (from != nullptr && from->length() > 0) {
+        p += "\"from\":\"" + *from + "\",";
+    }
+    
+    if (to != nullptr && strlen(to) > 0) {
+        p += "\"to\":\"" + string(to) + "\",";
+    }
+    
+    if (value != nullptr && value->length() > 0 && *value != "0" && *value != "0x0") {
+        p += "\"value\":\"" + *value + "\",";
+    }
+    
+    if (data != nullptr && data->length() > 0 && *data != "0x") {
+        p += "\"data\":\"" + *data + "\",";
+    }
+    
+    // Remove trailing comma if present
+    if (p.back() == ',') {
+        p = p.substr(0, p.length() - 1);
+    }
+    
+    p += "}]";
+    
+    string input = generateJson(&m, &p);
+    string output = exec(&input);
+    return getLongLong(&output);
+}
+
+string Web3::EthGetTransactionReceipt(const string* txHash)
+{
+    string m = "eth_getTransactionReceipt";
+    string p = "[\"" + *txHash + "\"]";
     string input = generateJson(&m, &p);
     return exec(&input);
 }
@@ -196,15 +260,18 @@ string Web3::exec(const string* data) {
 
     int connected = client->connect(host, port);
     if (!connected) {
-        Serial.print("Unable to connect to Host: ");
+#if defined(TEST_BUILD) || defined(DEBUG)
+        Serial.print("Web3: Unable to connect to ");
         Serial.println(host);
+#endif
+#ifdef WEB3_RESTART_ON_CONNECT_FAIL
         delay(100);
-        //trigger a reset of the device
         ESP.restart();
+#endif
         return "";
     }
 
-    // Make a HTTP request:
+    // Make HTTP request with Connection: close
     int l = data->size();
     stringstream ss;
     ss << l;
@@ -217,43 +284,230 @@ string Web3::exec(const string* data) {
     client->println(strPost.c_str());
     client->println(strHost.c_str());
     client->println("Content-Type: application/json");
+    client->println("Connection: close");
     client->println(strContentLen.c_str());
     client->println();
     client->println(data->c_str());
 
-    while (client->connected())
-    {
-        size_t n = 0;
-        while (client->connected() && n + 1 < WEB3_HTTP_LINE_BUFFER_SIZE)
-        {
-            int c = client->read();
-            if (c < 0)
-                break;
-            if (c == '\n')
-                break;
+    // Wait for first response bytes with timeout
+    unsigned long startTime = millis();
+    while (client->connected() && !client->available()) {
+        if (millis() - startTime > WEB3_HTTP_TIMEOUT_MS) {
+#if defined(TEST_BUILD) || defined(DEBUG)
+            Serial.print("Web3: Response timeout from ");
+            Serial.println(host);
+#endif
+            client->stop();
+            client->~WiFiClientSecure();
+            return "";
+        }
+        delay(1);
+        yield();
+    }
+
+    // Parse HTTP status line
+    HttpParser parser;
+    bool statusParsed = false;
+    size_t n = 0;
+    unsigned long lastByteTime = millis();
+    
+    while (client->connected() || client->available()) {
+        if (!client->available()) {
+            if (millis() - lastByteTime > WEB3_HTTP_TIMEOUT_MS) {
+#if defined(TEST_BUILD) || defined(DEBUG)
+                Serial.println("Web3: Timeout reading status line");
+#endif
+                client->stop();
+                client->~WiFiClientSecure();
+                return "";
+            }
+            delay(1);
+            yield();
+            continue;
+        }
+        
+        int c = client->read();
+        if (c < 0) break;
+        lastByteTime = millis();
+        
+        if (c == '\n') {
+            httpLineBuf[n] = '\0';
+            if (!statusParsed) {
+                statusParsed = parser.parseStatusLine(httpLineBuf);
+                if (!statusParsed) {
+#if defined(TEST_BUILD) || defined(DEBUG)
+                    Serial.print("Web3: Invalid status line: ");
+                    Serial.println(httpLineBuf);
+#endif
+                    client->stop();
+                    client->~WiFiClientSecure();
+                    return "";
+                }
+            }
+            break;
+        }
+        
+        if (c != '\r' && n + 1 < WEB3_HTTP_LINE_BUFFER_SIZE) {
             httpLineBuf[n++] = (char)c;
         }
-        httpLineBuf[n] = '\0';
-        if (n == 0 || (n == 1 && httpLineBuf[0] == '\r'))
-            break;
     }
 
-    // Reuse member staging buffer; avoid per-byte std::string growth.
-    size_t bodyLen = 0;
-    while (client->available() && bodyLen + 1 < WEB3_RPC_BUFFER_SIZE)
-    {
-        int c = client->read();
-        if (c < 0)
+    // Parse headers until blank line
+    while (client->connected() || client->available()) {
+        n = 0;
+        
+        while (client->connected() || client->available()) {
+            if (!client->available()) {
+                if (millis() - lastByteTime > WEB3_HTTP_TIMEOUT_MS) {
+#if defined(TEST_BUILD) || defined(DEBUG)
+                    Serial.println("Web3: Timeout reading headers");
+#endif
+                    client->stop();
+                    client->~WiFiClientSecure();
+                    return "";
+                }
+                delay(1);
+                yield();
+                continue;
+            }
+            
+            int c = client->read();
+            if (c < 0) break;
+            lastByteTime = millis();
+            
+            if (c == '\n') {
+                break;
+            }
+            
+            if (c != '\r' && n + 1 < WEB3_HTTP_LINE_BUFFER_SIZE) {
+                httpLineBuf[n++] = (char)c;
+            }
+        }
+        
+        httpLineBuf[n] = '\0';
+        
+        // Blank line marks end of headers
+        if (n == 0) {
             break;
-        rpcReadBuf[bodyLen++] = (char)c;
+        }
+        
+        parser.parseHeader(httpLineBuf);
     }
+
+    // Check HTTP status code
+    if (parser.statusCode < 200 || parser.statusCode >= 300) {
+#if defined(TEST_BUILD) || defined(DEBUG)
+        Serial.print("Web3: HTTP ");
+        Serial.print(parser.statusCode);
+        Serial.print(" from ");
+        Serial.println(host);
+#endif
+        client->stop();
+        client->~WiFiClientSecure();
+        return "";
+    }
+
+    // Read body (reuse member buffer, avoid per-byte std::string growth)
+    size_t bodyLen = 0;
+    
+    if (parser.isChunked) {
+        // Decode chunked transfer encoding
+        size_t chunkBufLen = 0;
+        
+        while ((client->connected() || client->available()) && bodyLen < WEB3_RPC_BUFFER_SIZE) {
+            if (!client->available()) {
+                if (millis() - lastByteTime > WEB3_HTTP_TIMEOUT_MS) {
+                    break;
+                }
+                delay(1);
+                yield();
+                continue;
+            }
+            
+            int c = client->read();
+            if (c < 0) break;
+            lastByteTime = millis();
+            
+            if (chunkBufLen < WEB3_HTTP_LINE_BUFFER_SIZE) {
+                httpLineBuf[chunkBufLen++] = (char)c;
+            }
+            
+            // Try to decode chunk
+            size_t consumed = 0;
+            size_t written = 0;
+            if (HttpParser::decodeChunk(httpLineBuf, chunkBufLen,
+                                       rpcReadBuf + bodyLen, WEB3_RPC_BUFFER_SIZE - bodyLen,
+                                       consumed, written)) {
+                bodyLen += written;
+                
+                // Last chunk (size 0) ends the body
+                if (written == 0) {
+                    break;
+                }
+                
+                // Remove consumed bytes from chunk buffer
+                if (consumed < chunkBufLen) {
+                    memmove(httpLineBuf, httpLineBuf + consumed, chunkBufLen - consumed);
+                    chunkBufLen -= consumed;
+                } else {
+                    chunkBufLen = 0;
+                }
+            }
+        }
+    } else if (parser.hasContentLength) {
+        // Read exactly Content-Length bytes
+        while (bodyLen < parser.contentLength && bodyLen < WEB3_RPC_BUFFER_SIZE) {
+            if (!client->available()) {
+                if (millis() - lastByteTime > WEB3_HTTP_TIMEOUT_MS) {
+                    break;
+                }
+                delay(1);
+                yield();
+                continue;
+            }
+            
+            int c = client->read();
+            if (c < 0) break;
+            lastByteTime = millis();
+            
+            rpcReadBuf[bodyLen++] = (char)c;
+        }
+    } else {
+        // No Content-Length, no chunked: read until connection closes or buffer full
+        while ((client->connected() || client->available()) && bodyLen < WEB3_RPC_BUFFER_SIZE) {
+            if (!client->available()) {
+                if (millis() - lastByteTime > WEB3_HTTP_TIMEOUT_MS) {
+                    break;
+                }
+                delay(1);
+                yield();
+                continue;
+            }
+            
+            int c = client->read();
+            if (c < 0) break;
+            lastByteTime = millis();
+            
+            rpcReadBuf[bodyLen++] = (char)c;
+        }
+    }
+
     client->flush();
     client->stop();
-
     client->~WiFiClientSecure();
 
     rpcResult.assign(rpcReadBuf, bodyLen);
-    // Copy so callers own the string; rpcResult keeps capacity for the next call.
+    
+#if defined(TEST_BUILD) || defined(DEBUG)
+    // In debug/test builds, check for JSON-RPC error responses
+    if (rpcResult.find("\"error\"") != string::npos) {
+        Serial.println("\n=== RPC ERROR RESPONSE ===");
+        string truncated = rpcResult.length() > 300 ? rpcResult.substr(0, 300) + "..." : rpcResult;
+        Serial.println(truncated.c_str());
+        Serial.println("==========================\n");
+    }
+#endif
+    
     return string(rpcResult);
 }
 
@@ -317,24 +571,56 @@ string Web3::getString(const string *json)
         return string("");
     }
 
-    vector<string> *v = Util::ConvertStringHexToABIArray(&parseVal);
+    std::unique_ptr<vector<string>> v(Util::ConvertStringHexToABIArray(&parseVal));
     
-    uint32_t length = (uint32_t)uint256_t(v->at(1));
-    uint32_t lengthIndex = length;
-    uint32_t hexChars = length * 2;
-
-    string asciiHex;
-    int index = 2;
-    while (lengthIndex > 0)
+    // Validate we have at least offset + length words (minimum 2 words)
+    if (!v || v->size() < 2)
     {
-        asciiHex += v->at(index++);
-        lengthIndex -= 32;
+        return string("");
     }
 
-    //convert ascii into string
+    // Read offset word to locate the length word
+    // For standalone dynamic returns, offset is typically 0x20 (32 bytes = word 1)
+    uint256_t offsetWord(v->at(0));
+    uint32_t offsetBytes = (uint32_t)offsetWord;
+    size_t offsetWords = offsetBytes / 32;
+    
+    // Validate offset is within bounds
+    if (offsetWords >= v->size())
+    {
+        return string("");
+    }
+    
+    // Read length at the offset position
+    uint256_t lengthWord(v->at(offsetWords));
+    uint32_t length = (uint32_t)lengthWord;
+    
+    // Calculate number of 32-byte words needed for the string data
+    // Each word holds up to 32 bytes, so words = ceil(length / 32)
+    size_t words = (length + 31) / 32;
+    
+    // Validate we have enough data: offset word + length word + data words
+    if (v->size() < offsetWords + 1 + words)
+    {
+        return string("");
+    }
+    
+    // Extract hex characters from the data words
+    string asciiHex;
+    size_t dataStartIndex = offsetWords + 1;
+    for (size_t i = 0; i < words; i++)
+    {
+        asciiHex += v->at(dataStartIndex + i);
+    }
+    
+    // Convert only the actual string bytes (not the padding)
+    uint32_t hexChars = length * 2;
+    if (hexChars > asciiHex.length())
+    {
+        return string("");
+    }
+    
     string text = Util::ConvertHexToASCII(asciiHex.substr(0, hexChars).c_str(), hexChars);
-    delete v;
-
     return text;
 }
 
@@ -360,20 +646,25 @@ void Web3::setupCert()
 
 void Web3::selectHost()
 {
-    std::string node = getNode(chainId);
-
-    if (node.find("infura.io") != std::string::npos)
-    {
-        node += infura_key;
-    }
-
-    if (node.length() == 0)
+    const char* nodeStr = getNode(chainId);
+    
+    // Null-check for safety (getNode should return "" not NULL, but be defensive)
+    if (nodeStr == NULL || strlen(nodeStr) == 0)
     {
         Serial.print("ChainId: ");
         Serial.print(chainId);
-        Serial.println("Is not yet supported, please add the RPC (and certificate if required) and submit a PR to the repo.");
+        Serial.println(" is not yet supported, please add the RPC (and certificate if required) and submit a PR to the repo.");
         return;
     }
+    
+    std::string node = nodeStr;
+
+#ifdef USING_INFURA
+    if (node.find("infura.io") != std::string::npos && infura_key)
+    {
+        node += infura_key;
+    }
+#endif
 
     int ppos = node.find(":");
     if (ppos > 0)

@@ -5,6 +5,12 @@
 ## [![PlatformIO Registry](https://badges.registry.platformio.org/packages/alphawallet/library/Web3E.svg)](https://registry.platformio.org/libraries/alphawallet/Web3E)
 
 What's New:
+v1.45:
+- Fix case-sensitive include issues for Linux/PlatformIO builds.
+- Fix `byte` type ambiguity with modern C++ compilers.
+- Add CI testing to verify library packaging.
+- Enable consumption via git URL with version tags.
+
 v1.44:
 - Fix type conversion ambiguity.
 - Add required method in TcpBridge.
@@ -80,27 +86,115 @@ It is possible that as Ethereum runs natively on embedded devices a new revoluti
 
 ## Installation
 
-- It is recommended to use [Platformio](https://platformio.org/install/) for best experience. Web3E is now part of the Platformio libraries so no need to clone the repo.
-- Using Web3E is a one step process:
-    1. Create a new project in Platformio and edit the platformio.ini so it looks similar to:
+- It is recommended to use [Platformio](https://platformio.org/install/) for best experience.
+- Web3E can be consumed in three ways:
 
-```
+### Option 1: PlatformIO Registry (Stable Releases)
+
+Web3E is part of the PlatformIO registry. Simply reference it by name:
+
+```ini
 [env:esp32dev]
 platform = espressif32
 board = esp32dev
 framework = arduino
 
-; Serial Monitor options
 monitor_speed = 115200
 
 lib_ldf_mode = deep
 lib_deps =
-  # Using a library name
   Web3E
 ```
 
+### Option 2: Git URL with Version Tag (Recommended for Reproducible Builds)
+
+Pin to a specific version for reproducible builds:
+
+```ini
+[env:esp32dev]
+platform = espressif32
+board = esp32dev
+framework = arduino
+
+monitor_speed = 115200
+
+lib_ldf_mode = deep
+lib_deps =
+  https://github.com/AlphaWallet/Web3E.git#v1.45
+```
+
+### Option 3: Git URL with Commit Hash (For Testing or Specific Fixes)
+
+Pin to a specific commit:
+
+```ini
+[env:esp32dev]
+platform = espressif32
+board = esp32dev
+framework = arduino
+
+monitor_speed = 115200
+
+lib_ldf_mode = deep
+lib_deps =
+  https://github.com/AlphaWallet/Web3E.git#abc1234
+```
+
+Replace `abc1234` with the full commit hash you want to use.
+
 **Please note: you may need to use 'lib_ldf_mode = deep' to locate some ESP32 libraries like 'EEPROM.h'**
 **also: if you use many other libraries in your application you may need to add 'board_build.partitions = no_ota.csv' to fit your firmware**
+
+### ESP32 Requirements
+
+Web3E uses TLS/SSL for secure RPC connections, which requires adequate stack space and flash storage.
+
+**Stack Size:** Increase the loop stack size to 16KB in your `platformio.ini`:
+
+```ini
+build_flags =
+    -DARDUINO_LOOP_STACK_SIZE=16384
+```
+
+This prevents `Guru Meditation` errors with `Stack canary watchpoint triggered` messages during TLS handshakes.
+
+**Flash Partition:** For larger applications (especially with network tests), use a bigger app partition:
+
+```ini
+board_build.partitions = huge_app.csv
+```
+
+Common partition schemes:
+- `default.csv` - 1.3MB app (may be too small for complex apps)
+- `min_spiffs.csv` - 1.9MB app, 190KB SPIFFS
+- `huge_app.csv` - 3MB app, minimal SPIFFS (recommended for Web3E apps)
+
+Without adequate flash space, you'll see: `Image length XXXXXX doesn't fit in partition length YYYYYY` and boot loops.
+
+### Infura Support (Opt-In)
+
+By default, Web3E uses **public RPC nodes** for maximum portability and zero configuration. Infura support is **opt-in only** and requires compile-time flags.
+
+**To enable Infura:**
+
+Add these build flags to your `platformio.ini`:
+
+```ini
+build_flags =
+    -DARDUINO_LOOP_STACK_SIZE=16384
+    -DUSING_INFURA
+    -DINFURA_API_KEY=\"your-infura-api-key-here\"
+```
+
+**Without these flags:** The library will use public RPCs from the curated rankings feed. The `Web3(chainId, infura_key)` constructor will ignore the key parameter and log a warning. **Public RPCs use unverified TLS** (HTTPS connection without server certificate verification) for simplicity and broad compatibility.
+
+**With `-DUSING_INFURA` defined:** Infura endpoints become the primary RPC for supported chains (Ethereum, Polygon, Optimism, Arbitrum, Base, Linea, Avalanche testnets), with public nodes as fallback. **Infura uses pinned TLS certificate verification** with Amazon Root CA 1 for enhanced security.
+
+**TLS Certificate Policy:**
+- **Public RPCs:** Unverified TLS (`client->setInsecure()`) - encrypted connection without server verification
+- **Infura (opt-in):** Pinned Amazon Root CA 1 - full TLS verification with certificate pinning
+
+**Supported Infura chains:** See `tools/infura-chains.json` for the complete list of chains with Infura endpoints.
 
 ## Example TokenScript flow
 
@@ -135,6 +229,24 @@ Note, if you have an Infura API key and wish to use Infura where possible, edit 
 ```
 
 Web3E will adjust the node endpoint to use Infura for all Infura supported networks. Note that you will need to enable Infura in the dashboard for all these networks; otherwise use the free connections.
+
+### RPC Node Updates
+
+Web3E's RPC node URLs in `src/nodes.h` are automatically updated from a performance-ranked feed using the build-time updater in `tools/`. The updater selects the fastest public nodes (up to 3 per chain) based on response time measurements.
+
+Each chain now supports up to 3 URLs for future failover/rotation:
+
+``` C++
+// Get primary URL (backward compatible)
+const char* primaryUrl = getNode(SEPOLIA_ID);
+
+// Get alternate URLs for failover
+const char* url1 = getNodeUrls(SEPOLIA_ID, 0);  // Primary
+const char* url2 = getNodeUrls(SEPOLIA_ID, 1);  // Alternate 1
+const char* url3 = getNodeUrls(SEPOLIA_ID, 2);  // Alternate 2
+```
+
+See `tools/README.md` for details on updating node URLs.
 
 ## Example Web3E DApp flow
 

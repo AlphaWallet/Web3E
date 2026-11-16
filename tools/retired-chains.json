@@ -1,0 +1,10 @@
+{
+  "comment": "Chains that are retired/reassigned and must NOT be included in nodes.h, even if the chain ID appears in the RPC feed with different RPCs",
+  "deniedChainIds": [
+    {
+      "chainId": 42,
+      "name": "Kovan",
+      "reason": "Deprecated Ethereum testnet; chain ID 42 reassigned to LUKSO mainnet"
+    }
+  ]
+}

@@ -1,0 +1,244 @@
+# Web3E Tools
+
+This directory contains build-time tools for maintaining the Web3E library.
+
+## RPC Node Updater
+
+The RPC node updater automatically fetches the latest RPC endpoint rankings and updates `src/nodes.h` with the fastest available public nodes.
+
+### Files
+
+- **`update_nodes.mjs`** - Node.js script that fetches rankings and updates nodes.h
+- **`auto-update.ps1`** - PowerShell wrapper for automated updates and PR creation
+- **`chains.json`** - Supported chains configuration (define name → chain ID mapping)
+- **`infura-chains.json`** - Infura endpoint mappings for supported chains
+- **`retired-chains.json`** - Deny list for retired/reassigned chain IDs
+- **`package.json`** - Node.js dependencies (no runtime dependencies required)
+
+### Requirements
+
+- **Node.js** (v18 or later recommended)
+- **Git**
+- **GitHub CLI** (`gh`) - Only needed for `auto-update.ps1`
+
+### Manual Usage
+
+#### Check for Updates (Dry Run)
+
+```bash
+cd tools
+npm install
+node update_nodes.mjs --check
+```
+
+This will check for available updates without modifying any files. Exits with code 1 if changes are pending, 0 if no changes.
+
+#### Apply Updates
+
+```bash
+cd tools
+node update_nodes.mjs
+```
+
+This fetches the latest RPC rankings and updates `src/nodes.h`:
+
+**nodes.h updates:**
+- Up to 3 URLs per chain (fastest first)
+- Only HTTPS URLs (no websockets)
+- No URLs with API key placeholders
+- Deterministic output (same input = same output)
+
+**Certificates.h:**
+- **Not auto-generated** - manually maintained
+- Contains only Infura root CA (Amazon Root CA 1) inside `#ifdef USING_INFURA`
+- Public RPCs use unverified TLS (`client->setInsecure()`) for simplicity
+- Infura (opt-in) uses pinned certificate verification
+
+The generated sections are clearly marked with comments.
+
+### Automated Updates (Windows)
+
+The `auto-update.ps1` PowerShell script can be scheduled to run periodically (e.g., weekly) on a Windows PC.
+
+```powershell
+cd tools
+.\auto-update.ps1
+```
+
+The script will:
+1. Check for RPC node updates
+2. If changes are found:
+   - Create a new branch (`rpc-nodes-update-YYYYMMDD`)
+   - Commit the changes
+   - Push the branch
+   - Create a pull request via GitHub CLI with a summary of changes
+
+#### Scheduling on Windows
+
+Create a scheduled task using Task Scheduler:
+
+1. Open Task Scheduler
+2. Create New Task
+3. **Trigger**: Weekly (e.g., every Sunday at 3 AM)
+4. **Action**: Start a program
+   - Program: `powershell.exe`
+   - Arguments: `-ExecutionPolicy Bypass -File "C:\path\to\Web3E\tools\auto-update.ps1"`
+   - Start in: `C:\path\to\Web3E`
+
+**Note**: Make sure GitHub CLI (`gh`) is installed and authenticated before scheduling:
+
+```powershell
+# Install GitHub CLI (if using winget)
+winget install --id GitHub.cli
+
+# Authenticate
+gh auth login
+```
+
+### Adding New Chains
+
+To add a new blockchain to Web3E:
+
+1. **Add the chain ID constant** to `src/chainIds.h`:
+   ```c
+   #define NEW_CHAIN_ID 12345
+   ```
+
+2. **Add the chain to** `tools/chains.json`:
+   ```json
+   {
+     "12345": { "id": "NEW_CHAIN_ID", "name": "New Chain" }
+   }
+   ```
+
+3. **(Optional) Add Infura support** to `tools/infura-chains.json`:
+   ```json
+   {
+     "12345": "new-chain.infura.io/v3/"
+   }
+   ```
+
+4. **Add a placeholder entry** to `src/nodes.h` (in both `getNode()` and `getNodeUrls()` functions):
+   ```c
+   case NEW_CHAIN_ID:
+       return NEW_CHAIN_ID_URL;  // Placeholder - generator will update
+   ```
+
+5. **Run the generator** to fetch real URLs from the feed:
+   ```bash
+   cd tools
+   node update_nodes.mjs
+   ```
+
+The generator will automatically:
+- Fetch the top 3 fastest URLs from the feed
+- Generate both public and Infura endpoint definitions
+- Update `nodes.h` with the new chain
+- Note: `Certificates.h` is manually maintained (not auto-generated)
+
+### How It Works
+
+1. **Supported Chains**: The updater loads supported chains from `tools/chains.json`, which maps chain IDs to their constant names (e.g., `"8453": { "id": "BASE_MAINNET_ID", "name": "Base" }`). This makes adding new chains a simple one-line change to the JSON file.
+
+2. **Feed Source**: The updater fetches RPC rankings from:
+   ```
+   https://pub-947f58bf7fb442f7a0d0686fcf757d76.r2.dev/rpc-rankings.json
+   ```
+
+3. **Selection Criteria**:
+   - Only updates chains listed in `tools/chains.json` and already present in `nodes.h`
+   - Deduplicates URLs (feed can contain duplicates for the same chain)
+   - Selects top 3 unique URLs based on response time (fastest first)
+   - Filters out:
+     - Non-HTTPS URLs
+     - Websocket URLs (ws://, wss://)
+     - URLs with API key placeholders (`${...}`, `YOUR_API_KEY`)
+     - URLs flagged as rate-limited (future-proof)
+
+3. **TLS Certificate Policy**:
+   - **Public RPCs:** Use unverified TLS (`client->setInsecure()`) for simplicity and broad compatibility
+   - **Infura (opt-in):** Uses pinned Amazon Root CA 1 for full TLS verification
+   - `Certificates.h` is manually maintained (not auto-generated)
+   - `getCertificate(chainId)` returns Amazon Root CA 1 only when `USING_INFURA` is defined and the selected host is `infura.io`
+
+4. **Output**:
+   - **nodes.h**:
+     - Primary URL: Available via `getNode(chainId)` (backwards compatible)
+     - Alternate URLs: Available via `getNodeUrls(chainId, index)` where index is 0-2
+     - All URLs stored as `PROGMEM` const char* for flash efficiency
+
+5. **Determinism**:
+   - URLs are sorted by chain ID
+   - Certificates are sorted by fingerprint
+   - Same feed + same TLS responses = same output
+   - No changes = no diff
+
+### API Changes in nodes.h
+
+The updated `nodes.h` maintains backward compatibility while adding support for multiple URLs:
+
+```cpp
+// Existing API (unchanged)
+const char* getNode(long long chainId);  // Returns primary URL
+
+// New API for accessing alternates
+const char* getNodeUrls(long long chainId, int index);  // index: 0-2
+```
+
+Example usage:
+
+```cpp
+// Get primary URL (backward compatible)
+const char* primary = getNode(SEPOLIA_ID);
+
+// Get all URLs for failover/rotation
+for (int i = 0; i < 3; i++) {
+    const char* url = getNodeUrls(SEPOLIA_ID, i);
+    if (url != NULL) {
+        // Try this URL
+    }
+}
+```
+
+### Maintenance
+
+The feed is generated regularly with fresh response time measurements. Running the updater periodically ensures the library uses the fastest available public nodes.
+
+**Recommended schedule**: Weekly or bi-weekly
+
+The updater preserves URLs for chains not present in the feed, and does not automatically add new chains (maintainer must add chain IDs to both `chainIds.h` and the initial `nodes.h` manually).
+
+### Infura Opt-In System
+
+By default, Web3E uses **public RPCs only**. Infura support is **opt-in** via compile-time flags.
+
+**Configuration Files:**
+- `tools/infura-chains.json` - Maps chain IDs to Infura endpoints
+- `tools/retired-chains.json` - Deny list for retired/reassigned chain IDs
+
+**Generated Code:**
+- `src/nodes.h` - Contains both public and Infura URL definitions with `#ifdef USING_INFURA` guards
+- `src/Certificates.h` - **Manually maintained**, contains only Infura root CA (Amazon Root CA 1) inside `#ifdef USING_INFURA`
+- `src/Web3.cpp` - Appends API key only when `USING_INFURA` is defined
+- `src/Web3.h` - Guards `INFURA_API_KEY` with `#ifndef` and `#ifdef USING_INFURA`
+
+**TLS Security:**
+- Public RPCs: Unverified TLS (encrypted but no server verification)
+- Infura: Pinned certificate verification with Amazon Root CA 1
+
+**Usage:**
+```ini
+; platformio.ini - Default (public RPCs)
+build_flags =
+    -DARDUINO_LOOP_STACK_SIZE=16384
+
+; platformio.ini - With Infura enabled
+build_flags =
+    -DARDUINO_LOOP_STACK_SIZE=16384
+    -DUSING_INFURA
+    -DINFURA_API_KEY="your-api-key-here"
+```
+
+**Behavior:**
+- **Without `-DUSING_INFURA`**: Uses public RPCs from the feed, ignores Infura key in constructor
+- **With `-DUSING_INFURA`**: Uses Infura as primary for supported chains, public RPCs as fallback

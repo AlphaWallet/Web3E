@@ -1,0 +1,14 @@
+{
+  "1": "mainnet.infura.io/v3/",
+  "10": "optimism-mainnet.infura.io/v3/",
+  "100": "gnosis-mainnet.infura.io/v3/",
+  "137": "polygon-mainnet.infura.io/v3/",
+  "8453": "base-mainnet.infura.io/v3/",
+  "42161": "arbitrum-mainnet.infura.io/v3/",
+  "43113": "avalanche-fuji.infura.io/ext/bc/C/rpc",
+  "59141": "linea-sepolia.infura.io/v3/",
+  "59144": "linea-mainnet.infura.io/v3/",
+  "84532": "base-sepolia.infura.io/v3/",
+  "421614": "arbitrum-sepolia.infura.io/v3/",
+  "11155111": "sepolia.infura.io/v3/"
+}

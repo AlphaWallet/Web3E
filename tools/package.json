@@ -1,0 +1,13 @@
+{
+  "name": "web3e-node-updater",
+  "version": "1.0.0",
+  "description": "Build-time RPC node updater for Web3E",
+  "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "update": "node update_nodes.mjs",
+    "check": "node update_nodes.mjs --check"
+  }
+}

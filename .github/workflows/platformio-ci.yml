@@ -1,0 +1,118 @@
+name: PlatformIO CI
+
+on:
+  pull_request:
+    branches: [ master, Development ]
+  push:
+    branches: [ master, Development ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        include:
+          # Test consumer project - verifies library can be consumed from git
+          - project: test-consumer
+            name: "Test Consumer (Git Dependency)"
+            type: build
+          
+          # Example projects - verify examples still build
+          - project: examples/Wallet Bridge 1
+            name: "Example: Wallet Bridge 1"
+            type: build
+          
+          - project: examples/Wallet Bridge 2
+            name: "Example: Wallet Bridge 2"
+            type: build
+          
+          # Test suite - verify tests compile (offline tests)
+          - project: tests
+            name: "Test Suite (Offline)"
+            type: test
+            env: esp32dev
+          
+          # Test suite - verify network tests compile (not run, just build)
+          - project: tests
+            name: "Test Suite (Network - compile only)"
+            type: test
+            env: esp32dev_network
+          
+          # Test with Infura opt-in flag (verifies USING_INFURA compiles)
+          - project: tests
+            name: "Test Suite (Offline - USING_INFURA flag)"
+            type: test
+            env: esp32dev
+            extra_flags: '-DUSING_INFURA'
+          
+          # Native tests - actually run on CI (not just compile)
+          - project: tests/test_http_parser
+            name: "Native Tests (HTTP Parser)"
+            type: native_test
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: ${{ runner.os }}-platformio-${{ hashFiles('**/platformio.ini') }}
+          restore-keys: |
+            ${{ runner.os }}-platformio-
+      
+      - name: Install PlatformIO
+        run: |
+          python -m pip install --upgrade pip
+          pip install platformio
+      
+      - name: Build ${{ matrix.name }}
+        if: matrix.type == 'build'
+        run: |
+          cd "${{ matrix.project }}"
+          # For examples, install Web3E from local repository instead of registry
+          if [[ "${{ matrix.project }}" == examples/* ]]; then
+            pio pkg install --library "file://$GITHUB_WORKSPACE"
+          fi
+          pio run --environment esp32dev
+      
+      - name: Compile Tests ${{ matrix.name }}
+        if: matrix.type == 'test'
+        run: |
+          cd "${{ matrix.project }}"
+          # Compile tests without uploading or running them
+          # Apply extra build flags if specified
+          if [ -n "${{ matrix.extra_flags }}" ]; then
+            export PLATFORMIO_BUILD_FLAGS="${{ matrix.extra_flags }}"
+          fi
+          pio test --environment ${{ matrix.env }} --without-uploading --without-testing
+      
+      - name: Run Native Tests ${{ matrix.name }}
+        if: matrix.type == 'native_test'
+        run: |
+          cd "${{ matrix.project }}"
+          # Run native tests (they execute on the CI runner)
+          pio test -e native
+      
+      - name: Show build artifacts size
+        if: success() && matrix.type == 'build'
+        run: |
+          cd "${{ matrix.project }}"
+          if [ -f .pio/build/esp32dev/firmware.bin ]; then
+            ls -lh .pio/build/esp32dev/firmware.bin
+          fi

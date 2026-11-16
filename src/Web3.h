@@ -17,10 +17,22 @@ typedef unsigned char BYTE;
 #define ETHERS_KECCAK256_LENGTH        32
 #define ETHERS_SIGNATURE_LENGTH        65
 
-#define INFURA_API_KEY "a9d6b1764a464faaa8f0399958601361" //For production you will want to make your own API key, visit https://infura.io
+// Infura API key (opt-in only)
+// Define -DUSING_INFURA and -DINFURA_API_KEY="your-key-here" in build_flags to enable
+#ifdef USING_INFURA
+  #ifndef INFURA_API_KEY
+    #define INFURA_API_KEY "a9d6b1764a464faaa8f0399958601361" // Staging key - REPLACE in production
+  #endif
+#endif
+
 /** Reused staging buffer for eth RPC HTTP bodies (avoids per-byte string growth). */
 #define WEB3_RPC_BUFFER_SIZE           4096
 #define WEB3_HTTP_LINE_BUFFER_SIZE     256
+
+/** HTTP timeout in milliseconds (wait for server response) */
+#ifndef WEB3_HTTP_TIMEOUT_MS
+#define WEB3_HTTP_TIMEOUT_MS           10000
+#endif
 
 class Web3;
 class Crypto;
@@ -64,9 +76,12 @@ public:
     long long int EthGasPrice();
     void EthAccounts(char** array, int size);
     int EthBlockNumber();
+    long long int EthChainId();
     uint256_t EthGetBalance(const string* address);
     int EthGetTransactionCount(const string* address);
     string EthViewCall(const string* data, const char* to);
+    long long int EthEstimateGas(const string* from, const char* to, const string* value, const string* data);
+    string EthGetTransactionReceipt(const string* txHash);
 
     string EthCall(const string* from, const char* to, long gas, long gasPrice, const string* value, const string* data);
     string EthSendSignedTransaction(const string* data, const uint32_t dataLen);

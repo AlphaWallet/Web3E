@@ -27,7 +27,7 @@ bool Crypto::Sign(BYTE* digest, BYTE* result)
 {
     const ecdsa_curve *curve = &secp256k1;
     uint8_t pby;
-    int res = 0;
+    int res = -1;
     bool allZero = true;
     for (int i = 0; i < ETHERS_PRIVATEKEY_LENGTH; i++) if (privateKey[i] != 0) allZero = false;
     if (allZero == true)
@@ -40,7 +40,7 @@ bool Crypto::Sign(BYTE* digest, BYTE* result)
         result[64] = pby;
     }
 
-	return (res == 1);
+	return (res == 0);
 }
 
 void Crypto::SetPrivateKey(const char *key) 

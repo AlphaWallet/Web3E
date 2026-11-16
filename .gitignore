@@ -1,2 +1,20 @@
 # Visual Studio Code project files
 .vscode/
+
+# PlatformIO build artifacts
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# Test credentials (never commit!)
+tests/test_config.ini
+
+# Node.js
+node_modules/
+package-lock.json
+
+# Other build artifacts
+*.o
+*.a
+*.bin
+*.elf
