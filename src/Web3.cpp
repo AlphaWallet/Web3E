@@ -148,6 +148,14 @@ int Web3::EthBlockNumber() {
     return getInt(&output);
 }
 
+long long int Web3::EthChainId() {
+    string m = "eth_chainId";
+    string p = "[]";
+    string input = generateJson(&m, &p);
+    string output = exec(&input);
+    return getLongLong(&output);
+}
+
 uint256_t Web3::EthGetBalance(const string* address) {
     string m = "eth_getBalance";
     string p = "[\"" + *address + "\",\"latest\"]";

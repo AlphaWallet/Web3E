@@ -868,45 +868,21 @@ async function main() {
     }
   }
   
-  // Fetch certificates for chains with updates
-  let certMap = new Map();
-  let uniqueCerts = new Map();
-  
-  if (!skipCerts) {
-    const certResult = await fetchCertificatesForChains(chainUpdates, existingChains);
-    certMap = certResult.certMap;
-    uniqueCerts = certResult.uniqueCerts;
-  }
-  
-  // Generate new Certificates.h
-  const newCertificatesContent = generateCertificatesH(existingChains, certMap, uniqueCerts, feedData, chainsToRemove);
-  
-  // Read old Certificates.h to detect changes
-  const oldCertificatesContent = fs.existsSync(CERTIFICATES_H_PATH) 
-    ? fs.readFileSync(CERTIFICATES_H_PATH, 'utf8')
-    : '';
-  
-  const certsChanged = oldCertificatesContent !== newCertificatesContent;
+  // Note: Certificate generation removed.
+  // Certificates.h is now manually maintained with only the Infura root CA (opt-in).
+  // Public RPCs use unverified TLS for simplicity and broad compatibility.
   
   if (isDryRun) {
     console.log('Dry run complete. Use without --check/--dry-run to apply changes.');
-    const anyChanges = changes.length > 0 || certsChanged;
-    if (certsChanged) {
-      console.log(`\nCertificates.h would be updated with ${uniqueCerts.size} root CA(s)`);
-    }
+    const anyChanges = changes.length > 0;
     process.exit(anyChanges ? 1 : 0);
   } else {
     console.log('Writing updated nodes.h...');
     fs.writeFileSync(NODES_H_PATH, newContent, 'utf8');
-    console.log('Done!');
-    
-    if (!skipCerts) {
-      console.log('\nWriting updated Certificates.h...');
-      fs.writeFileSync(CERTIFICATES_H_PATH, newCertificatesContent, 'utf8');
-      console.log('Done!');
-      console.log(`\nGenerated ${uniqueCerts.size} unique root certificate(s)`);
-    }
-    
+    console.log('Done!\n');
+    console.log('Note: Certificates.h is not auto-generated.');
+    console.log('      Public RPCs use unverified TLS (client->setInsecure())');
+    console.log('      Infura (opt-in) uses pinned Amazon Root CA 1\n');
     console.log('');
     process.exit(0);
   }

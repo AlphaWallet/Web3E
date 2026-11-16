@@ -71,6 +71,7 @@ public:
     long long int EthGasPrice();
     void EthAccounts(char** array, int size);
     int EthBlockNumber();
+    long long int EthChainId();
     uint256_t EthGetBalance(const string* address);
     int EthGetTransactionCount(const string* address);
     string EthViewCall(const string* data, const char* to);

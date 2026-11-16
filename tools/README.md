@@ -40,7 +40,7 @@ cd tools
 node update_nodes.mjs
 ```
 
-This fetches the latest RPC rankings and updates both `src/nodes.h` and `src/Certificates.h`:
+This fetches the latest RPC rankings and updates `src/nodes.h`:
 
 **nodes.h updates:**
 - Up to 3 URLs per chain (fastest first)
@@ -48,19 +48,13 @@ This fetches the latest RPC rankings and updates both `src/nodes.h` and `src/Cer
 - No URLs with API key placeholders
 - Deterministic output (same input = same output)
 
-**Certificates.h updates:**
-- Fetches TLS root CA certificate for each primary RPC URL
-- Walks the certificate chain to extract the root CA
-- Deduplicates identical roots (multiple hosts may share root CAs)
-- Generates PEM-encoded certificates as const char* constants
-- **Requires network access** - connects to each hostname via TLS
+**Certificates.h:**
+- **Not auto-generated** - manually maintained
+- Contains only Infura root CA (Amazon Root CA 1) inside `#ifdef USING_INFURA`
+- Public RPCs use unverified TLS (`client->setInsecure()`) for simplicity
+- Infura (opt-in) uses pinned certificate verification
 
 The generated sections are clearly marked with comments.
-
-**To skip certificate fetching** (e.g., for testing nodes.h changes only):
-```bash
-node update_nodes.mjs --skip-certs
-```
 
 ### Automated Updates (Windows)
 
@@ -138,9 +132,9 @@ To add a new blockchain to Web3E:
 
 The generator will automatically:
 - Fetch the top 3 fastest URLs from the feed
-- Extract TLS certificates
 - Generate both public and Infura endpoint definitions
-- Update `nodes.h` and `Certificates.h` with the new chain
+- Update `nodes.h` with the new chain
+- Note: `Certificates.h` is manually maintained (not auto-generated)
 
 ### How It Works
 
@@ -161,23 +155,17 @@ The generator will automatically:
      - URLs with API key placeholders (`${...}`, `YOUR_API_KEY`)
      - URLs flagged as rate-limited (future-proof)
 
-3. **Certificate Fetching** (requires network access):
-   - Connects to each primary RPC hostname via TLS (port 443)
-   - Uses SNI (Server Name Indication) for modern TLS
-   - Walks the certificate chain to find the root CA
-   - Extracts root CA as PEM-encoded certificate
-   - Deduplicates identical root CAs (e.g., many hosts use Google Trust Services)
-   - Chains without successful cert fetch will use insecure mode (not recommended for mainnet)
+3. **TLS Certificate Policy**:
+   - **Public RPCs:** Use unverified TLS (`client->setInsecure()`) for simplicity and broad compatibility
+   - **Infura (opt-in):** Uses pinned Amazon Root CA 1 for full TLS verification
+   - `Certificates.h` is manually maintained (not auto-generated)
+   - `getCertificate(chainId)` returns Amazon Root CA 1 only when `USING_INFURA` is defined and the selected host is `infura.io`
 
 4. **Output**:
    - **nodes.h**:
      - Primary URL: Available via `getNode(chainId)` (backwards compatible)
      - Alternate URLs: Available via `getNodeUrls(chainId, index)` where index is 0-2
      - All URLs stored as `PROGMEM` const char* for flash efficiency
-   - **Certificates.h**:
-     - Root CA certificates as PEM-encoded const char* constants
-     - `getCertificate(chainId)` returns the root CA for the primary URL
-     - If NULL, Web3::setupCert() uses insecure mode
 
 5. **Determinism**:
    - URLs are sorted by chain ID
@@ -230,9 +218,13 @@ By default, Web3E uses **public RPCs only**. Infura support is **opt-in** via co
 
 **Generated Code:**
 - `src/nodes.h` - Contains both public and Infura URL definitions with `#ifdef USING_INFURA` guards
-- `src/Certificates.h` - Contains both public root CAs and Infura root CA (Amazon Root CA 1)
+- `src/Certificates.h` - **Manually maintained**, contains only Infura root CA (Amazon Root CA 1) inside `#ifdef USING_INFURA`
 - `src/Web3.cpp` - Appends API key only when `USING_INFURA` is defined
 - `src/Web3.h` - Guards `INFURA_API_KEY` with `#ifndef` and `#ifdef USING_INFURA`
+
+**TLS Security:**
+- Public RPCs: Unverified TLS (encrypted but no server verification)
+- Infura: Pinned certificate verification with Amazon Root CA 1
 
 **Usage:**
 ```ini

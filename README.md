@@ -186,9 +186,13 @@ build_flags =
     -DINFURA_API_KEY=\"your-infura-api-key-here\"
 ```
 
-**Without these flags:** The library will use public RPCs from the curated rankings feed. The `Web3(chainId, infura_key)` constructor will ignore the key parameter and log a warning.
+**Without these flags:** The library will use public RPCs from the curated rankings feed. The `Web3(chainId, infura_key)` constructor will ignore the key parameter and log a warning. **Public RPCs use unverified TLS** (HTTPS connection without server certificate verification) for simplicity and broad compatibility.
 
-**With `-DUSING_INFURA` defined:** Infura endpoints become the primary RPC for supported chains (Ethereum, Polygon, Optimism, Arbitrum, Base, Avalanche testnets), with public nodes as fallback. The appropriate Infura root CA certificate is used for TLS verification.
+**With `-DUSING_INFURA` defined:** Infura endpoints become the primary RPC for supported chains (Ethereum, Polygon, Optimism, Arbitrum, Base, Linea, Avalanche testnets), with public nodes as fallback. **Infura uses pinned TLS certificate verification** with Amazon Root CA 1 for enhanced security.
+
+**TLS Certificate Policy:**
+- **Public RPCs:** Unverified TLS (`client->setInsecure()`) - encrypted connection without server verification
+- **Infura (opt-in):** Pinned Amazon Root CA 1 - full TLS verification with certificate pinning
 
 **Supported Infura chains:** See `tools/infura-chains.json` for the complete list of chains with Infura endpoints.
 

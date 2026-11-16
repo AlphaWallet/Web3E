@@ -102,9 +102,11 @@ void test_sepolia_chain_id() {
     Serial.println("\n=== Sepolia Chain ID Test ===");
     
     Web3 web3(SEPOLIA_CHAIN_ID);
-    long long chainId = web3.getChainId();
     
-    Serial.print("Chain ID: ");
+    // Call eth_chainId RPC method (genuine network I/O test)
+    long long chainId = web3.EthChainId();
+    
+    Serial.print("Chain ID (from RPC): ");
     Serial.println((long)chainId);
     
     TEST_ASSERT_EQUAL(SEPOLIA_CHAIN_ID, (long)chainId);
@@ -146,9 +148,11 @@ void test_mainnet_chain_id() {
     delay(500); // Rate limit protection
     
     Web3 web3(MAINNET_CHAIN_ID);
-    long long chainId = web3.getChainId();
     
-    Serial.print("Chain ID: ");
+    // Call eth_chainId RPC method (genuine network I/O test)
+    long long chainId = web3.EthChainId();
+    
+    Serial.print("Chain ID (from RPC): ");
     Serial.println((long)chainId);
     
     TEST_ASSERT_EQUAL(MAINNET_CHAIN_ID, (long)chainId);
