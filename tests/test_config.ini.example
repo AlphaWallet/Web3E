@@ -34,14 +34,17 @@ TEST_TOKEN_CONTRACT=
 
 # ===== ERC721 Query Tests (MAINNET, read-only) =====
 # ERC721 contract address to query on mainnet (NO FUNDS NEEDED - read only)
-# Tests query balanceOf(0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045) (Vitalik's address)
-# Expects balance > 0
+# Tests query balanceOf(holder) and expect balance > 0
 # Popular NFT examples:
 #   CryptoPunks: 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB
 #   Bored Apes: 0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D
 #   Azuki: 0xED5AF388653567Af2F388E6224dC7C4b3241C544
 # Leave empty to skip ERC721 test
 ERC721_CONTRACT=
+
+# Holder address to query (must own at least 1 NFT in the contract above)
+# Leave empty to skip ERC721 test
+ERC721_NFT_TEST_ADDRESS=
 
 # ===== Wallet Bridge Tests =====
 # Bridge tests use the service bridge URL (built-in to Web3E)

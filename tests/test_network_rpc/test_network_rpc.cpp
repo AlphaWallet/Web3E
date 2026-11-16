@@ -33,6 +33,10 @@
 #define ERC721_CONTRACT ""
 #endif
 
+#ifndef ERC721_NFT_TEST_ADDRESS
+#define ERC721_NFT_TEST_ADDRESS ""
+#endif
+
 // Web3E uses built-in node selection based on chain ID
 #define SEPOLIA_CHAIN_ID 11155111
 #define MAINNET_CHAIN_ID 1
@@ -277,33 +281,35 @@ void test_erc20_balance() {
 
 // ===== ERC721 Tests (Optional) =====
 
-void test_erc721_vitalik_balance() {
+void test_erc721_balance() {
     connectWiFi();
     TEST_ASSERT_TRUE(wifiConnected);
     
-    if (strlen(ERC721_CONTRACT) == 0) {
-        TEST_IGNORE_MESSAGE("ERC721_CONTRACT not configured in test_config.ini");
+    if (strlen(ERC721_CONTRACT) == 0 || strlen(ERC721_NFT_TEST_ADDRESS) == 0) {
+        TEST_IGNORE_MESSAGE("ERC721_CONTRACT or ERC721_NFT_TEST_ADDRESS not configured in test_config.ini");
         return;
     }
     
-    Serial.println("\n=== ERC721 Balance Test (Vitalik, Mainnet) ===");
+    Serial.println("\n=== ERC721 Balance Test (Mainnet) ===");
     
     delay(500); // Rate limit protection
     Serial.print("Contract: ");
     Serial.println(ERC721_CONTRACT);
+    Serial.print("Holder: ");
+    Serial.println(ERC721_NFT_TEST_ADDRESS);
     
     Web3 web3(MAINNET_CHAIN_ID);
     Contract contract(&web3, ERC721_CONTRACT);
     
-    string address = VITALIK_ADDRESS;
+    string address = ERC721_NFT_TEST_ADDRESS;
     string param = contract.SetupContractData("balanceOf(address)", &address);
     string result = contract.ViewCall(&param);
     long balance = web3.getInt(&result);
     
-    Serial.print("Vitalik NFT balance: ");
+    Serial.print("NFT balance: ");
     Serial.println(balance);
     
-    // Vitalik should own at least one NFT in the configured contract
+    // Holder should own at least one NFT in the configured contract
     TEST_ASSERT_GREATER_THAN(0, balance);
 }
 
@@ -340,7 +346,7 @@ void setup() {
     RUN_TEST(test_erc20_balance);
     
     // ERC721 test (optional)
-    RUN_TEST(test_erc721_vitalik_balance);
+    RUN_TEST(test_erc721_balance);
     
     UNITY_END();
 #else

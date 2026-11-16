@@ -26,7 +26,8 @@ if os.path.exists(config_file):
                         valid_keys = [
                             'WIFI_SSID', 'WIFI_PASS',
                             'TEST_PRIVATE_KEY', 'TEST_TO_ADDRESS',
-                            'TEST_TOKEN_CONTRACT', 'ERC721_CONTRACT'
+                            'TEST_TOKEN_CONTRACT', 'ERC721_CONTRACT',
+                            'ERC721_NFT_TEST_ADDRESS'
                         ]
                         if key in valid_keys:
                             env.Append(CPPDEFINES=[(key, env.StringifyMacro(value))])
