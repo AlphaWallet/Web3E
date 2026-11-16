@@ -2,6 +2,7 @@
 #define WEB3E_CERTS_H
 
 #include "chainIds.h"
+#include "nodes.h"
 
 // =============================================================================
 // TLS CERTIFICATE CONFIGURATION
