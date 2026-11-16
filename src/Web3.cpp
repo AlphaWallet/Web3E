@@ -14,6 +14,7 @@
 #include "HttpParser.h"
 #include <iostream>
 #include <sstream>
+#include <memory>
 #include "nodes.h"
 
 Web3::Web3(long long networkId) {
@@ -529,24 +530,56 @@ string Web3::getString(const string *json)
         return string("");
     }
 
-    vector<string> *v = Util::ConvertStringHexToABIArray(&parseVal);
+    std::unique_ptr<vector<string>> v(Util::ConvertStringHexToABIArray(&parseVal));
     
-    uint32_t length = (uint32_t)uint256_t(v->at(1));
-    uint32_t lengthIndex = length;
-    uint32_t hexChars = length * 2;
-
-    string asciiHex;
-    int index = 2;
-    while (lengthIndex > 0)
+    // Validate we have at least offset + length words (minimum 2 words)
+    if (!v || v->size() < 2)
     {
-        asciiHex += v->at(index++);
-        lengthIndex -= 32;
+        return string("");
     }
 
-    //convert ascii into string
+    // Read offset word to locate the length word
+    // For standalone dynamic returns, offset is typically 0x20 (32 bytes = word 1)
+    uint256_t offsetWord(v->at(0));
+    uint32_t offsetBytes = (uint32_t)offsetWord;
+    size_t offsetWords = offsetBytes / 32;
+    
+    // Validate offset is within bounds
+    if (offsetWords >= v->size())
+    {
+        return string("");
+    }
+    
+    // Read length at the offset position
+    uint256_t lengthWord(v->at(offsetWords));
+    uint32_t length = (uint32_t)lengthWord;
+    
+    // Calculate number of 32-byte words needed for the string data
+    // Each word holds up to 32 bytes, so words = ceil(length / 32)
+    size_t words = (length + 31) / 32;
+    
+    // Validate we have enough data: offset word + length word + data words
+    if (v->size() < offsetWords + 1 + words)
+    {
+        return string("");
+    }
+    
+    // Extract hex characters from the data words
+    string asciiHex;
+    size_t dataStartIndex = offsetWords + 1;
+    for (size_t i = 0; i < words; i++)
+    {
+        asciiHex += v->at(dataStartIndex + i);
+    }
+    
+    // Convert only the actual string bytes (not the padding)
+    uint32_t hexChars = length * 2;
+    if (hexChars > asciiHex.length())
+    {
+        return string("");
+    }
+    
     string text = Util::ConvertHexToASCII(asciiHex.substr(0, hexChars).c_str(), hexChars);
-    delete v;
-
     return text;
 }
 
