@@ -29,6 +29,11 @@ typedef unsigned char BYTE;
 #define WEB3_RPC_BUFFER_SIZE           4096
 #define WEB3_HTTP_LINE_BUFFER_SIZE     256
 
+/** HTTP timeout in milliseconds (wait for server response) */
+#ifndef WEB3_HTTP_TIMEOUT_MS
+#define WEB3_HTTP_TIMEOUT_MS           10000
+#endif
+
 class Web3;
 class Crypto;
 class KeyID;
