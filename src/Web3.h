@@ -80,6 +80,8 @@ public:
     uint256_t EthGetBalance(const string* address);
     int EthGetTransactionCount(const string* address);
     string EthViewCall(const string* data, const char* to);
+    long long int EthEstimateGas(const string* from, const char* to, const string* value, const string* data);
+    string EthGetTransactionReceipt(const string* txHash);
 
     string EthCall(const string* from, const char* to, long gas, long gasPrice, const string* value, const string* data);
     string EthSendSignedTransaction(const string* data, const uint32_t dataLen);

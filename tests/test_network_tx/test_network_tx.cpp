@@ -104,18 +104,64 @@ bool hasTestCredentials() {
            strcmp(TEST_PRIVATE_KEY, "DabbaD00DabbaD00DabbaD00DabbaD00DabbaD00DabbaD00DabbaD00DabbaD00") != 0;
 }
 
-void waitForReceipt(const string& txHash, int maxWaitSeconds = 60) {
+string normalizeTxHash(const string& hash) {
+    // If hash doesn't have 0x prefix, add it
+    if (hash.length() == 64) {
+        return "0x" + hash;
+    }
+    return hash;
+}
+
+void waitForReceipt(Web3& web3, const string& txHash, int maxWaitSeconds = 60) {
+    string normalizedHash = normalizeTxHash(txHash);
+    
     Serial.print("Waiting for transaction receipt: ");
-    Serial.println(txHash.c_str());
-    
-    // Note: Web3E doesn't have a built-in getTransactionReceipt yet
-    // This is a placeholder for polling implementation
-    Serial.println("Transaction sent. Check on block explorer:");
+    Serial.println(normalizedHash.c_str());
     Serial.print("https://sepolia.etherscan.io/tx/");
-    Serial.println(txHash.c_str());
+    Serial.println(normalizedHash.c_str());
     
-    // Wait a bit for transaction to be mined
-    delay(5000);
+    unsigned long startTime = millis();
+    const unsigned long timeout = maxWaitSeconds * 1000;
+    
+    // Poll for receipt
+    while ((millis() - startTime) < timeout) {
+        delay(3000); // Wait 3 seconds between polls
+        
+        string receipt = web3.EthGetTransactionReceipt(&normalizedHash);
+        
+        // Check if receipt exists (not null)
+        if (receipt.find("\"result\":null") == string::npos && 
+            receipt.find("\"result\":{}") == string::npos) {
+            
+            Serial.println("Transaction mined!");
+            
+            // Extract status from receipt
+            size_t statusPos = receipt.find("\"status\":");
+            if (statusPos != string::npos) {
+                // Find the status value (either "0x0" or "0x1")
+                size_t valueStart = receipt.find("\"", statusPos + 9);
+                if (valueStart != string::npos) {
+                    size_t valueEnd = receipt.find("\"", valueStart + 1);
+                    if (valueEnd != string::npos) {
+                        string status = receipt.substr(valueStart + 1, valueEnd - valueStart - 1);
+                        Serial.print("Transaction status: ");
+                        Serial.println(status.c_str());
+                        
+                        // Assert transaction succeeded
+                        TEST_ASSERT_TRUE_MESSAGE(status == "0x1", "Transaction reverted (status 0x0)");
+                        return;
+                    }
+                }
+            }
+            
+            // If we got a receipt but couldn't parse status, print it for debugging
+            Serial.println("Warning: Got receipt but couldn't parse status");
+            Serial.println(receipt.c_str());
+            return;
+        }
+    }
+    
+    TEST_FAIL_MESSAGE("Transaction receipt timeout - transaction not mined within timeout");
 }
 
 // ===== Transaction Tests =====
@@ -166,10 +212,25 @@ void test_send_eth_transaction() {
     
     // Transaction parameters
     unsigned long long gasPrice = 2000000000ULL; // 2 Gwei
-    uint32_t gasLimit = 21000;
     uint256_t value = Util::ConvertToWei(TEST_ETH_AMOUNT, 18);
     string emptyData = "";
     string toAddress = TEST_TO_ADDRESS;
+    
+    // Estimate gas with 25% margin
+    string valueHex = "0x" + value.str(16);
+    long long estimatedGas = web3.EthEstimateGas(&fromAddress, toAddress.c_str(), &valueHex, &emptyData);
+    uint32_t gasLimit;
+    
+    if (estimatedGas > 0) {
+        gasLimit = (uint32_t)(estimatedGas * 1.25); // Add 25% margin
+        Serial.print("Estimated gas: ");
+        Serial.print((long)estimatedGas);
+        Serial.print(" -> Using: ");
+        Serial.println(gasLimit);
+    } else {
+        gasLimit = 21000; // Fallback for simple ETH transfer
+        Serial.println("Gas estimation failed, using default: 21000");
+    }
     
     // Send transaction
     Serial.println("Sending transaction...");
@@ -183,11 +244,16 @@ void test_send_eth_transaction() {
     Serial.print("Transaction hash: ");
     Serial.println(txHash.c_str());
     
-    // Verify we got a transaction hash (starts with 0x and is 66 chars)
-    TEST_ASSERT_TRUE(txHash.length() == 66);
-    TEST_ASSERT_TRUE(txHash.substr(0, 2) == "0x");
+    // Verify we got a transaction hash (64 or 66 chars)
+    // Web3::getResult may strip the 0x prefix, so accept both formats
+    TEST_ASSERT_TRUE(txHash.length() == 64 || txHash.length() == 66);
     
-    waitForReceipt(txHash);
+    // Normalize hash (add 0x if missing)
+    string normalizedHash = normalizeTxHash(txHash);
+    TEST_ASSERT_EQUAL(66, normalizedHash.length());
+    TEST_ASSERT_TRUE(normalizedHash.substr(0, 2) == "0x");
+    
+    waitForReceipt(web3, normalizedHash);
 }
 
 void test_send_erc20_transaction() {
@@ -251,13 +317,28 @@ void test_send_erc20_transaction() {
     
     // Transaction parameters
     unsigned long long gasPrice = 2000000000ULL; // 2 Gwei
-    uint32_t gasLimit = 100000;
     uint256_t callValue = 0; // No ETH sent, just token transfer
     string toAddress = TEST_TO_ADDRESS;
     string contractAddress = TEST_TOKEN_CONTRACT;
     
     // Setup contract call data for transfer(address,uint256)
     string data = contract.SetupContractData("transfer(address,uint256)", &toAddress, &transferAmount);
+    
+    // Estimate gas with 25% margin
+    string valueHex = "0x0";
+    long long estimatedGas = web3.EthEstimateGas(&fromAddress, contractAddress.c_str(), &valueHex, &data);
+    uint32_t gasLimit;
+    
+    if (estimatedGas > 0) {
+        gasLimit = (uint32_t)(estimatedGas * 1.25); // Add 25% margin
+        Serial.print("Estimated gas: ");
+        Serial.print((long)estimatedGas);
+        Serial.print(" -> Using: ");
+        Serial.println(gasLimit);
+    } else {
+        gasLimit = 200000; // Fallback for ERC20 transfers
+        Serial.println("Gas estimation failed, using default: 200000");
+    }
     
     // Send transaction
     Serial.println("Sending ERC20 transfer...");
@@ -271,11 +352,16 @@ void test_send_erc20_transaction() {
     Serial.print("Transaction hash: ");
     Serial.println(txHash.c_str());
     
-    // Verify we got a transaction hash
-    TEST_ASSERT_TRUE(txHash.length() == 66);
-    TEST_ASSERT_TRUE(txHash.substr(0, 2) == "0x");
+    // Verify we got a transaction hash (64 or 66 chars)
+    // Web3::getResult may strip the 0x prefix, so accept both formats
+    TEST_ASSERT_TRUE(txHash.length() == 64 || txHash.length() == 66);
     
-    waitForReceipt(txHash);
+    // Normalize hash (add 0x if missing)
+    string normalizedHash = normalizeTxHash(txHash);
+    TEST_ASSERT_EQUAL(66, normalizedHash.length());
+    TEST_ASSERT_TRUE(normalizedHash.substr(0, 2) == "0x");
+    
+    waitForReceipt(web3, normalizedHash);
 }
 
 void test_transaction_signing_only() {

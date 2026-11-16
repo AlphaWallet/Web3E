@@ -220,7 +220,7 @@ void test_erc20_name() {
     
     string param = contract.SetupContractData("name()");
     string result = contract.ViewCall(&param);
-    string name = Util::InterpretStringResult(web3.getString(&result).c_str());
+    string name = web3.getString(&result);
     
     Serial.print("Token name: ");
     Serial.println(name.c_str());

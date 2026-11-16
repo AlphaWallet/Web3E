@@ -178,6 +178,47 @@ string Web3::EthViewCall(const string* data, const char* to)
     return exec(&input);
 }
 
+long long int Web3::EthEstimateGas(const string* from, const char* to, const string* value, const string* data)
+{
+    string m = "eth_estimateGas";
+    string p = "[{";
+    
+    if (from != nullptr && from->length() > 0) {
+        p += "\"from\":\"" + *from + "\",";
+    }
+    
+    if (to != nullptr && strlen(to) > 0) {
+        p += "\"to\":\"" + string(to) + "\",";
+    }
+    
+    if (value != nullptr && value->length() > 0 && *value != "0" && *value != "0x0") {
+        p += "\"value\":\"" + *value + "\",";
+    }
+    
+    if (data != nullptr && data->length() > 0 && *data != "0x") {
+        p += "\"data\":\"" + *data + "\",";
+    }
+    
+    // Remove trailing comma if present
+    if (p.back() == ',') {
+        p = p.substr(0, p.length() - 1);
+    }
+    
+    p += "}]";
+    
+    string input = generateJson(&m, &p);
+    string output = exec(&input);
+    return getLongLong(&output);
+}
+
+string Web3::EthGetTransactionReceipt(const string* txHash)
+{
+    string m = "eth_getTransactionReceipt";
+    string p = "[\"" + *txHash + "\"]";
+    string input = generateJson(&m, &p);
+    return exec(&input);
+}
+
 int Web3::EthGetTransactionCount(const string* address) {
     string m = "eth_getTransactionCount";
     string p = "[\"" + *address + "\",\"pending\"]"; //in case we need to push several transactions in a row
