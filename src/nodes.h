@@ -86,7 +86,7 @@
 // END GENERATED SECTION
 // =============================================================================
 
-const char* getNode(long long chainId)
+inline const char* getNode(long long chainId)
 {
     switch (chainId)
     {
@@ -136,7 +136,7 @@ const char* getNode(long long chainId)
 // Get all available URLs for a chain (up to 3)
 // Returns primary URL at index 0
 // Returns NULL when index is out of range
-const char* getNodeUrls(long long chainId, int index)
+inline const char* getNodeUrls(long long chainId, int index)
 {
     if (index < 0 || index >= 3) return NULL;
     

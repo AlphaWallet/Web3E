@@ -304,7 +304,7 @@ function generateNodesH(existingChains, chainUpdates, chainsToRemove, feedData) 
 `;
   
   // Generate getNode function
-  header += `const char* getNode(long long chainId)
+  header += `inline const char* getNode(long long chainId)
 {
     switch (chainId)
     {
@@ -365,7 +365,7 @@ function generateNodesH(existingChains, chainUpdates, chainsToRemove, feedData) 
   header += `// Get all available URLs for a chain (up to 3)
 // Returns primary URL at index 0
 // Returns NULL when index is out of range
-const char* getNodeUrls(long long chainId, int index)
+inline const char* getNodeUrls(long long chainId, int index)
 {
     if (index < 0 || index >= ${MAX_URLS_PER_CHAIN}) return NULL;
     

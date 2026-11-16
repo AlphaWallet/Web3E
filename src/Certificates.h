@@ -17,7 +17,7 @@
 #ifdef USING_INFURA
 // Root CA for Infura (Amazon Root CA 1)
 // Used for all Infura endpoints: mainnet.infura.io, polygon-mainnet.infura.io, etc.
-const char* infura_root_ca_cert = "-----BEGIN CERTIFICATE-----\n" \
+static const char* const infura_root_ca_cert = "-----BEGIN CERTIFICATE-----\n" \
 "MIIDQTCCAimgAwIBAgITBmyfz5m/jAo54vB4ikPmljZbyjANBgkqhkiG9w0BAQsF\n" \
 "ADA5MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRkwFwYDVQQDExBBbWF6\n" \
 "b24gUm9vdCBDQSAxMB4XDTE1MDUyNjAwMDAwMFoXDTM4MDExNzAwMDAwMFowOTEL\n" \
@@ -52,7 +52,7 @@ const char* infura_root_ca_cert = "-----BEGIN CERTIFICATE-----\n" \
  * @param chainId Chain ID (used to determine selected host via getNode())
  * @return const char* Amazon Root CA 1 for Infura, NULL for public RPCs
  */
-const char* getCertificate(long long chainId)
+inline const char* getCertificate(long long chainId)
 {
 #ifdef USING_INFURA
     // Check if the selected host is an Infura endpoint
