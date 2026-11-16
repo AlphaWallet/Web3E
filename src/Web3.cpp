@@ -646,7 +646,18 @@ void Web3::setupCert()
 
 void Web3::selectHost()
 {
-    std::string node = getNode(chainId);
+    const char* nodeStr = getNode(chainId);
+    
+    // Null-check for safety (getNode should return "" not NULL, but be defensive)
+    if (nodeStr == NULL || strlen(nodeStr) == 0)
+    {
+        Serial.print("ChainId: ");
+        Serial.print(chainId);
+        Serial.println(" is not yet supported, please add the RPC (and certificate if required) and submit a PR to the repo.");
+        return;
+    }
+    
+    std::string node = nodeStr;
 
 #ifdef USING_INFURA
     if (node.find("infura.io") != std::string::npos && infura_key)
@@ -654,14 +665,6 @@ void Web3::selectHost()
         node += infura_key;
     }
 #endif
-
-    if (node.length() == 0)
-    {
-        Serial.print("ChainId: ");
-        Serial.print(chainId);
-        Serial.println("Is not yet supported, please add the RPC (and certificate if required) and submit a PR to the repo.");
-        return;
-    }
 
     int ppos = node.find(":");
     if (ppos > 0)

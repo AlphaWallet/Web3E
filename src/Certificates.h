@@ -57,7 +57,7 @@ inline const char* getCertificate(long long chainId)
 #ifdef USING_INFURA
     // Check if the selected host is an Infura endpoint
     const char* node = getNode(chainId);
-    if (node != NULL && strstr(node, "infura.io") != NULL) {
+    if (node != NULL && strlen(node) > 0 && strstr(node, "infura.io") != NULL) {
         return infura_root_ca_cert;
     }
 #endif

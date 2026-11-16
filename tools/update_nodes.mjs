@@ -355,7 +355,7 @@ function generateNodesH(existingChains, chainUpdates, chainsToRemove, feedData) 
   }
   
   header += `    default:
-        return NULL;
+        return "";
     }
 }
 

@@ -129,7 +129,7 @@ inline const char* getNode(long long chainId)
     case SEPOLIA_ID:
         return SEPOLIA_ID_URL;
     default:
-        return NULL;
+        return "";
     }
 }
 
