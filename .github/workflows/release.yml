@@ -1,0 +1,111 @@
+name: Release to PlatformIO Registry
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (pack only, do not publish)'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || github.ref }}
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install PlatformIO
+        run: |
+          python -m pip install --upgrade pip
+          pip install platformio
+      
+      - name: Verify tag matches library.json version
+        run: |
+          # Extract version from library.json
+          LIBRARY_VERSION=$(python -c "import json; print(json.load(open('library.json'))['version'])")
+          
+          # Get tag name (from release event or workflow_dispatch)
+          if [ "${{ github.event_name }}" == "release" ]; then
+            TAG_NAME="${{ github.event.release.tag_name }}"
+          else
+            TAG_NAME="${{ github.ref_name }}"
+          fi
+          
+          # Strip leading 'v' from tag
+          TAG_VERSION="${TAG_NAME#v}"
+          
+          echo "Library version: $LIBRARY_VERSION"
+          echo "Tag version: $TAG_VERSION (from tag: $TAG_NAME)"
+          
+          if [ "$LIBRARY_VERSION" != "$TAG_VERSION" ]; then
+            echo "❌ ERROR: Version mismatch!"
+            echo "Tag version '$TAG_VERSION' does not match library.json version '$LIBRARY_VERSION'"
+            echo "Please ensure the tag matches the version in library.json (e.g., tag v1.45 for version 1.45)"
+            exit 1
+          fi
+          
+          echo "✅ Version verified: $LIBRARY_VERSION"
+      
+      - name: Run offline tests compile
+        run: |
+          cd tests
+          pio test --environment esp32dev --without-uploading --without-testing
+      
+      - name: Run native HTTP parser tests
+        run: |
+          cd tests/test_http_parser
+          pio test -e native
+      
+      - name: Pack library
+        id: pack
+        run: |
+          pio pkg pack --output Web3E-package.tar.gz
+          echo "package_path=Web3E-package.tar.gz" >> $GITHUB_OUTPUT
+          
+          # Show package contents
+          echo "📦 Package contents:"
+          tar -tzf Web3E-package.tar.gz | head -50
+          
+          # Count total files
+          FILE_COUNT=$(tar -tzf Web3E-package.tar.gz | wc -l)
+          echo "Total files in package: $FILE_COUNT"
+      
+      - name: Publish to PlatformIO Registry
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == false)
+        env:
+          PLATFORMIO_AUTH_TOKEN: ${{ secrets.PLATFORMIO_AUTH_TOKEN }}
+        run: |
+          echo "Publishing Web3E to PlatformIO Registry..."
+          pio pkg publish --type library --owner alphawallet --no-interactive
+      
+      - name: Upload package artifact (dry run)
+        if: github.event_name == 'workflow_dispatch' && inputs.dry_run == true
+        uses: actions/upload-artifact@v4
+        with:
+          name: web3e-package
+          path: ${{ steps.pack.outputs.package_path }}
+          retention-days: 30
+      
+      - name: Attach package to GitHub Release
+        if: github.event_name == 'release'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload ${{ github.event.release.tag_name }} \
+            ${{ steps.pack.outputs.package_path }} \
+            --clobber
