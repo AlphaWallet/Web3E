@@ -93,10 +93,14 @@ class E2ETestRunner {
                 resolve(this.result);
             }, this.timeoutMs);
             
-            // Open serial port
+            // Open serial port with autoOpen:false to control DTR/RTS before opening
+            // This prevents node serialport from asserting DTR/RTS on open (which triggers bootloader)
             this.port = new SerialPort({
                 path: this.serialPath,
-                baudRate: 115200
+                baudRate: 115200,
+                autoOpen: false,
+                rtscts: false,  // Disable hardware flow control
+                hupcl: false    // Don't reset on close
             });
             
             this.port.on('error', (err) => {
@@ -105,17 +109,36 @@ class E2ETestRunner {
                 resolve(this.result);
             });
             
-            this.port.on('open', async () => {
+            // Manually open the port and control reset sequence
+            this.port.open(async (err) => {
+                if (err) {
+                    this.result.error = `Failed to open serial port: ${err.message}`;
+                    this.cleanup();
+                    resolve(this.result);
+                    return;
+                }
+                
                 console.log('✓ Serial port opened');
                 
-                // Reset ESP32 by pulsing EN pin (DTR=false, RTS=true for 200ms, then RTS=false)
-                // This is the standard esptool reset sequence for ESP32 DevKit boards
+                // Reset ESP32 using EN pin pulse (avoid bootloader mode)
+                // CRITICAL: node serialport asserts DTR (GPIO0) by default on open
+                // DTR low during EN pulse = bootloader mode. Must explicitly set dtr:false.
+                // Known-good sequence: DtrEnable=false, RtsEnable=true, Open, sleep 200ms, RtsEnable=false
                 try {
                     console.log('⏳ Resetting ESP32...');
+                    
+                    // Step 1: Immediately set both low to establish known state
+                    await this.port!.set({ dtr: false, rts: false });
+                    await this.sleep(50);
+                    
+                    // Step 2: Assert EN (RTS=true) while keeping GPIO0 high (DTR=false)
                     await this.port!.set({ dtr: false, rts: true });
                     await this.sleep(200);
-                    await this.port!.set({ rts: false });
+                    
+                    // Step 3: Release EN (RTS=false) while keeping GPIO0 high (DTR=false)
+                    await this.port!.set({ dtr: false, rts: false });
                     await this.sleep(100); // Brief stabilization delay
+                    
                     console.log('✓ ESP32 reset complete, monitoring serial output...\n');
                 } catch (err) {
                     console.log(`⚠ Reset failed (${err}), continuing anyway...`);
@@ -399,22 +422,28 @@ async function main() {
     let timeoutMs = 120000;
     let deviceAddress: string | undefined;
     
+    // Collect positional args (non-flag args)
+    const positional: string[] = [];
+    
     for (let i = 0; i < args.length; i++) {
         const arg = args[i];
         if (arg === '--address' && i + 1 < args.length) {
             deviceAddress = args[++i];
         } else if (arg === '--timeout' && i + 1 < args.length) {
             timeoutMs = parseInt(args[++i], 10);
-        } else if (!serialPath && !arg.startsWith('--')) {
-            serialPath = arg;
+        } else if (!arg.startsWith('--')) {
+            positional.push(arg);
         }
     }
     
-    // Support legacy positional args: <port> [timeout]
-    if (!serialPath && args.length >= 1 && !args[0].startsWith('--')) {
-        serialPath = args[0];
-        if (args.length >= 2 && !args[1].startsWith('--')) {
-            timeoutMs = parseInt(args[1], 10);
+    // Process positional args: <port> [timeout]
+    if (positional.length >= 1) {
+        serialPath = positional[0];
+    }
+    if (positional.length >= 2) {
+        const parsedTimeout = parseInt(positional[1], 10);
+        if (!isNaN(parsedTimeout)) {
+            timeoutMs = parsedTimeout;
         }
     }
     
