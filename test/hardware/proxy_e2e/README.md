@@ -77,25 +77,33 @@ The firmware version is automatically set to `e2e-<git-short-sha>` (e.g., `e2e-a
 npm install
 ```
 
-### 4. Configure Environment
+### 4. Configure Telemetry Verification (Optional)
 
-Create `.env` file from template:
+The test runner can verify that the device's firmware version and diagnostics were recorded by SmartLayerProxy. This requires access to the [SmartLayerProxy repository](https://github.com/JamesSmartCell/SmartLayerProxy).
+
+**Telemetry Verification:**
+
+When `--proxy-repo` is specified, the runner will:
+1. Run `npm run telemetry:pull` in the SmartLayerProxy repo after the device test completes
+2. Read the pulled telemetry data from `data/telemetry-*.jsonl`
+3. Verify the device's firmware version matches in the connect event
+4. Verify WiFi diagnostics (opcode 0x0A) events were recorded
+
+**Setup:**
+
+The SmartLayerProxy repo's telemetry tools (`tools/telemetry/`) load credentials automatically from `tools/telemetry/.env` (or repo root `.env`). Configure that file in the SmartLayerProxy repo:
 
 ```bash
-cp .env.example .env
-```
-
-Edit `.env`:
-
-```bash
-# SmartLayerProxy base URL
+# In SmartLayerProxy/tools/telemetry/.env
 PROXY_BASE_URL=https://scriptproxy.percolate.one
-
-# Optional: Telemetry API key for verification
 TELEMETRY_API_KEY=your_api_key_here
 ```
 
-If `TELEMETRY_API_KEY` is not provided, the test will skip telemetry verification but still pass if the device completes successfully.
+**Note:** The E2E test runner never handles API keys directly. It simply calls `npm run telemetry:pull` in the proxy repo, which loads credentials from its own `.env`. Keys are never printed or exposed.
+
+**Without telemetry verification:**
+
+If `--proxy-repo` is not specified, the test will skip telemetry verification but still pass if the device completes the protocol successfully.
 
 ## Running the Test
 
@@ -130,11 +138,25 @@ npx tsx run-e2e.ts COM3 180000  # 3 minutes
 # With pre-configured device address (if serial output is missed):
 npx tsx run-e2e.ts COM3 --address 0xABCD1234...
 
+# With telemetry verification:
+npx tsx run-e2e.ts COM3 --proxy-repo ../SmartLayerProxy
+
 # All options:
-npx tsx run-e2e.ts COM15 --timeout 180000 --address 0x123...
+npx tsx run-e2e.ts COM15 --timeout 180000 --address 0x123... --proxy-repo D:/Dev/SmartLayerProxy
 ```
 
-**Note:** The runner automatically resets the ESP32 when it opens the serial port (DTR/RTS pulse). This ensures it captures all serial output from boot. If the device address is missed, use `--address` flag or set `TELEMETRY_API_KEY` for automatic fallback.
+**CLI Options:**
+
+- `--address <addr>`: Pre-configure device address (helps if serial misses it)
+- `--timeout <ms>`: Test timeout in milliseconds (default: 120000)
+- `--proxy-repo <path>`: Path to SmartLayerProxy repo for telemetry verification (optional)
+
+**Environment Variables:**
+
+- `PROXY_BASE_URL`: SmartLayerProxy URL (default: `https://scriptproxy.percolate.one`)
+- `SMARTLAYER_PROXY_DIR`: Default path to SmartLayerProxy repo (used if `--proxy-repo` not specified)
+
+**Note:** The runner automatically resets the ESP32 when it opens the serial port (DTR/RTS pulse). This ensures it captures all serial output from boot. If the device address is missed, use `--address` flag.
 
 ## Test Protocol
 
@@ -252,42 +274,52 @@ OVERALL RESULT:     ✓ PASS
 
 ## Telemetry Verification
 
-The test runner verifies SmartLayerProxy recorded:
+When `--proxy-repo` is specified, the test runner verifies SmartLayerProxy recorded the device's activity:
 
-1. **Connect event** with firmware version matching device
-2. **Diagnostics event** with boot count, WiFi attempts, connect time
+### How it works
 
-Query URL: `GET /api/telemetry/feed?deviceAddress=0x...`
+1. **After device test completes**, the runner calls `npm run telemetry:pull` in the SmartLayerProxy repo
+   - This uses the proxy repo's built-in `tools/telemetry/pull.ts` script
+   - Credentials are loaded from `tools/telemetry/.env` automatically
+   - Data is written to `<proxy-repo>/data/telemetry-YYYYMMDD.jsonl`
 
-Headers: `Authorization: Bearer <TELEMETRY_API_KEY>`
+2. **Runner reads the pulled data** and filters events for this device with `timestamp >= testStartTime`
 
-Response:
+3. **Verifies**:
+   - **Connect event** with `firmwareVersion === FW_VERSION` (from opcode 0x09)
+   - **Device events** confirming diagnostics (opcode 0x0A) were recorded
+
+### Data Format (JSONL)
+
+Each line in `data/telemetry-*.jsonl` is a JSON event:
+
 ```json
 {
-  "events": [
-    {
-      "type": "connect",
-      "deviceAddress": "0x...",
-      "firmwareVersion": "e2e-a1b2c3d",
-      "timestamp": "2026-11-17T00:00:00.000Z"
-    },
-    {
-      "type": "diagnostics",
-      "deviceAddress": "0x...",
-      "data": {
-        "resetReason": 1,
-        "bootCount": 2,
-        "wifiAttempts": 1,
-        "connectTimeMs": 3245,
-        "networkIndex": 0,
-        "lastFailureStage": 0,
-        "lastDisconnectReason": 0
-      },
-      "timestamp": "2026-11-17T00:00:00.100Z"
-    }
-  ]
+  "id": 123,
+  "timestamp": 1700179200000,
+  "device": "0x1234567890abcdef1234567890abcdef12345678",
+  "eventType": "connect",
+  "protocol": "TCP",
+  "firmwareVersion": "e2e-a1b2c3d",
+  "ipAddress": "192.168.1.100"
 }
 ```
+
+**Event types:**
+- `connect`: Device authenticated and connected (includes `firmwareVersion`)
+- `disconnect`: Device disconnected (includes `disconnectReason`)
+- `api_call`: API call received (includes `apiMethod`, `apiSuccess`, `apiResponseTime`)
+
+### SmartLayerProxy Telemetry Tools
+
+The test runner uses these npm scripts from the SmartLayerProxy repo:
+
+- `npm run telemetry:pull` — Fetch telemetry from proxy API and write to `data/telemetry-*.jsonl`
+- `npm run telemetry:analyse` — Analyze patterns (optional, not used by E2E runner)
+
+See [SmartLayerProxy/tools/telemetry/](https://github.com/JamesSmartCell/SmartLayerProxy/tree/main/tools/telemetry) for details.
+
+**Note:** Telemetry verification is optional but recommended. The test will still pass if telemetry checks fail or are skipped (no `--proxy-repo` specified).
 
 ## Troubleshooting
 

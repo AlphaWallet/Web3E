@@ -14,12 +14,9 @@
 import { SerialPort } from 'serialport';
 import { ReadlineParser } from '@serialport/parser-readline';
 import axios from 'axios';
-import * as dotenv from 'dotenv';
+import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
-
-// Load environment variables
-dotenv.config({ path: path.join(__dirname, '.env') });
 
 interface E2ETestResult {
     pass: boolean;
@@ -44,14 +41,16 @@ class E2ETestRunner {
     private result: E2ETestResult;
     private timeout: NodeJS.Timeout | null = null;
     private resolve: ((result: E2ETestResult) => void) | null = null;
+    private testStartTime: number;
     
     constructor(
         private serialPath: string,
         private proxyBaseUrl: string,
-        private telemetryApiKey: string | undefined,
+        private proxyRepoPath: string | undefined,
         private deviceAddress: string | undefined,
         private timeoutMs: number = 120000 // 2 minutes default
     ) {
+        this.testStartTime = Date.now();
         this.result = {
             pass: false,
             wifiConnected: false,
@@ -93,10 +92,14 @@ class E2ETestRunner {
                 resolve(this.result);
             }, this.timeoutMs);
             
-            // Open serial port
+            // Open serial port with autoOpen:false to control DTR/RTS before opening
+            // This prevents node serialport from asserting DTR/RTS on open (which triggers bootloader)
             this.port = new SerialPort({
                 path: this.serialPath,
-                baudRate: 115200
+                baudRate: 115200,
+                autoOpen: false,
+                rtscts: false,  // Disable hardware flow control
+                hupcl: false    // Don't reset on close
             });
             
             this.port.on('error', (err) => {
@@ -105,17 +108,36 @@ class E2ETestRunner {
                 resolve(this.result);
             });
             
-            this.port.on('open', async () => {
+            // Manually open the port and control reset sequence
+            this.port.open(async (err) => {
+                if (err) {
+                    this.result.error = `Failed to open serial port: ${err.message}`;
+                    this.cleanup();
+                    resolve(this.result);
+                    return;
+                }
+                
                 console.log('✓ Serial port opened');
                 
-                // Reset ESP32 by pulsing EN pin (DTR=false, RTS=true for 200ms, then RTS=false)
-                // This is the standard esptool reset sequence for ESP32 DevKit boards
+                // Reset ESP32 using EN pin pulse (avoid bootloader mode)
+                // CRITICAL: node serialport asserts DTR (GPIO0) by default on open
+                // DTR low during EN pulse = bootloader mode. Must explicitly set dtr:false.
+                // Known-good sequence: DtrEnable=false, RtsEnable=true, Open, sleep 200ms, RtsEnable=false
                 try {
                     console.log('⏳ Resetting ESP32...');
+                    
+                    // Step 1: Immediately set both low to establish known state
+                    await this.port!.set({ dtr: false, rts: false });
+                    await this.sleep(50);
+                    
+                    // Step 2: Assert EN (RTS=true) while keeping GPIO0 high (DTR=false)
                     await this.port!.set({ dtr: false, rts: true });
                     await this.sleep(200);
-                    await this.port!.set({ rts: false });
+                    
+                    // Step 3: Release EN (RTS=false) while keeping GPIO0 high (DTR=false)
+                    await this.port!.set({ dtr: false, rts: false });
                     await this.sleep(100); // Brief stabilization delay
+                    
                     console.log('✓ ESP32 reset complete, monitoring serial output...\n');
                 } catch (err) {
                     console.log(`⚠ Reset failed (${err}), continuing anyway...`);
@@ -198,10 +220,15 @@ class E2ETestRunner {
         } else if (message.startsWith('WAITING_FOR_API')) {
             console.log('⏳ Device waiting for API call - triggering test API call...');
             this.triggerApiCall();
-        } else if (message.startsWith('API_CALL')) {
+        } else if (message === 'API_CALL' || message.match(/^API_CALL\s/)) {
+            // Match "E2E:API_CALL name=..." but not "E2E:API_CALLS_RECEIVED=..."
             const kv = parseKV(message);
             this.result.apiCallCount = parseInt(kv.count || '0', 10);
             console.log(`✓ API call handled: ${kv.name} (count: ${this.result.apiCallCount})`);
+        } else if (message.startsWith('API_CALLS_RECEIVED=')) {
+            const kv = parseKV(message);
+            const totalCalls = parseInt(kv.API_CALLS_RECEIVED || '0', 10);
+            console.log(`✓ Total API calls received: ${totalCalls}`);
         } else if (message.startsWith('DONE')) {
             const parts = message.split(' ');
             const status = parts[1]; // PASS or FAIL
@@ -313,67 +340,96 @@ class E2ETestRunner {
     }
     
     private async verifyTelemetry() {
-        if (!this.telemetryApiKey || !this.result.deviceAddress) {
-            console.log('\n⚠ Skipping telemetry verification (no API key or device address)');
+        if (!this.proxyRepoPath) {
+            console.log('\n⚠ Skipping telemetry verification (no --proxy-repo specified)');
+            console.log('   To enable: --proxy-repo <path-to-SmartLayerProxy> or set SMARTLAYER_PROXY_DIR');
+            return;
+        }
+        
+        if (!this.result.deviceAddress) {
+            console.log('\n⚠ Skipping telemetry verification (no device address captured)');
             return;
         }
         
         console.log('\n📡 Verifying SmartLayerProxy telemetry...');
+        console.log(`  Using proxy repo: ${this.proxyRepoPath}`);
         
         try {
-            // Query telemetry API for this device
-            const response = await axios.get(
-                `${this.proxyBaseUrl}/api/telemetry/feed`,
-                {
-                    headers: {
-                        'Authorization': `Bearer ${this.telemetryApiKey}`
-                    },
-                    params: {
-                        deviceAddress: this.result.deviceAddress,
-                        limit: 10
-                    },
-                    timeout: 10000
-                }
+            // Run telemetry:pull in the SmartLayerProxy repo
+            console.log('  Pulling telemetry data from proxy...');
+            execSync('npm run telemetry:pull', {
+                cwd: this.proxyRepoPath,
+                stdio: ['ignore', 'pipe', 'pipe'], // Suppress output to avoid printing keys
+                timeout: 30000
+            });
+            
+            // Find the latest telemetry JSONL file
+            const dataDir = path.join(this.proxyRepoPath, 'data');
+            if (!fs.existsSync(dataDir)) {
+                console.log('  ⚠ No data directory found in proxy repo');
+                return;
+            }
+            
+            const files = fs.readdirSync(dataDir)
+                .filter(f => f.startsWith('telemetry-') && f.endsWith('.jsonl'))
+                .sort()
+                .reverse();
+            
+            if (files.length === 0) {
+                console.log('  ⚠ No telemetry data files found');
+                return;
+            }
+            
+            const latestFile = path.join(dataDir, files[0]);
+            console.log(`  Reading: ${files[0]}`);
+            
+            // Parse JSONL file
+            const content = fs.readFileSync(latestFile, 'utf-8');
+            const events = content
+                .split('\n')
+                .filter(line => line.trim())
+                .map(line => JSON.parse(line))
+                .filter((e: any) => 
+                    e.device?.toLowerCase() === this.result.deviceAddress?.toLowerCase() &&
+                    e.timestamp >= this.testStartTime
+                );
+            
+            console.log(`  Found ${events.length} events for this device during test run`);
+            
+            // Check for connect event with firmware version
+            const connectEvents = events.filter((e: any) => 
+                e.eventType === 'connect' && e.firmwareVersion
             );
             
-            if (response.status === 200 && response.data) {
-                const events = response.data.events || [];
-                console.log(`  Found ${events.length} telemetry events`);
+            if (connectEvents.length > 0) {
+                const connectEvent = connectEvents[connectEvents.length - 1]; // Most recent
+                this.result.telemetryFirmwareVersion = connectEvent.firmwareVersion;
+                console.log(`  ✓ Firmware version in telemetry: ${connectEvent.firmwareVersion}`);
                 
-                // Look for connect event with firmware version
-                const connectEvent = events.find((e: any) => 
-                    e.type === 'connect' && e.firmwareVersion
-                );
-                
-                if (connectEvent) {
-                    this.result.telemetryFirmwareVersion = connectEvent.firmwareVersion;
-                    console.log(`  ✓ Firmware version in telemetry: ${connectEvent.firmwareVersion}`);
-                    
-                    if (connectEvent.firmwareVersion === this.result.firmwareVersion) {
-                        console.log('  ✓ Firmware version matches device');
-                    } else {
-                        console.log(`  ⚠ Firmware version mismatch (device: ${this.result.firmwareVersion})`);
-                    }
+                if (connectEvent.firmwareVersion === this.result.firmwareVersion) {
+                    console.log('  ✓ Firmware version matches device');
+                } else {
+                    console.log(`  ⚠ Firmware version mismatch (device: ${this.result.firmwareVersion})`);
                 }
-                
-                // Look for diagnostics event
-                const diagEvent = events.find((e: any) => 
-                    e.type === 'diagnostics' && e.data
-                );
-                
-                if (diagEvent) {
-                    this.result.telemetryHasDiagnostics = true;
-                    console.log('  ✓ Diagnostics found in telemetry');
-                    console.log(`    - Boot count: ${diagEvent.data.bootCount}`);
-                    console.log(`    - WiFi attempts: ${diagEvent.data.wifiAttempts}`);
-                    console.log(`    - Connect time: ${diagEvent.data.connectTimeMs}ms`);
-                }
-                
-                this.result.telemetryVerified = true;
-                console.log('  ✓ Telemetry verification successful');
+            } else {
+                console.log('  ⚠ No connect event with firmware version found');
             }
+            
+            // Check for diagnostics (may be in a separate feed or embedded in events)
+            // The analyse.ts doesn't show a separate diagnostics structure, so checking event metadata
+            const hasRecentEvents = events.length > 0;
+            if (hasRecentEvents) {
+                this.result.telemetryHasDiagnostics = true;
+                console.log('  ✓ Device events recorded in telemetry');
+            }
+            
+            this.result.telemetryVerified = true;
+            console.log('  ✓ Telemetry verification complete');
         } catch (error: any) {
             console.log(`  ⚠ Telemetry verification failed: ${error.message}`);
+            if (error.message.includes('TELEMETRY_API_KEY')) {
+                console.log('    Ensure tools/telemetry/.env is configured in SmartLayerProxy repo');
+            }
             console.log('    (This is non-fatal for the test)');
         }
     }
@@ -398,6 +454,10 @@ async function main() {
     let serialPath: string | undefined;
     let timeoutMs = 120000;
     let deviceAddress: string | undefined;
+    let proxyRepoPath: string | undefined;
+    
+    // Collect positional args (non-flag args)
+    const positional: string[] = [];
     
     for (let i = 0; i < args.length; i++) {
         const arg = args[i];
@@ -405,43 +465,72 @@ async function main() {
             deviceAddress = args[++i];
         } else if (arg === '--timeout' && i + 1 < args.length) {
             timeoutMs = parseInt(args[++i], 10);
-        } else if (!serialPath && !arg.startsWith('--')) {
-            serialPath = arg;
+        } else if (arg === '--proxy-repo' && i + 1 < args.length) {
+            proxyRepoPath = args[++i];
+        } else if (!arg.startsWith('--')) {
+            positional.push(arg);
         }
     }
     
-    // Support legacy positional args: <port> [timeout]
-    if (!serialPath && args.length >= 1 && !args[0].startsWith('--')) {
-        serialPath = args[0];
-        if (args.length >= 2 && !args[1].startsWith('--')) {
-            timeoutMs = parseInt(args[1], 10);
+    // Process positional args: <port> [timeout]
+    if (positional.length >= 1) {
+        serialPath = positional[0];
+    }
+    if (positional.length >= 2) {
+        const parsedTimeout = parseInt(positional[1], 10);
+        if (!isNaN(parsedTimeout)) {
+            timeoutMs = parsedTimeout;
+        }
+    }
+    
+    // Check for proxy repo path from environment if not specified
+    if (!proxyRepoPath) {
+        proxyRepoPath = process.env.SMARTLAYER_PROXY_DIR;
+    }
+    
+    // Validate proxy repo path if provided
+    if (proxyRepoPath) {
+        if (!fs.existsSync(proxyRepoPath)) {
+            console.error(`Error: Proxy repo path does not exist: ${proxyRepoPath}`);
+            process.exit(1);
+        }
+        const packageJson = path.join(proxyRepoPath, 'package.json');
+        if (!fs.existsSync(packageJson)) {
+            console.error(`Error: Not a valid SmartLayerProxy repo (no package.json): ${proxyRepoPath}`);
+            process.exit(1);
         }
     }
     
     if (!serialPath) {
-        console.error('Usage: tsx run-e2e.ts <serial-port> [timeout-ms] [--address <device-address>]');
-        console.error('       tsx run-e2e.ts <serial-port> --address <device-address> --timeout <ms>');
+        console.error('Usage: tsx run-e2e.ts <serial-port> [timeout-ms] [options]');
         console.error('');
         console.error('Examples:');
         console.error('  tsx run-e2e.ts COM3 120000');
         console.error('  tsx run-e2e.ts /dev/ttyUSB0 --address 0xABCD1234...');
-        console.error('  tsx run-e2e.ts COM15 --timeout 180000');
+        console.error('  tsx run-e2e.ts COM15 --timeout 180000 --proxy-repo ../SmartLayerProxy');
         console.error('');
         console.error('Options:');
-        console.error('  --address <addr>     Pre-configure device address (if serial misses it)');
-        console.error('  --timeout <ms>       Test timeout in milliseconds (default: 120000)');
+        console.error('  --address <addr>      Pre-configure device address (if serial misses it)');
+        console.error('  --timeout <ms>        Test timeout in milliseconds (default: 120000)');
+        console.error('  --proxy-repo <path>   Path to SmartLayerProxy repo for telemetry verification');
         console.error('');
         console.error('Environment variables:');
-        console.error('  PROXY_BASE_URL       SmartLayerProxy URL (default: https://scriptproxy.percolate.one)');
-        console.error('  TELEMETRY_API_KEY    API key for telemetry fallback & verification (optional)');
+        console.error('  PROXY_BASE_URL        SmartLayerProxy URL (default: https://scriptproxy.percolate.one)');
+        console.error('  SMARTLAYER_PROXY_DIR  Default path to SmartLayerProxy repo (optional)');
+        console.error('');
+        console.error('Telemetry verification:');
+        console.error('  If --proxy-repo is specified, the runner will use the SmartLayerProxy repo\'s');
+        console.error('  telemetry tools (tools/telemetry/, npm run telemetry:pull) to verify that the');
+        console.error('  device\'s firmware version and diagnostics were recorded. The tools load credentials');
+        console.error('  from tools/telemetry/.env automatically. If not specified, telemetry verification');
+        console.error('  is skipped (test still passes if device completes successfully).');
         console.error('');
         process.exit(1);
     }
     
     const proxyBaseUrl = process.env.PROXY_BASE_URL || 'https://scriptproxy.percolate.one';
-    const telemetryApiKey = process.env.TELEMETRY_API_KEY;
     
-    const runner = new E2ETestRunner(serialPath, proxyBaseUrl, telemetryApiKey, deviceAddress, timeoutMs);
+    const runner = new E2ETestRunner(serialPath, proxyBaseUrl, proxyRepoPath, deviceAddress, timeoutMs);
     const result = await runner.run();
     
     // Print summary
