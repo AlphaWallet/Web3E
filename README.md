@@ -5,6 +5,16 @@
 ## [![PlatformIO Registry](https://badges.registry.platformio.org/packages/alphawallet/library/Web3E.svg)](https://registry.platformio.org/libraries/alphawallet/Web3E)
 
 What's New:
+v1.46:
+- Add firmware version reporting to TCP bridge login (opcode 0x09, servers accept both old and new).
+- Add WifiStore EEPROM reader for persistent Wi-Fi credentials.
+- CRITICAL FIX: Prevent EEPROM truncation bug that destroyed WifiStore data.
+- Add WiFi connection diagnostics and watchdog with automatic reboot on timeout.
+- Add startup watchdog and bounded API parsing (ported from GarageDoor).
+- BREAKING: Default proxy changed to scriptproxy.percolate.one:8083 (old scriptproxy.smarttokenlabs.com no longer resolves). Devices on v1.45 or earlier will fail DNS. Use setProxy() or build flags to override.
+- Fix compilation errors (WEB3E_PRINTln typo, missing getLastCommsTime).
+- Add hardware E2E test tooling and telemetry verification.
+
 v1.45:
 - Fix case-sensitive include issues for Linux/PlatformIO builds.
 - Fix `byte` type ambiguity with modern C++ compilers.
@@ -120,7 +130,7 @@ monitor_speed = 115200
 
 lib_ldf_mode = deep
 lib_deps =
-  https://github.com/AlphaWallet/Web3E.git#v1.45
+  https://github.com/AlphaWallet/Web3E.git#v1.46
 ```
 
 ### Option 3: Git URL with Commit Hash (For Testing or Specific Fixes)
