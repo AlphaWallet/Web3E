@@ -682,20 +682,18 @@ Sent automatically after successful TCP bridge login (challenge response accepte
 | 12 | 1 | uint8 | lastDisconnectReason | WiFi disconnect reason code (see below) |
 | 13 | 1 | uint8 | reserved | Reserved for future use (set to 0) |
 
-**Reset Reason Codes (`esp_reset_reason_t`):**
-- `0x01`: Power-on reset (ESP_RST_POWERON)
-- `0x03`: Software reset (ESP_RST_SW)
-- `0x04`: Watchdog reset (ESP_RST_WDT)
-- `0x05`: Deep sleep reset (ESP_RST_DEEPSLEEP)
-- `0x06`: Reset by external pin (ESP_RST_EXT)
-- `0x07`: Brownout reset (ESP_RST_BROWNOUT)
-- `0x08`: Software panic reset (ESP_RST_PANIC)
-- `0x09`: Interrupt watchdog reset (ESP_RST_INT_WDT)
-- `0x0A`: Task watchdog reset (ESP_RST_TASK_WDT)
-- `0x0B`: Other watchdog reset (ESP_RST_WDT)
-- `0x0C`: USB peripheral reset (ESP_RST_USB)
-- `0x0D`: JTAG reset (ESP_RST_JTAG)
-- `0x0F`: Unknown/other (ESP_RST_UNKNOWN)
+**Reset Reason Codes (`esp_reset_reason_t` from ESP-IDF):**
+- `0`: ESP_RST_UNKNOWN - Unknown reset reason
+- `1`: ESP_RST_POWERON - Power-on reset
+- `2`: ESP_RST_EXT - External pin reset
+- `3`: ESP_RST_SW - Software reset via esp_restart
+- `4`: ESP_RST_PANIC - Software panic reset
+- `5`: ESP_RST_INT_WDT - Interrupt watchdog reset
+- `6`: ESP_RST_TASK_WDT - Task watchdog reset
+- `7`: ESP_RST_WDT - Other watchdog reset
+- `8`: ESP_RST_DEEPSLEEP - Deep sleep reset
+- `9`: ESP_RST_BROWNOUT - Brownout reset
+- `10`: ESP_RST_SDIO - SDIO reset
 
 **Failure Stage Codes:**
 - `0x00`: None (no failure)
@@ -707,15 +705,15 @@ Sent automatically after successful TCP bridge login (challenge response accepte
 - `0x06`: Proxy connection failed
 
 **WiFi Disconnect Reason Codes:**
-See ESP32 `wifi_err_reason_t` enum. Common values:
-- `0x01`: Unspecified
-- `0x02`: Auth expire
-- `0x03`: Auth leave
-- `0x04`: Association expire
-- `0x06`: Not authenticated
-- `0x07`: Not associated
-- `0x0F`: 4-way handshake timeout
-- And others per ESP32 WiFi API
+ESP32 `wifi_err_reason_t` enum values (200+ range):
+- `200`: WIFI_REASON_BEACON_TIMEOUT - Beacon timeout
+- `201`: WIFI_REASON_NO_AP_FOUND - AP not found
+- `202`: WIFI_REASON_AUTH_FAIL - Authentication failed
+- `203`: WIFI_REASON_ASSOC_FAIL - Association failed
+- `204`: WIFI_REASON_HANDSHAKE_TIMEOUT - 4-way handshake timeout
+- And others per ESP32 WiFi API (see `esp_wifi_types.h`)
+
+All codes fit in uint8 field (0-255 range).
 
 ### Usage
 
