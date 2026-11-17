@@ -31,7 +31,7 @@
 		"Smart Tokens"
     ],
     "name": "Web3E", 
-    "version": "1.45", 
+    "version": "1.46", 
     "homepage": "https://www.smarttokenlabs.com/",
     "export": {
         "exclude": [
