@@ -130,7 +130,7 @@ npx tsx run-e2e.ts COM3 180000  # 3 minutes
 
 ## Test Protocol
 
-The test firmware follows this sequence:
+The test firmware and runner follow this sequence:
 
 ```
 1. E2E:START
@@ -145,9 +145,15 @@ The test firmware follows this sequence:
 10. E2E:KEEPALIVE count=1
 11. E2E:KEEPALIVE count=2
 12. E2E:KEEPALIVE count=3
-13. E2E:API_CALL name="..." count=1  (if triggered)
-14. E2E:DONE PASS time_ms=45000
+13. E2E:WAITING_FOR_API
+    → Runner calls: GET https://scriptproxy.percolate.one/api/<device_address>/e2eTest
+    → Proxy forwards opcode 0x04 to device
+    → Device receives API call and responds with opcode 0x08
+14. E2E:API_CALL name="e2eTest" count=1
+15. E2E:DONE PASS time_ms=45000
 ```
+
+**Note:** The test runner actively triggers an API call when it sees `WAITING_FOR_API`. The device will **fail** if no API call is received within 60 seconds, as this tests the complete end-to-end flow through the public proxy.
 
 ## Serial Line Format
 
@@ -171,7 +177,9 @@ E2E:TEST=STATUS key1=value1 key2="quoted value"
 | `E2E:LOGIN=OK opcode=0x09` | TCP bridge authenticated |
 | `E2E:DIAG_SENT opcode=0x0A` | Diagnostics sent |
 | `E2E:KEEPALIVE count=N` | Keep-alive message N |
+| `E2E:WAITING_FOR_API` | Waiting for API call from runner |
 | `E2E:API_CALL name="..." count=N` | API call N handled |
+| `E2E:API_CALLS_RECEIVED=N` | Total API calls received |
 | `E2E:DONE PASS time_ms=T` | Test passed in T ms |
 | `E2E:DONE FAIL` | Test failed |
 | `E2E:FAIL reason="..."` | Failure reason |

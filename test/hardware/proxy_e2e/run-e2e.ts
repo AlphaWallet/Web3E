@@ -154,6 +154,9 @@ class E2ETestRunner {
             const kv = parseKV(message);
             this.result.keepaliveCount = parseInt(kv.count || '0', 10);
             console.log(`✓ Keep-alive ${this.result.keepaliveCount}`);
+        } else if (message.startsWith('WAITING_FOR_API')) {
+            console.log('⏳ Device waiting for API call - triggering test API call...');
+            this.triggerApiCall();
         } else if (message.startsWith('API_CALL')) {
             const kv = parseKV(message);
             this.result.apiCallCount = parseInt(kv.count || '0', 10);
@@ -187,6 +190,39 @@ class E2ETestRunner {
             if (this.resolve) {
                 this.resolve(this.result);
             }
+        }
+    }
+    
+    private async triggerApiCall() {
+        if (!this.result.deviceAddress) {
+            console.log('  ✗ Cannot trigger API call - device address not yet captured');
+            return;
+        }
+        
+        // Call the proxy API to forward a test method to the device
+        // Format: GET /api/<address>/<method>?param1=value1&param2=value2
+        const method = 'e2eTest';
+        const apiUrl = `${this.proxyBaseUrl}/api/${this.result.deviceAddress}/${method}`;
+        
+        console.log(`  → Calling ${apiUrl}`);
+        
+        try {
+            const response = await axios.get(apiUrl, {
+                params: {
+                    testParam: 'e2e-runner',
+                    timestamp: Date.now()
+                },
+                timeout: 30000 // 30 second timeout
+            });
+            
+            if (response.status === 201) {
+                console.log(`  ✓ API call succeeded: ${response.data}`);
+            } else {
+                console.log(`  ⚠ API call returned status ${response.status}: ${response.data}`);
+            }
+        } catch (error: any) {
+            console.log(`  ✗ API call failed: ${error.message}`);
+            console.log('    (Device may still handle it if proxy forwarded before timeout)');
         }
     }
     
