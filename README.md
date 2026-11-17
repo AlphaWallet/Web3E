@@ -535,6 +535,95 @@ result = contract.SendTransaction(nonceVal, gasPriceVal, gasLimitVal, &contractA
 string transactionHash = web3->getString(&result);
 ```
 
+## TCP Bridge Protocol
+
+The TCP Bridge provides a secure connection between IoT devices and the SmartLayerProxy server for TokenScript integration.
+
+### Wire Protocol Opcodes
+
+The protocol uses single-byte opcodes to identify message types:
+
+**Client → Server (Device sends):**
+- `0x01`: Refresh request - Device requests token list `[opcode][20-byte address]`
+- `0x06`: Keep-alive ping - Connection maintenance `[opcode]`
+- `0x07`: Challenge response (legacy) - Authentication without firmware version `[opcode][20-byte address][65-byte signature]`
+- `0x08`: API response - Result from API call `[opcode][response string]`
+- `0x09`: Challenge response with firmware version - Authentication including firmware version (see below)
+
+**Server → Client (Device receives):**
+- `0x02`: Challenge - Server sends authentication challenge `[opcode][16-byte random challenge]`
+- `0x04`: API call - Server requests device to execute an API
+- `0x06`: Keep-alive - Server sends keep-alive
+
+### Challenge Response with Firmware Version (Opcode 0x09)
+
+When a firmware version is set via `setFirmwareVersion()`, the device authenticates using opcode `0x09`:
+
+**Wire Format:**
+```
+[1 byte: 0x09][20 bytes: address][65 bytes: signature][1 byte: versionLen][versionLen bytes: version]
+```
+
+**Fields:**
+- **Opcode** (1 byte): `0x09`
+- **Address** (20 bytes): Device's Ethereum address
+- **Signature** (65 bytes): ECDSA signature (r, s, v format)
+- **Version Length** (1 byte): Length of firmware version string (0-32)
+- **Version** (variable): ASCII firmware version string
+
+**Signature Preimage:**
+
+The signature is computed over `keccak256(challenge || versionLen || version)` where:
+- `challenge`: 16-byte random challenge from server (opcode 0x02)
+- `versionLen`: 1-byte length of version string
+- `version`: ASCII firmware version string
+
+**Example:**
+
+For firmware version "v1.2.3" (6 bytes):
+1. Server sends: `0x02` + 16-byte challenge
+2. Device computes: `preimage = challenge || 0x06 || "v1.2.3"`
+3. Device signs: `signature = ecdsa_sign(keccak256(preimage), privateKey)`
+4. Device sends: `0x09 || address(20) || signature(65) || 0x06 || "v1.2.3"`
+
+**Server Verification (SmartLayerProxy):**
+
+The server verifies the signature by:
+1. Extract `address`, `signature`, `versionLen`, and `version` from the packet
+2. Reconstruct preimage: `challenge || versionLen || version`
+3. Compute hash: `keccak256(preimage)`
+4. Recover signer: `ecrecover(hash, signature)`
+5. Verify: `recovered_address == address`
+
+### Setting Firmware Version
+
+**At compile time:**
+```cpp
+// In platformio.ini
+build_flags =
+    -DFW_VERSION=\"v1.2.3\"
+```
+
+**At runtime:**
+```cpp
+TcpBridge *tcpConnection = new TcpBridge();
+tcpConnection->setFirmwareVersion("v1.2.3");
+tcpConnection->setKey(keyID, web3);
+tcpConnection->startConnection();
+```
+
+**Clearing firmware version (revert to opcode 0x07):**
+```cpp
+tcpConnection->setFirmwareVersion(nullptr);
+```
+
+### Backward Compatibility
+
+- Devices without firmware version set (or `setFirmwareVersion(nullptr)`) continue to use opcode `0x07`
+- Old servers accepting only opcode `0x07` will work with legacy devices
+- New servers (SmartLayerProxy) accept both opcodes `0x07` and `0x09`
+- The firmware version is authenticated by including it in the signed challenge
+
 Originally forked https://github.com/kopanitsa/web3-arduino but with almost a complete re-write it is a new framework entirely.
 
 Libraries used:

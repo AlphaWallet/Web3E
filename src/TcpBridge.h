@@ -15,6 +15,7 @@ public:
     TcpBridge();
     void startConnection();
     void setKey(KeyID *keyId, Web3 *w3);
+    void setFirmwareVersion(const char *version);
     void checkClientAPI(TcpBridgeCallback callback);
 
     int getConnectionStatus() { return connectionValidCountdown; }
@@ -40,7 +41,10 @@ private:
     KeyID *keyID;
     APIReturn apiReturn;
     static const uint16_t PACKET_BUFFER_SIZE = 512;
+    static const uint8_t MAX_FIRMWARE_VERSION_LENGTH = 32;
     BYTE packetBuffer[PACKET_BUFFER_SIZE];
+    char firmwareVersion[MAX_FIRMWARE_VERSION_LENGTH + 1];
+    uint8_t firmwareVersionLen;
 
     ConnectionStage connectionState;
     long lastCheck = 0;

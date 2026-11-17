@@ -10,6 +10,11 @@ TcpBridge::TcpBridge()
 {
     port = defaultPort;
     connectionState = unconnected;
+    firmwareVersionLen = 0;
+    firmwareVersion[0] = '\0';
+#ifdef FW_VERSION
+    setFirmwareVersion(FW_VERSION);
+#endif
     Serial.println("Starting TCP Bridge");
 }
 
@@ -17,6 +22,29 @@ void TcpBridge::setKey(KeyID *key, Web3 *w3)
 {
     keyID = key;
     web3 = w3;
+}
+
+void TcpBridge::setFirmwareVersion(const char *version)
+{
+    if (version == nullptr)
+    {
+        firmwareVersionLen = 0;
+        firmwareVersion[0] = '\0';
+        return;
+    }
+
+    size_t len = strlen(version);
+    if (len > MAX_FIRMWARE_VERSION_LENGTH)
+    {
+        len = MAX_FIRMWARE_VERSION_LENGTH;
+    }
+
+    memcpy(firmwareVersion, version, len);
+    firmwareVersion[len] = '\0';
+    firmwareVersionLen = len;
+
+    Serial.print("Firmware version set: ");
+    Serial.println(firmwareVersion);
 }
 
 void TcpBridge::startConnection()
@@ -37,12 +65,42 @@ void TcpBridge::startConnection()
 
 void TcpBridge::signChallenge(const BYTE *challenge, int length)
 {
-    keyID->getSignature(packetBuffer + 21, (uint8_t *)challenge, length);       // write sig
-    Util::ConvertHexToBytes(packetBuffer + 1, keyID->getAddress().c_str(), 20); // address
-    packetBuffer[0] = 0x07;                                                     // indicate using stright sig (ie not signPersonal)
-    int packetLength = 1 + ETHERS_ADDRESS_LENGTH + ETHERS_SIGNATURE_LENGTH;
-    //Serial.println(Util::ConvertBytesToHex(packetBuffer, packetLength).c_str());
-    write(packetBuffer, packetLength);
+    if (firmwareVersionLen == 0)
+    {
+        // Legacy opcode 0x07: no firmware version
+        keyID->getSignature(packetBuffer + 21, (uint8_t *)challenge, length);       // write sig
+        Util::ConvertHexToBytes(packetBuffer + 1, keyID->getAddress().c_str(), 20); // address
+        packetBuffer[0] = 0x07;                                                     // indicate using stright sig (ie not signPersonal)
+        int packetLength = 1 + ETHERS_ADDRESS_LENGTH + ETHERS_SIGNATURE_LENGTH;
+        //Serial.println(Util::ConvertBytesToHex(packetBuffer, packetLength).c_str());
+        write(packetBuffer, packetLength);
+    }
+    else
+    {
+        // New opcode 0x09: includes firmware version in signed challenge
+        // Build preimage: challenge || versionLen || version
+        BYTE preimage[length + 1 + MAX_FIRMWARE_VERSION_LENGTH];
+        memcpy(preimage, challenge, length);
+        preimage[length] = firmwareVersionLen;
+        memcpy(preimage + length + 1, firmwareVersion, firmwareVersionLen);
+        int preimageLength = length + 1 + firmwareVersionLen;
+
+        // Sign the preimage
+        BYTE signature[ETHERS_SIGNATURE_LENGTH];
+        keyID->getSignature(signature, preimage, preimageLength);
+
+        // Build packet: [opcode][address][signature][versionLen][version]
+        packetBuffer[0] = 0x09; // new opcode for firmware version
+        Util::ConvertHexToBytes(packetBuffer + 1, keyID->getAddress().c_str(), 20); // address
+        memcpy(packetBuffer + 21, signature, ETHERS_SIGNATURE_LENGTH);              // signature
+        packetBuffer[86] = firmwareVersionLen;                                       // version length
+        memcpy(packetBuffer + 87, firmwareVersion, firmwareVersionLen);             // version string
+
+        int packetLength = 1 + ETHERS_ADDRESS_LENGTH + ETHERS_SIGNATURE_LENGTH + 1 + firmwareVersionLen;
+        Serial.print("Sending challenge response with firmware version (opcode 0x09): ");
+        Serial.println(firmwareVersion);
+        write(packetBuffer, packetLength);
+    }
 }
 
 void TcpBridge::checkClientAPI(TcpBridgeCallback callback)
