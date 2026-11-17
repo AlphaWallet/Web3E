@@ -549,6 +549,7 @@ The protocol uses single-byte opcodes to identify message types:
 - `0x07`: Challenge response (legacy) - Authentication without firmware version `[opcode][20-byte address][65-byte signature]`
 - `0x08`: API response - Result from API call `[opcode][response string]`
 - `0x09`: Challenge response with firmware version - Authentication including firmware version (see below)
+- `0x0A`: WiFi diagnostics - Connection diagnostics after successful login (see below)
 
 **Server → Client (Device receives):**
 - `0x02`: Challenge - Server sends authentication challenge `[opcode][16-byte random challenge]`
@@ -627,6 +628,160 @@ tcpConnection->setFirmwareVersion(nullptr);
 - **New servers** (SmartLayerProxy) MUST accept BOTH opcodes `0x07` (no version) and `0x09` (with version)
 - Opcode `0x07` behavior is byte-for-byte identical to the original implementation
 - The firmware version in opcode `0x09` is authenticated by including it in the signed challenge preimage
+
+## WiFi Connection Diagnostics (Opcode 0x0A)
+
+WiFi connection is the primary failure point for IoT devices. Web3E includes comprehensive diagnostics tracking to identify connectivity issues.
+
+### Features
+
+**Watchdog Timer:**
+- Configurable timeout for WiFi connection (default 30 seconds per network)
+- Cycles through all configured networks up to 3 times
+- Automatic reboot if no network connects after all attempts
+- Prevents infinite hangs during startup
+
+**Diagnostics Tracking:**
+- Reset reason (power-on, software restart, watchdog, brownout, etc.)
+- Boot count since last successful TCP bridge login
+- WiFi connection attempts before success
+- Time to establish WiFi connection (milliseconds)
+- Network index that succeeded (0-based)
+- Last failure stage (association, authentication, DHCP, DNS, TLS, proxy)
+- Last WiFi disconnect reason code
+
+**Storage:**
+- Uses ESP32 NVS (Non-Volatile Storage) for persistence across reboots
+- Survives soft reboots and retains data through power cycles
+- Does NOT overlap with KeyID EEPROM storage (bytes 0-32)
+- Automatically resets counters after successful TCP bridge login
+
+### Wire Format (Opcode 0x0A)
+
+Sent automatically after successful TCP bridge login (challenge response accepted), once per boot cycle.
+
+```
+[1 byte: 0x0A][1 byte: resetReason][2 bytes: bootCount][2 bytes: wifiAttempts]
+[4 bytes: connectTimeMs][1 byte: networkIndex][1 byte: lastFailureStage]
+[1 byte: lastDisconnectReason][1 byte: reserved]
+```
+
+**Total packet size: 14 bytes**
+
+**Field Details:**
+
+| Offset | Length | Type | Field | Description |
+|--------|--------|------|-------|-------------|
+| 0 | 1 | uint8 | opcode | `0x0A` (diagnostics) |
+| 1 | 1 | uint8 | resetReason | ESP32 reset reason code (see below) |
+| 2 | 2 | uint16 | bootCount | Number of boots since last successful login (big-endian) |
+| 4 | 2 | uint16 | wifiAttempts | WiFi connection attempts before success (big-endian) |
+| 6 | 4 | uint32 | connectTimeMs | Milliseconds to establish WiFi connection (big-endian) |
+| 10 | 1 | uint8 | networkIndex | Index of network that succeeded (0-based) |
+| 11 | 1 | uint8 | lastFailureStage | Last failure stage code (see below) |
+| 12 | 1 | uint8 | lastDisconnectReason | WiFi disconnect reason code (see below) |
+| 13 | 1 | uint8 | reserved | Reserved for future use (set to 0) |
+
+**Reset Reason Codes (`esp_reset_reason_t`):**
+- `0x01`: Power-on reset (ESP_RST_POWERON)
+- `0x03`: Software reset (ESP_RST_SW)
+- `0x04`: Watchdog reset (ESP_RST_WDT)
+- `0x05`: Deep sleep reset (ESP_RST_DEEPSLEEP)
+- `0x06`: Reset by external pin (ESP_RST_EXT)
+- `0x07`: Brownout reset (ESP_RST_BROWNOUT)
+- `0x08`: Software panic reset (ESP_RST_PANIC)
+- `0x09`: Interrupt watchdog reset (ESP_RST_INT_WDT)
+- `0x0A`: Task watchdog reset (ESP_RST_TASK_WDT)
+- `0x0B`: Other watchdog reset (ESP_RST_WDT)
+- `0x0C`: USB peripheral reset (ESP_RST_USB)
+- `0x0D`: JTAG reset (ESP_RST_JTAG)
+- `0x0F`: Unknown/other (ESP_RST_UNKNOWN)
+
+**Failure Stage Codes:**
+- `0x00`: None (no failure)
+- `0x01`: Association failed (SSID not found)
+- `0x02`: Authentication failed (wrong password)
+- `0x03`: DHCP failed (no IP address)
+- `0x04`: DNS resolution failed
+- `0x05`: TLS handshake failed
+- `0x06`: Proxy connection failed
+
+**WiFi Disconnect Reason Codes:**
+See ESP32 `wifi_err_reason_t` enum. Common values:
+- `0x01`: Unspecified
+- `0x02`: Auth expire
+- `0x03`: Auth leave
+- `0x04`: Association expire
+- `0x06`: Not authenticated
+- `0x07`: Not associated
+- `0x0F`: 4-way handshake timeout
+- And others per ESP32 WiFi API
+
+### Usage
+
+**Enable diagnostics in your sketch:**
+
+```cpp
+#include <TcpBridge.h>
+#include <WiFiConnection.h>
+
+WiFiConnection wifiConnection;
+TcpBridge *tcpConnection;
+
+void setup() {
+    // Connect to WiFi
+    WiFiCredentials networks[] = {
+        {"Network1", "password1"},
+        {"Network2", "password2"},
+        {nullptr, nullptr}  // Terminator
+    };
+    wifiConnection.setupWifi(networks);
+    
+    // Optional: Set connection timeout (default 30000ms)
+    wifiConnection.setConnectionTimeout(45000); // 45 seconds
+    
+    // Setup TCP bridge with diagnostics
+    tcpConnection = new TcpBridge();
+    tcpConnection->setFirmwareVersion("v1.0.0");
+    tcpConnection->setWiFiDiagnostics(wifiConnection.getDiagnostics());
+    tcpConnection->setKey(keyID, web3);
+    tcpConnection->startConnection();
+}
+```
+
+**Diagnostics are sent automatically:**
+1. Device boots and records boot count
+2. WiFi connection established with timing/attempts tracked
+3. TCP bridge connects and authenticates (challenge/response)
+4. After successful authentication, diagnostics sent once (opcode `0x0A`)
+5. Diagnostics counters reset after successful send
+
+**Server Implementation (SmartLayerProxy):**
+
+Old servers safely ignore unknown opcode `0x0A` - the TCP protocol is designed so unknown opcodes can be skipped. New servers should parse and store diagnostics:
+
+```typescript
+// Parse opcode 0x0A diagnostics packet (14 bytes)
+const opcode = buffer[0]; // 0x0A
+const resetReason = buffer[1];
+const bootCount = (buffer[2] << 8) | buffer[3];
+const wifiAttempts = (buffer[4] << 8) | buffer[5];
+const connectTimeMs = (buffer[6] << 24) | (buffer[7] << 16) | (buffer[8] << 8) | buffer[9];
+const networkIndex = buffer[10];
+const lastFailureStage = buffer[11];
+const lastDisconnectReason = buffer[12];
+const reserved = buffer[13];
+
+// Store diagnostics associated with device address
+console.log(`Device diagnostics: ${bootCount} boots, ${wifiAttempts} attempts, ${connectTimeMs}ms connect time`);
+```
+
+### Backward Compatibility
+
+- Old firmware without diagnostics: No opcode `0x0A` sent (fully compatible)
+- New firmware with diagnostics: Sends opcode `0x0A` after login
+- Old servers: Unknown opcode safely ignored (TCP protocol is opcode-extensible)
+- New servers: Parse and store diagnostics for monitoring
 
 Originally forked https://github.com/kopanitsa/web3-arduino but with almost a complete re-write it is a new framework entirely.
 

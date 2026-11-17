@@ -4,6 +4,7 @@
 #include <Web3.h>
 #include <WiFi.h>
 #include <string>
+#include "WiFiDiagnostics.h"
 
 class TcpBridge;
 //Format for API handler is void YourAPIHandler(APIReturn *apiReturn, UdpBridge *client, int methodId) { ... }
@@ -16,6 +17,7 @@ public:
     void startConnection();
     void setKey(KeyID *keyId, Web3 *w3);
     void setFirmwareVersion(const char *version);
+    void setWiFiDiagnostics(WiFiDiagnostics *diag);
     void checkClientAPI(TcpBridgeCallback callback);
 
     int getConnectionStatus() { return connectionValidCountdown; }
@@ -32,6 +34,7 @@ private:
     void maintainComms(long currentMillis);
     void sendRefreshRequest();
     void signChallenge(const BYTE *challenge, int length);
+    void sendDiagnostics();
     inline boolean isNewSession();
     void sendPing();
     void sendResponse(std::string resp);
@@ -39,12 +42,14 @@ private:
 
     Web3 *web3;
     KeyID *keyID;
+    WiFiDiagnostics *wifiDiagnostics;
     APIReturn apiReturn;
     static const uint16_t PACKET_BUFFER_SIZE = 512;
     static const uint8_t MAX_FIRMWARE_VERSION_LENGTH = 32;
     BYTE packetBuffer[PACKET_BUFFER_SIZE];
     char firmwareVersion[MAX_FIRMWARE_VERSION_LENGTH + 1];
     uint8_t firmwareVersionLen;
+    bool diagnosticsSent;
 
     ConnectionStage connectionState;
     long lastCheck = 0;

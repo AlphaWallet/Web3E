@@ -12,6 +12,8 @@ TcpBridge::TcpBridge()
     connectionState = unconnected;
     firmwareVersionLen = 0;
     firmwareVersion[0] = '\0';
+    wifiDiagnostics = nullptr;
+    diagnosticsSent = false;
 #ifdef FW_VERSION
     setFirmwareVersion(FW_VERSION);
 #endif
@@ -45,6 +47,12 @@ void TcpBridge::setFirmwareVersion(const char *version)
 
     Serial.print("Firmware version set: ");
     Serial.println(firmwareVersion);
+}
+
+void TcpBridge::setWiFiDiagnostics(WiFiDiagnostics *diag)
+{
+    wifiDiagnostics = diag;
+    diagnosticsSent = false;
 }
 
 void TcpBridge::startConnection()
@@ -131,6 +139,14 @@ void TcpBridge::checkClientAPI(TcpBridgeCallback callback)
             signChallenge(packetBuffer, len);
             // challenge, we sign it
             connectionState = confirmed;
+            
+            // Send diagnostics after successful login (once per boot)
+            if (!diagnosticsSent && wifiDiagnostics != nullptr && wifiDiagnostics->hasDiagnostics())
+            {
+                sendDiagnostics();
+                diagnosticsSent = true;
+                wifiDiagnostics->recordSuccessfulLogin();
+            }
             break;
 
         case 0x04:
@@ -215,6 +231,62 @@ void TcpBridge::SendKeepAlive()
 {
     packetBuffer[0] = 0x06;
     write(packetBuffer, 1);
+}
+
+void TcpBridge::sendDiagnostics()
+{
+    if (wifiDiagnostics == nullptr)
+        return;
+    
+    const WiFiDiagnosticsData& data = wifiDiagnostics->getData();
+    
+    // Build diagnostics packet with opcode 0x0A
+    // Wire format: [opcode][resetReason][bootCount(2)][wifiAttempts(2)][connectTimeMs(4)][networkIndex][lastFailureStage][lastDisconnectReason][reserved]
+    packetBuffer[0] = 0x0A; // Diagnostics opcode
+    
+    // Pack the diagnostics data structure
+    int offset = 1;
+    packetBuffer[offset++] = data.resetReason;
+    
+    // bootCountSinceLogin (uint16_t, big-endian)
+    packetBuffer[offset++] = (data.bootCountSinceLogin >> 8) & 0xFF;
+    packetBuffer[offset++] = data.bootCountSinceLogin & 0xFF;
+    
+    // wifiAttemptsToConnect (uint16_t, big-endian)
+    packetBuffer[offset++] = (data.wifiAttemptsToConnect >> 8) & 0xFF;
+    packetBuffer[offset++] = data.wifiAttemptsToConnect & 0xFF;
+    
+    // connectTimeMs (uint32_t, big-endian)
+    packetBuffer[offset++] = (data.connectTimeMs >> 24) & 0xFF;
+    packetBuffer[offset++] = (data.connectTimeMs >> 16) & 0xFF;
+    packetBuffer[offset++] = (data.connectTimeMs >> 8) & 0xFF;
+    packetBuffer[offset++] = data.connectTimeMs & 0xFF;
+    
+    packetBuffer[offset++] = data.networkIndexUsed;
+    packetBuffer[offset++] = data.lastFailureStage;
+    packetBuffer[offset++] = data.lastDisconnectReason;
+    packetBuffer[offset++] = data.reserved;
+    
+    int packetLength = offset; // Should be 14 bytes total (1 opcode + 13 data bytes)
+    
+    Serial.println("Sending WiFi diagnostics (opcode 0x0A):");
+    Serial.print("  Reset reason: ");
+    Serial.println(data.resetReason);
+    Serial.print("  Boot count: ");
+    Serial.println(data.bootCountSinceLogin);
+    Serial.print("  WiFi attempts: ");
+    Serial.println(data.wifiAttemptsToConnect);
+    Serial.print("  Connect time: ");
+    Serial.print(data.connectTimeMs);
+    Serial.println("ms");
+    Serial.print("  Network index: ");
+    Serial.println(data.networkIndexUsed);
+    Serial.print("  Last failure stage: ");
+    Serial.println(data.lastFailureStage);
+    Serial.print("  Last disconnect reason: ");
+    Serial.println(data.lastDisconnectReason);
+    
+    write(packetBuffer, packetLength);
 }
 
 void TcpBridge::scanAPI(APIReturn *apiReturn, int available)

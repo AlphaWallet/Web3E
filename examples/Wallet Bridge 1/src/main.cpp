@@ -98,6 +98,8 @@ void setup()
   // Optional: Set firmware version for authenticated version reporting
   // This can also be set at compile time with -DFW_VERSION="v1.0.0"
   tcpConnection->setFirmwareVersion("v1.0.0");
+  // Optional: Enable WiFi diagnostics reporting
+  tcpConnection->setWiFiDiagnostics(wifiConnection.getDiagnostics());
   tcpConnection->setKey(keyID, web3);
   tcpConnection->startConnection();
   resetChallenge();
