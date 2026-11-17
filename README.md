@@ -289,10 +289,50 @@ The push transaction sample requires a little work to get running. You have to h
 ## Usage
 See Wallet Bridge 1, 2 and 3 examples for complete source
 
+## 🔴 BREAKING CHANGE: Proxy Server Default Updated
+
+**As of v1.46, the default proxy server has changed:**
+- **Old default:** `scriptproxy.smarttokenlabs.com:8003` (NO LONGER RESOLVES)
+- **New default:** `scriptproxy.percolate.one:8083` (TCP) / `:8083` (UDP)
+
+**What this means:**
+- Devices running **stock Web3E 1.45 or earlier** will fail to connect (DNS failure)
+- GarageDoor and other production deployments using the old default **MUST update**
+- Custom proxy configurations are unaffected
+
+**How to override:**
+
+```cpp
+// At runtime
+TcpBridge *tcpConnection = new TcpBridge();
+tcpConnection->setProxy("your.proxy.com", 8083);  // Set before startConnection()
+tcpConnection->startConnection();
+
+// At compile time (platformio.ini)
+build_flags =
+    -DWEB3E_PROXY_HOST=\"your.proxy.com\"
+    -DWEB3E_PROXY_PORT=8083
+
+// Or use PROXY_HOST/PROXY_PORT (also supported)
+build_flags =
+    -DPROXY_HOST=\"your.proxy.com\"
+    -DPROXY_PORT=8083
+```
+
+**UDP Bridge:**
+```cpp
+UdpBridge *udpConnection = new UdpBridge();
+std::string host = "your.proxy.com";
+udpConnection->setupConnection(host, 8083);  // Set before startConnection()
+udpConnection->startConnection();
+```
+
+---
+
 ## Standard: Using ScriptProxy Bridge
 ### This style of connection will work in almost every situation, from inside or outside of the WiFi connection
 In this usage pattern, your IoT device will connect to a proxy server which provides a bridge to the TokenScript running on your wallet. 
-The source code for the proxy server can be found here: [Script Proxy](https://github.com/AlphaWallet/Web3E-Application/tree/master/ScriptProxy)
+The source code for the proxy server can be found here: [SmartLayerProxy](https://github.com/JamesSmartCell/SmartLayerProxy)
 
 - Set up API routes
 ``` C++

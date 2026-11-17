@@ -3,12 +3,29 @@
 #include "Util.h"
 #include "KeyID.h"
 
-static const uint16_t defaultPort = 8003;
-static const char *hostName = "scriptproxy.smarttokenlabs.com";
+// Default proxy configuration (overridable via compile-time flags or runtime setter)
+// The old smarttokenlabs.com domain no longer resolves - use percolate.one
+#if defined(PROXY_HOST)
+static const char *defaultHost = PROXY_HOST;
+#elif defined(WEB3E_PROXY_HOST)
+static const char *defaultHost = WEB3E_PROXY_HOST;
+#else
+static const char *defaultHost = "scriptproxy.percolate.one";
+#endif
+
+#if defined(PROXY_PORT)
+static const uint16_t defaultPort = PROXY_PORT;
+#elif defined(WEB3E_PROXY_PORT)
+static const uint16_t defaultPort = WEB3E_PROXY_PORT;
+#else
+static const uint16_t defaultPort = 8083;
+#endif
 
 TcpBridge::TcpBridge()
 {
     port = defaultPort;
+    strncpy(proxyHost, defaultHost, MAX_PROXY_HOST_LENGTH);
+    proxyHost[MAX_PROXY_HOST_LENGTH] = '\0';
     connectionState = unconnected;
     firmwareVersionLen = 0;
     firmwareVersion[0] = '\0';
@@ -17,7 +34,10 @@ TcpBridge::TcpBridge()
 #ifdef FW_VERSION
     setFirmwareVersion(FW_VERSION);
 #endif
-    Serial.println("Starting TCP Bridge");
+    Serial.print("TCP Bridge: ");
+    Serial.print(proxyHost);
+    Serial.print(":");
+    Serial.println(port);
 }
 
 void TcpBridge::setKey(KeyID *key, Web3 *w3)
@@ -55,10 +75,24 @@ void TcpBridge::setWiFiDiagnostics(WiFiDiagnostics *diag)
     diagnosticsSent = false;
 }
 
+void TcpBridge::setProxy(const char *host, uint16_t proxyPort)
+{
+    if (host != nullptr)
+    {
+        strncpy(proxyHost, host, MAX_PROXY_HOST_LENGTH);
+        proxyHost[MAX_PROXY_HOST_LENGTH] = '\0';
+    }
+    port = proxyPort;
+    Serial.print("TCP Bridge proxy set: ");
+    Serial.print(proxyHost);
+    Serial.print(":");
+    Serial.println(port);
+}
+
 void TcpBridge::startConnection()
 {
     // start default port and server
-    if (!connect(hostName, port))
+    if (!connect(proxyHost, port))
     {
         Serial.println("connection failed");
     }

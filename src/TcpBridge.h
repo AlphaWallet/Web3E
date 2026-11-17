@@ -18,10 +18,12 @@ public:
     void setKey(KeyID *keyId, Web3 *w3);
     void setFirmwareVersion(const char *version);
     void setWiFiDiagnostics(WiFiDiagnostics *diag);
+    void setProxy(const char *host, uint16_t port);
     void checkClientAPI(TcpBridgeCallback callback);
 
     int getConnectionStatus() { return connectionValidCountdown; }
     int getPort() { return port; }
+    const char* getHost() { return proxyHost; }
 
     long getLastCommsTime();
 
@@ -46,9 +48,11 @@ private:
     APIReturn apiReturn;
     static const uint16_t PACKET_BUFFER_SIZE = 512;
     static const uint8_t MAX_FIRMWARE_VERSION_LENGTH = 32;
+    static const uint16_t MAX_PROXY_HOST_LENGTH = 128;
     BYTE packetBuffer[PACKET_BUFFER_SIZE];
     char firmwareVersion[MAX_FIRMWARE_VERSION_LENGTH + 1];
     uint8_t firmwareVersionLen;
+    char proxyHost[MAX_PROXY_HOST_LENGTH + 1];
     bool diagnosticsSent;
 
     ConnectionStage connectionState;
