@@ -34,7 +34,7 @@ UdpBridge::UdpBridge()
     WEB3E_PRINT("UDP Bridge: ");
     WEB3E_PRINT(serverName.c_str());
     WEB3E_PRINT(":");
-    WEB3E_PRINTln(port);
+    WEB3E_PRINTLN(port);
     initRandom = false;
     pongCount = 0;
 }
@@ -85,7 +85,7 @@ void UdpBridge::checkClientAPI(BridgeCallback callback)
                     else if (!initRandom)
                     {
                         initRandomSeed(sessionBytes);
-                        WEB3E_PRINTln("Refresh random");
+                        WEB3E_PRINTLN("Refresh random");
                         initRandom = true;
                     }
 
@@ -137,7 +137,7 @@ void UdpBridge::scanAPI(const BYTE *packet, APIReturn *apiReturn, int payloadLen
     //read length of API description
     apiReturn->apiName = getArg(packet, index, payloadLength);
     WEB3E_PRINT("API: ");
-    WEB3E_PRINTln(apiReturn->apiName.c_str());
+    WEB3E_PRINTLN(apiReturn->apiName.c_str());
 
     while (index < payloadLength)
     {
@@ -147,7 +147,7 @@ void UdpBridge::scanAPI(const BYTE *packet, APIReturn *apiReturn, int payloadLen
         WEB3E_PRINT("PAIR: ");
         WEB3E_PRINT(key.c_str());
         WEB3E_PRINT("     ");
-        WEB3E_PRINTln(param.c_str());
+        WEB3E_PRINTLN(param.c_str());
     }
 }
 

@@ -400,7 +400,7 @@ std::pair <uint256_t, uint256_t> uint256_t::divmod(const uint256_t & lhs, const 
     // Save some calculations /////////////////////
     if (rhs == uint256_0){
         //throw std::domain_error("Error: division or modulus by 0");
-        WEB3E_PRINTln("Error: division or modulus by 0");
+        WEB3E_PRINTLN("Error: division or modulus by 0");
     }
     else if (rhs == uint256_1){
         return std::pair <uint256_t, uint256_t> (lhs, uint256_0);
@@ -543,7 +543,7 @@ uint16_t uint256_t::bits() const{
 
 std::string uint256_t::str(uint8_t base, const unsigned int & len) const{
     if ((base < 2) || (base > 36)){
-        WEB3E_PRINTln("Base must be in the range [2, 16]");
+        WEB3E_PRINTLN("Base must be in the range [2, 16]");
         return 0;
     }
     std::string out = "";

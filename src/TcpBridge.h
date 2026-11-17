@@ -34,6 +34,7 @@ public:
     int getConnectionStatus() { return connectionValidCountdown; }
     int getPort() { return port; }
     const char* getHost() { return proxyHost; }
+    long getLastCommsTime();
 
 private:
     void scanAPI(const BYTE *packet, APIReturn *apiReturn, int payloadLength);

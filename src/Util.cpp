@@ -666,8 +666,8 @@ vector<string> *Util::InterpretVectorResult(string *result)
                 //checksum
                 if (breakDown.size() != (length + 2))
                 {
-                    WEB3E_PRINTln("Bad array result data.");
-                    for (itr = breakDown.begin(); itr != breakDown.end(); itr++) WEB3E_PRINTln(*itr->c_str());
+                    WEB3E_PRINTLN("Bad array result data.");
+                    for (itr = breakDown.begin(); itr != breakDown.end(); itr++) WEB3E_PRINTLN(*itr->c_str());
                 }
                 for (;itr != breakDown.end(); itr++)
                 {
