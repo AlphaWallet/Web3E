@@ -49,6 +49,7 @@ class E2ETestRunner {
         private serialPath: string,
         private proxyBaseUrl: string,
         private telemetryApiKey: string | undefined,
+        private deviceAddress: string | undefined,
         private timeoutMs: number = 120000 // 2 minutes default
     ) {
         this.result = {
@@ -61,11 +62,25 @@ class E2ETestRunner {
             telemetryVerified: false,
             telemetryHasDiagnostics: false
         };
+        
+        // If device address was provided, set it (case-insensitive normalization)
+        if (deviceAddress) {
+            this.result.deviceAddress = this.normalizeAddress(deviceAddress);
+        }
+    }
+    
+    private normalizeAddress(addr: string): string {
+        // Normalize to lowercase with 0x prefix
+        const clean = addr.trim().toLowerCase();
+        return clean.startsWith('0x') ? clean : '0x' + clean;
     }
     
     async run(): Promise<E2ETestResult> {
         console.log(`Starting E2E test on ${this.serialPath}`);
         console.log(`Proxy: ${this.proxyBaseUrl}`);
+        if (this.result.deviceAddress) {
+            console.log(`Device address: ${this.result.deviceAddress} (pre-configured)`);
+        }
         console.log(`Timeout: ${this.timeoutMs}ms\n`);
         
         return new Promise((resolve, reject) => {
@@ -84,18 +99,39 @@ class E2ETestRunner {
                 baudRate: 115200
             });
             
-            this.parser = this.port.pipe(new ReadlineParser({ delimiter: '\n' }));
-            
             this.port.on('error', (err) => {
                 this.result.error = `Serial port error: ${err.message}`;
                 this.cleanup();
                 resolve(this.result);
             });
             
-            this.parser.on('data', (line: string) => {
-                this.handleSerialLine(line.trim());
+            this.port.on('open', async () => {
+                console.log('✓ Serial port opened');
+                
+                // Reset ESP32 by pulsing EN pin (DTR=false, RTS=true for 200ms, then RTS=false)
+                // This is the standard esptool reset sequence for ESP32 DevKit boards
+                try {
+                    console.log('⏳ Resetting ESP32...');
+                    await this.port!.set({ dtr: false, rts: true });
+                    await this.sleep(200);
+                    await this.port!.set({ rts: false });
+                    await this.sleep(100); // Brief stabilization delay
+                    console.log('✓ ESP32 reset complete, monitoring serial output...\n');
+                } catch (err) {
+                    console.log(`⚠ Reset failed (${err}), continuing anyway...`);
+                }
+                
+                // Now start parsing serial data
+                this.parser = this.port!.pipe(new ReadlineParser({ delimiter: '\n' }));
+                this.parser.on('data', (line: string) => {
+                    this.handleSerialLine(line.trim());
+                });
             });
         });
+    }
+    
+    private sleep(ms: number): Promise<void> {
+        return new Promise(resolve => setTimeout(resolve, ms));
     }
     
     private handleSerialLine(line: string) {
@@ -140,8 +176,13 @@ class E2ETestRunner {
             console.log(`✓ WiFi connected: ${kv.ip}`);
         } else if (message.startsWith('DEVICE_ADDRESS=')) {
             const kv = parseKV(message);
-            this.result.deviceAddress = kv.DEVICE_ADDRESS;
-            console.log(`✓ Device address: ${this.result.deviceAddress}`);
+            // Only set if not already configured via --address flag
+            if (!this.result.deviceAddress) {
+                this.result.deviceAddress = this.normalizeAddress(kv.DEVICE_ADDRESS);
+                console.log(`✓ Device address: ${this.result.deviceAddress}`);
+            } else {
+                console.log(`✓ Device address from serial: ${kv.DEVICE_ADDRESS} (using pre-configured: ${this.result.deviceAddress})`);
+            }
         } else if (message.startsWith('LOGIN=OK')) {
             const kv = parseKV(message);
             this.result.loginSuccess = true;
@@ -194,8 +235,15 @@ class E2ETestRunner {
     }
     
     private async triggerApiCall() {
+        // Try to get device address from telemetry if we don't have it yet
+        if (!this.result.deviceAddress && this.telemetryApiKey) {
+            console.log('  ⏳ Device address not captured from serial, fetching from telemetry...');
+            await this.fetchDeviceAddressFromTelemetry();
+        }
+        
         if (!this.result.deviceAddress) {
-            console.log('  ✗ Cannot trigger API call - device address not yet captured');
+            console.log('  ✗ Cannot trigger API call - device address not available');
+            console.log('    Hint: Use --address flag or ensure TELEMETRY_API_KEY is set');
             return;
         }
         
@@ -223,6 +271,44 @@ class E2ETestRunner {
         } catch (error: any) {
             console.log(`  ✗ API call failed: ${error.message}`);
             console.log('    (Device may still handle it if proxy forwarded before timeout)');
+        }
+    }
+    
+    private async fetchDeviceAddressFromTelemetry() {
+        if (!this.telemetryApiKey) {
+            return;
+        }
+        
+        try {
+            // Get recent connection events from telemetry
+            const response = await axios.get(
+                `${this.proxyBaseUrl}/api/telemetry/feed`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${this.telemetryApiKey}`
+                    },
+                    params: {
+                        limit: 50
+                    },
+                    timeout: 5000
+                }
+            );
+            
+            if (response.status === 200 && response.data && response.data.rows) {
+                // Find most recent connect event
+                const recentConnect = response.data.rows
+                    .filter((e: any) => e.eventType === 'connect')
+                    .sort((a: any, b: any) => b.timestamp - a.timestamp)[0];
+                
+                if (recentConnect && recentConnect.device) {
+                    this.result.deviceAddress = this.normalizeAddress(recentConnect.device);
+                    console.log(`  ✓ Found device address in telemetry: ${this.result.deviceAddress}`);
+                } else {
+                    console.log('  ⚠ No recent device connections in telemetry');
+                }
+            }
+        } catch (error: any) {
+            console.log(`  ⚠ Could not fetch from telemetry: ${error.message}`);
         }
     }
     
@@ -308,25 +394,54 @@ class E2ETestRunner {
 async function main() {
     const args = process.argv.slice(2);
     
-    if (args.length < 1) {
-        console.error('Usage: tsx run-e2e.ts <serial-port> [timeout-ms]');
+    // Parse arguments
+    let serialPath: string | undefined;
+    let timeoutMs = 120000;
+    let deviceAddress: string | undefined;
+    
+    for (let i = 0; i < args.length; i++) {
+        const arg = args[i];
+        if (arg === '--address' && i + 1 < args.length) {
+            deviceAddress = args[++i];
+        } else if (arg === '--timeout' && i + 1 < args.length) {
+            timeoutMs = parseInt(args[++i], 10);
+        } else if (!serialPath && !arg.startsWith('--')) {
+            serialPath = arg;
+        }
+    }
+    
+    // Support legacy positional args: <port> [timeout]
+    if (!serialPath && args.length >= 1 && !args[0].startsWith('--')) {
+        serialPath = args[0];
+        if (args.length >= 2 && !args[1].startsWith('--')) {
+            timeoutMs = parseInt(args[1], 10);
+        }
+    }
+    
+    if (!serialPath) {
+        console.error('Usage: tsx run-e2e.ts <serial-port> [timeout-ms] [--address <device-address>]');
+        console.error('       tsx run-e2e.ts <serial-port> --address <device-address> --timeout <ms>');
         console.error('');
-        console.error('Example: tsx run-e2e.ts COM3 120000');
-        console.error('         tsx run-e2e.ts /dev/ttyUSB0');
+        console.error('Examples:');
+        console.error('  tsx run-e2e.ts COM3 120000');
+        console.error('  tsx run-e2e.ts /dev/ttyUSB0 --address 0xABCD1234...');
+        console.error('  tsx run-e2e.ts COM15 --timeout 180000');
+        console.error('');
+        console.error('Options:');
+        console.error('  --address <addr>     Pre-configure device address (if serial misses it)');
+        console.error('  --timeout <ms>       Test timeout in milliseconds (default: 120000)');
         console.error('');
         console.error('Environment variables:');
-        console.error('  PROXY_BASE_URL       - SmartLayerProxy URL (default: https://scriptproxy.percolate.one)');
-        console.error('  TELEMETRY_API_KEY    - API key for telemetry verification (optional)');
+        console.error('  PROXY_BASE_URL       SmartLayerProxy URL (default: https://scriptproxy.percolate.one)');
+        console.error('  TELEMETRY_API_KEY    API key for telemetry fallback & verification (optional)');
         console.error('');
         process.exit(1);
     }
     
-    const serialPath = args[0];
-    const timeoutMs = args[1] ? parseInt(args[1], 10) : 120000;
     const proxyBaseUrl = process.env.PROXY_BASE_URL || 'https://scriptproxy.percolate.one';
     const telemetryApiKey = process.env.TELEMETRY_API_KEY;
     
-    const runner = new E2ETestRunner(serialPath, proxyBaseUrl, telemetryApiKey, timeoutMs);
+    const runner = new E2ETestRunner(serialPath, proxyBaseUrl, telemetryApiKey, deviceAddress, timeoutMs);
     const result = await runner.run();
     
     // Print summary

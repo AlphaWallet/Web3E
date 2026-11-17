@@ -32,14 +32,18 @@ def get_git_version():
             stderr=subprocess.STDOUT
         ).decode('ascii').strip()
         
-        # Check if working tree is dirty
+        # Check if working tree is dirty (ignore untracked files to avoid build artifacts)
         try:
-            git_status = subprocess.check_output(
-                ['git', 'status', '--porcelain'],
+            # Use git diff to check tracked files only
+            subprocess.check_output(
+                ['git', 'diff', '--quiet', 'HEAD'],
                 cwd=repo_root,
                 stderr=subprocess.STDOUT
-            ).decode('ascii').strip()
-            is_dirty = len(git_status) > 0
+            )
+            is_dirty = False
+        except subprocess.CalledProcessError:
+            # Exit code 1 means there are differences
+            is_dirty = True
         except:
             is_dirty = False
         

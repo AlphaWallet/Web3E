@@ -126,7 +126,15 @@ npx tsx run-e2e.ts COM3
 
 # With custom timeout (default 120 seconds):
 npx tsx run-e2e.ts COM3 180000  # 3 minutes
+
+# With pre-configured device address (if serial output is missed):
+npx tsx run-e2e.ts COM3 --address 0xABCD1234...
+
+# All options:
+npx tsx run-e2e.ts COM15 --timeout 180000 --address 0x123...
 ```
+
+**Note:** The runner automatically resets the ESP32 when it opens the serial port (DTR/RTS pulse). This ensures it captures all serial output from boot. If the device address is missed, use `--address` flag or set `TELEMETRY_API_KEY` for automatic fallback.
 
 ## Test Protocol
 
