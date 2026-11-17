@@ -3,14 +3,41 @@
 #include "Util.h"
 #include "KeyID.h"
 
-static const uint16_t defaultPort = 8003;
-static const char *hostName = "scriptproxy.smarttokenlabs.com";
+// Default proxy configuration (overridable via compile-time flags or runtime setter)
+// The old smarttokenlabs.com domain no longer resolves - use percolate.one
+#if defined(PROXY_HOST)
+static const char *defaultHost = PROXY_HOST;
+#elif defined(WEB3E_PROXY_HOST)
+static const char *defaultHost = WEB3E_PROXY_HOST;
+#else
+static const char *defaultHost = "scriptproxy.percolate.one";
+#endif
+
+#if defined(PROXY_PORT)
+static const uint16_t defaultPort = PROXY_PORT;
+#elif defined(WEB3E_PROXY_PORT)
+static const uint16_t defaultPort = WEB3E_PROXY_PORT;
+#else
+static const uint16_t defaultPort = 8083;
+#endif
 
 TcpBridge::TcpBridge()
 {
     port = defaultPort;
+    strncpy(proxyHost, defaultHost, MAX_PROXY_HOST_LENGTH);
+    proxyHost[MAX_PROXY_HOST_LENGTH] = '\0';
     connectionState = unconnected;
-    Serial.println("Starting TCP Bridge");
+    firmwareVersionLen = 0;
+    firmwareVersion[0] = '\0';
+    wifiDiagnostics = nullptr;
+    diagnosticsSent = false;
+#ifdef FW_VERSION
+    setFirmwareVersion(FW_VERSION);
+#endif
+    Serial.print("TCP Bridge: ");
+    Serial.print(proxyHost);
+    Serial.print(":");
+    Serial.println(port);
 }
 
 void TcpBridge::setKey(KeyID *key, Web3 *w3)
@@ -19,10 +46,53 @@ void TcpBridge::setKey(KeyID *key, Web3 *w3)
     web3 = w3;
 }
 
+void TcpBridge::setFirmwareVersion(const char *version)
+{
+    if (version == nullptr)
+    {
+        firmwareVersionLen = 0;
+        firmwareVersion[0] = '\0';
+        return;
+    }
+
+    size_t len = strlen(version);
+    if (len > MAX_FIRMWARE_VERSION_LENGTH)
+    {
+        len = MAX_FIRMWARE_VERSION_LENGTH;
+    }
+
+    memcpy(firmwareVersion, version, len);
+    firmwareVersion[len] = '\0';
+    firmwareVersionLen = len;
+
+    Serial.print("Firmware version set: ");
+    Serial.println(firmwareVersion);
+}
+
+void TcpBridge::setWiFiDiagnostics(WiFiDiagnostics *diag)
+{
+    wifiDiagnostics = diag;
+    diagnosticsSent = false;
+}
+
+void TcpBridge::setProxy(const char *host, uint16_t proxyPort)
+{
+    if (host != nullptr)
+    {
+        strncpy(proxyHost, host, MAX_PROXY_HOST_LENGTH);
+        proxyHost[MAX_PROXY_HOST_LENGTH] = '\0';
+    }
+    port = proxyPort;
+    Serial.print("TCP Bridge proxy set: ");
+    Serial.print(proxyHost);
+    Serial.print(":");
+    Serial.println(port);
+}
+
 void TcpBridge::startConnection()
 {
     // start default port and server
-    if (!connect(hostName, port))
+    if (!connect(proxyHost, port))
     {
         Serial.println("connection failed");
     }
@@ -37,12 +107,42 @@ void TcpBridge::startConnection()
 
 void TcpBridge::signChallenge(const BYTE *challenge, int length)
 {
-    keyID->getSignature(packetBuffer + 21, (uint8_t *)challenge, length);       // write sig
-    Util::ConvertHexToBytes(packetBuffer + 1, keyID->getAddress().c_str(), 20); // address
-    packetBuffer[0] = 0x07;                                                     // indicate using stright sig (ie not signPersonal)
-    int packetLength = 1 + ETHERS_ADDRESS_LENGTH + ETHERS_SIGNATURE_LENGTH;
-    //Serial.println(Util::ConvertBytesToHex(packetBuffer, packetLength).c_str());
-    write(packetBuffer, packetLength);
+    if (firmwareVersionLen == 0)
+    {
+        // Legacy opcode 0x07: no firmware version
+        keyID->getSignature(packetBuffer + 21, (uint8_t *)challenge, length);       // write sig
+        Util::ConvertHexToBytes(packetBuffer + 1, keyID->getAddress().c_str(), 20); // address
+        packetBuffer[0] = 0x07;                                                     // indicate using stright sig (ie not signPersonal)
+        int packetLength = 1 + ETHERS_ADDRESS_LENGTH + ETHERS_SIGNATURE_LENGTH;
+        //Serial.println(Util::ConvertBytesToHex(packetBuffer, packetLength).c_str());
+        write(packetBuffer, packetLength);
+    }
+    else
+    {
+        // New opcode 0x09: includes firmware version in signed challenge
+        // Build preimage: challenge || versionLen || version
+        BYTE preimage[length + 1 + MAX_FIRMWARE_VERSION_LENGTH];
+        memcpy(preimage, challenge, length);
+        preimage[length] = firmwareVersionLen;
+        memcpy(preimage + length + 1, firmwareVersion, firmwareVersionLen);
+        int preimageLength = length + 1 + firmwareVersionLen;
+
+        // Sign the preimage
+        BYTE signature[ETHERS_SIGNATURE_LENGTH];
+        keyID->getSignature(signature, preimage, preimageLength);
+
+        // Build packet: [opcode][address][signature][versionLen][version]
+        packetBuffer[0] = 0x09; // new opcode for firmware version
+        Util::ConvertHexToBytes(packetBuffer + 1, keyID->getAddress().c_str(), 20); // address
+        memcpy(packetBuffer + 21, signature, ETHERS_SIGNATURE_LENGTH);              // signature
+        packetBuffer[86] = firmwareVersionLen;                                       // version length
+        memcpy(packetBuffer + 87, firmwareVersion, firmwareVersionLen);             // version string
+
+        int packetLength = 1 + ETHERS_ADDRESS_LENGTH + ETHERS_SIGNATURE_LENGTH + 1 + firmwareVersionLen;
+        Serial.print("Sending challenge response with firmware version (opcode 0x09): ");
+        Serial.println(firmwareVersion);
+        write(packetBuffer, packetLength);
+    }
 }
 
 void TcpBridge::checkClientAPI(TcpBridgeCallback callback)
@@ -73,6 +173,14 @@ void TcpBridge::checkClientAPI(TcpBridgeCallback callback)
             signChallenge(packetBuffer, len);
             // challenge, we sign it
             connectionState = confirmed;
+            
+            // Send diagnostics after successful login (once per boot)
+            if (!diagnosticsSent && wifiDiagnostics != nullptr && wifiDiagnostics->hasDiagnostics())
+            {
+                sendDiagnostics();
+                diagnosticsSent = true;
+                wifiDiagnostics->recordSuccessfulLogin();
+            }
             break;
 
         case 0x04:
@@ -157,6 +265,62 @@ void TcpBridge::SendKeepAlive()
 {
     packetBuffer[0] = 0x06;
     write(packetBuffer, 1);
+}
+
+void TcpBridge::sendDiagnostics()
+{
+    if (wifiDiagnostics == nullptr)
+        return;
+    
+    const WiFiDiagnosticsData& data = wifiDiagnostics->getData();
+    
+    // Build diagnostics packet with opcode 0x0A
+    // Wire format: [opcode][resetReason][bootCount(2)][wifiAttempts(2)][connectTimeMs(4)][networkIndex][lastFailureStage][lastDisconnectReason][reserved]
+    packetBuffer[0] = 0x0A; // Diagnostics opcode
+    
+    // Pack the diagnostics data structure
+    int offset = 1;
+    packetBuffer[offset++] = data.resetReason;
+    
+    // bootCountSinceLogin (uint16_t, big-endian)
+    packetBuffer[offset++] = (data.bootCountSinceLogin >> 8) & 0xFF;
+    packetBuffer[offset++] = data.bootCountSinceLogin & 0xFF;
+    
+    // wifiAttemptsToConnect (uint16_t, big-endian)
+    packetBuffer[offset++] = (data.wifiAttemptsToConnect >> 8) & 0xFF;
+    packetBuffer[offset++] = data.wifiAttemptsToConnect & 0xFF;
+    
+    // connectTimeMs (uint32_t, big-endian)
+    packetBuffer[offset++] = (data.connectTimeMs >> 24) & 0xFF;
+    packetBuffer[offset++] = (data.connectTimeMs >> 16) & 0xFF;
+    packetBuffer[offset++] = (data.connectTimeMs >> 8) & 0xFF;
+    packetBuffer[offset++] = data.connectTimeMs & 0xFF;
+    
+    packetBuffer[offset++] = data.networkIndexUsed;
+    packetBuffer[offset++] = data.lastFailureStage;
+    packetBuffer[offset++] = data.lastDisconnectReason;
+    packetBuffer[offset++] = data.reserved;
+    
+    int packetLength = offset; // Should be 14 bytes total (1 opcode + 13 data bytes)
+    
+    Serial.println("Sending WiFi diagnostics (opcode 0x0A):");
+    Serial.print("  Reset reason: ");
+    Serial.println(data.resetReason);
+    Serial.print("  Boot count: ");
+    Serial.println(data.bootCountSinceLogin);
+    Serial.print("  WiFi attempts: ");
+    Serial.println(data.wifiAttemptsToConnect);
+    Serial.print("  Connect time: ");
+    Serial.print(data.connectTimeMs);
+    Serial.println("ms");
+    Serial.print("  Network index: ");
+    Serial.println(data.networkIndexUsed);
+    Serial.print("  Last failure stage: ");
+    Serial.println(data.lastFailureStage);
+    Serial.print("  Last disconnect reason: ");
+    Serial.println(data.lastDisconnectReason);
+    
+    write(packetBuffer, packetLength);
 }
 
 void TcpBridge::scanAPI(APIReturn *apiReturn, int available)

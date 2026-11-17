@@ -3,17 +3,37 @@
 #include "Util.h"
 #include "KeyID.h"
 
-//Bridge defaults - override these with setupConnection
-static const uint16_t defaultPort = 8003;
-static const uint16_t topPort = 8003;
-static const char *hostName = "scriptproxy.smarttokenlabs.com";
+// Default proxy configuration (overridable via compile-time flags or runtime setter)
+// The old smarttokenlabs.com domain no longer resolves - use percolate.one
+#if defined(PROXY_HOST)
+static const char *defaultHost = PROXY_HOST;
+#elif defined(WEB3E_PROXY_HOST)
+static const char *defaultHost = WEB3E_PROXY_HOST;
+#else
+static const char *defaultHost = "scriptproxy.percolate.one";
+#endif
+
+#if defined(PROXY_PORT)
+static const uint16_t defaultPort = PROXY_PORT;
+static const uint16_t topPort = PROXY_PORT;
+#elif defined(WEB3E_PROXY_PORT)
+static const uint16_t defaultPort = WEB3E_PROXY_PORT;
+static const uint16_t topPort = WEB3E_PROXY_PORT;
+#else
+static const uint16_t defaultPort = 8083;
+static const uint16_t topPort = 8083;
+#endif
 
 UdpBridge::UdpBridge()
 {
     memset(sessionBytes, 0, 8);
     port = defaultPort;
+    serverName = defaultHost;
     connectionState = handshake;
-    Serial.println("Starting UDP Bridge");
+    Serial.print("UDP Bridge: ");
+    Serial.print(serverName.c_str());
+    Serial.print(":");
+    Serial.println(port);
     initRandom = false;
     pongCount = 0;
 }
@@ -161,7 +181,7 @@ std::string UdpBridge::getArg(const BYTE *packet, int &index, int payloadLength)
 
 void UdpBridge::reSendResponse()
 {
-    beginPacket(hostName, port);
+    beginPacket(serverName.c_str(), port);
     write(currentReturnBytes, currentReturnBytesLen);
     endPacket();
 }
@@ -174,7 +194,7 @@ void UdpBridge::sendRefreshRequest()
     packetBuffer[10] = 0x00;
     int packetLength = 11;
 
-    beginPacket(hostName, port);
+    beginPacket(serverName.c_str(), port);
     write(packetBuffer, packetLength);
     endPacket();
 }
@@ -193,7 +213,7 @@ void UdpBridge::sendResponse(std::string resp, int methodId)
     memcpy(currentReturnBytes, packetBuffer, packetLength);
     currentReturnBytesLen = packetLength;
 
-    beginPacket(hostName, port);
+    beginPacket(serverName.c_str(), port);
     write(packetBuffer, packetLength);
     endPacket();
 }
@@ -260,7 +280,7 @@ void UdpBridge::sendSignature()
     memcpy(currentReturnBytes, packetBuffer, packetLength);
     currentReturnBytesLen = packetLength;
 
-    beginPacket(hostName, port);
+    beginPacket(serverName.c_str(), port);
     write(packetBuffer, packetLength);
     endPacket();
 }
@@ -286,7 +306,7 @@ void UdpBridge::sendPing()
     packetBuffer[0] = 0x03; //Ping
     //write signature of session token
     memcpy(packetBuffer + 1, verifiedSessionBytes, 8);
-    beginPacket(hostName, port);
+    beginPacket(serverName.c_str(), port);
     write(packetBuffer, 9);
     endPacket();
 }

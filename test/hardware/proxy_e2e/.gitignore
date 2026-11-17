@@ -1,0 +1,19 @@
+# PlatformIO
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# Build output
+.vscode/
+
+# Node
+node_modules/
+package-lock.json
+
+# Environment
+.env
+
+# Editor
+*.swp
+*.swo
+*~

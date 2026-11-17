@@ -289,10 +289,50 @@ The push transaction sample requires a little work to get running. You have to h
 ## Usage
 See Wallet Bridge 1, 2 and 3 examples for complete source
 
+## 🔴 BREAKING CHANGE: Proxy Server Default Updated
+
+**As of v1.46, the default proxy server has changed:**
+- **Old default:** `scriptproxy.smarttokenlabs.com:8003` (NO LONGER RESOLVES)
+- **New default:** `scriptproxy.percolate.one:8083` (TCP) / `:8083` (UDP)
+
+**What this means:**
+- Devices running **stock Web3E 1.45 or earlier** will fail to connect (DNS failure)
+- GarageDoor and other production deployments using the old default **MUST update**
+- Custom proxy configurations are unaffected
+
+**How to override:**
+
+```cpp
+// At runtime
+TcpBridge *tcpConnection = new TcpBridge();
+tcpConnection->setProxy("your.proxy.com", 8083);  // Set before startConnection()
+tcpConnection->startConnection();
+
+// At compile time (platformio.ini)
+build_flags =
+    -DWEB3E_PROXY_HOST=\"your.proxy.com\"
+    -DWEB3E_PROXY_PORT=8083
+
+// Or use PROXY_HOST/PROXY_PORT (also supported)
+build_flags =
+    -DPROXY_HOST=\"your.proxy.com\"
+    -DPROXY_PORT=8083
+```
+
+**UDP Bridge:**
+```cpp
+UdpBridge *udpConnection = new UdpBridge();
+std::string host = "your.proxy.com";
+udpConnection->setupConnection(host, 8083);  // Set before startConnection()
+udpConnection->startConnection();
+```
+
+---
+
 ## Standard: Using ScriptProxy Bridge
 ### This style of connection will work in almost every situation, from inside or outside of the WiFi connection
 In this usage pattern, your IoT device will connect to a proxy server which provides a bridge to the TokenScript running on your wallet. 
-The source code for the proxy server can be found here: [Script Proxy](https://github.com/AlphaWallet/Web3E-Application/tree/master/ScriptProxy)
+The source code for the proxy server can be found here: [SmartLayerProxy](https://github.com/JamesSmartCell/SmartLayerProxy)
 
 - Set up API routes
 ``` C++
@@ -534,6 +574,309 @@ string p = contract.SetupContractData("transfer(address,uint256)", &toAddress, &
 result = contract.SendTransaction(nonceVal, gasPriceVal, gasLimitVal, &contractAddr, &valueStr, &p);
 string transactionHash = web3->getString(&result);
 ```
+
+## EEPROM Layout and Size Management
+
+**CRITICAL:** Web3E components (KeyID, WifiStore) share EEPROM/NVS storage and MUST use the same size.
+
+### The Truncation Bug
+
+On arduino-esp32 3.x, `EEPROM.begin(size)` uses NVS (Non-Volatile Storage) as a blob. **If you call `EEPROM.begin()` with a smaller size than previously stored, it TRUNCATES the blob**, destroying data at higher offsets.
+
+**Example of the bug:**
+```cpp
+// Boot 1: WifiStore writes at offset 33+
+EEPROM.begin(1024);  // Allocates 1024 bytes
+// ... write WifiStore data at offset 33-828
+
+// Boot 2: KeyID runs first
+EEPROM.begin(33);    // ❌ TRUNCATES blob to 33 bytes!
+// WifiStore data at offset 33+ is now GONE
+```
+
+### The Fix
+
+All Web3E components now use **`WEB3E_EEPROM_SIZE`** (default 1024 bytes):
+
+```cpp
+#include "Web3EEeprom.h"
+
+// KeyID and WifiStore both use WEB3E_EEPROM_SIZE
+EEPROM.begin(WEB3E_EEPROM_SIZE);  // ✓ Always 1024 bytes
+```
+
+### EEPROM Layout
+
+```
+Offset 0-32:   KeyID (1 byte marker + 32 bytes private key)
+Offset 33+:    WifiStore (magic, version, networks, terminator, CRC32)
+Total:         1024 bytes (WEB3E_EEPROM_SIZE)
+```
+
+### Overriding EEPROM Size
+
+If you need a custom size (e.g., for additional data), define it before including Web3E headers:
+
+```cpp
+// In platformio.ini
+build_flags = -DWEB3E_EEPROM_SIZE=2048
+
+// Or in your sketch
+#define WEB3E_EEPROM_SIZE 2048
+#include <Web3.h>
+```
+
+Minimum: 828 bytes (enforced at compile time).
+
+**Note:** Changing `WEB3E_EEPROM_SIZE` on an already-provisioned device with a smaller size will truncate existing data. Always use the same or larger size.
+
+---
+
+## TCP Bridge Protocol
+
+The TCP Bridge provides a secure connection between IoT devices and the SmartLayerProxy server for TokenScript integration.
+
+### Wire Protocol Opcodes
+
+The protocol uses single-byte opcodes to identify message types:
+
+**Client → Server (Device sends):**
+- `0x01`: Refresh request - Device requests token list `[opcode][20-byte address]`
+- `0x06`: Keep-alive ping - Connection maintenance `[opcode]`
+- `0x07`: Challenge response (legacy) - Authentication without firmware version `[opcode][20-byte address][65-byte signature]`
+- `0x08`: API response - Result from API call `[opcode][response string]`
+- `0x09`: Challenge response with firmware version - Authentication including firmware version (see below)
+- `0x0A`: WiFi diagnostics - Connection diagnostics after successful login (see below)
+
+**Server → Client (Device receives):**
+- `0x02`: Challenge - Server sends authentication challenge `[opcode][16-byte random challenge]`
+- `0x04`: API call - Server requests device to execute an API
+- `0x06`: Keep-alive - Server sends keep-alive
+
+### Challenge Response with Firmware Version (Opcode 0x09)
+
+When a firmware version is set via `setFirmwareVersion()`, the device authenticates using opcode `0x09`:
+
+**Wire Format:**
+```
+[1 byte: 0x09][20 bytes: address][65 bytes: signature][1 byte: versionLen][versionLen bytes: version]
+```
+
+**Fields:**
+- **Opcode** (1 byte): `0x09`
+- **Address** (20 bytes): Device's Ethereum address
+- **Signature** (65 bytes): ECDSA signature (r, s, v format)
+- **Version Length** (1 byte): Length of firmware version string (0-32)
+- **Version** (variable): ASCII firmware version string
+
+**Signature Preimage:**
+
+The signature is computed over `keccak256(challenge || versionLen || version)` where:
+- `challenge`: 16-byte random challenge from server (opcode 0x02)
+- `versionLen`: 1-byte length of version string
+- `version`: ASCII firmware version string
+
+**Example:**
+
+For firmware version "v1.2.3" (6 bytes):
+1. Server sends: `0x02` + 16-byte challenge
+2. Device computes: `preimage = challenge || 0x06 || "v1.2.3"`
+3. Device signs: `signature = ecdsa_sign(keccak256(preimage), privateKey)`
+4. Device sends: `0x09 || address(20) || signature(65) || 0x06 || "v1.2.3"`
+
+**Server Verification (SmartLayerProxy):**
+
+The server verifies the signature by:
+1. Extract `address`, `signature`, `versionLen`, and `version` from the packet
+2. Reconstruct preimage: `challenge || versionLen || version`
+3. Compute hash: `keccak256(preimage)`
+4. Recover signer: `ecrecover(hash, signature)`
+5. Verify: `recovered_address == address`
+
+### Setting Firmware Version
+
+**At compile time:**
+```cpp
+// In platformio.ini
+build_flags =
+    -DFW_VERSION=\"v1.2.3\"
+```
+
+**At runtime:**
+```cpp
+TcpBridge *tcpConnection = new TcpBridge();
+tcpConnection->setFirmwareVersion("v1.2.3");
+tcpConnection->setKey(keyID, web3);
+tcpConnection->startConnection();
+```
+
+**Clearing firmware version (revert to opcode 0x07):**
+```cpp
+tcpConnection->setFirmwareVersion(nullptr);
+```
+
+### Backward Compatibility
+
+**Older firmware must NOT break. Servers MUST accept both opcodes.**
+
+- **Legacy devices** (no firmware version set, or `setFirmwareVersion(nullptr)`) use opcode `0x07`
+- **New devices** (with firmware version) use opcode `0x09`
+- **Old servers** accepting only opcode `0x07` continue working with legacy devices
+- **New servers** (SmartLayerProxy) MUST accept BOTH opcodes `0x07` (no version) and `0x09` (with version)
+- Opcode `0x07` behavior is byte-for-byte identical to the original implementation
+- The firmware version in opcode `0x09` is authenticated by including it in the signed challenge preimage
+
+## WiFi Connection Diagnostics (Opcode 0x0A)
+
+WiFi connection is the primary failure point for IoT devices. Web3E includes comprehensive diagnostics tracking to identify connectivity issues.
+
+### Features
+
+**Watchdog Timer:**
+- Configurable timeout for WiFi connection (default 30 seconds per network)
+- Cycles through all configured networks up to 3 times
+- Automatic reboot if no network connects after all attempts
+- Prevents infinite hangs during startup
+
+**Diagnostics Tracking:**
+- Reset reason (power-on, software restart, watchdog, brownout, etc.)
+- Boot count since last successful TCP bridge login
+- WiFi connection attempts before success
+- Time to establish WiFi connection (milliseconds)
+- Network index that succeeded (0-based)
+- Last failure stage (association, authentication, DHCP, DNS, TLS, proxy)
+- Last WiFi disconnect reason code
+
+**Storage:**
+- Uses ESP32 NVS (Non-Volatile Storage) for persistence across reboots
+- Survives soft reboots and retains data through power cycles
+- Does NOT overlap with KeyID EEPROM storage (bytes 0-32)
+- Automatically resets counters after successful TCP bridge login
+
+### Wire Format (Opcode 0x0A)
+
+Sent automatically after successful TCP bridge login (challenge response accepted), once per boot cycle.
+
+```
+[1 byte: 0x0A][1 byte: resetReason][2 bytes: bootCount][2 bytes: wifiAttempts]
+[4 bytes: connectTimeMs][1 byte: networkIndex][1 byte: lastFailureStage]
+[1 byte: lastDisconnectReason][1 byte: reserved]
+```
+
+**Total packet size: 14 bytes**
+
+**Field Details:**
+
+| Offset | Length | Type | Field | Description |
+|--------|--------|------|-------|-------------|
+| 0 | 1 | uint8 | opcode | `0x0A` (diagnostics) |
+| 1 | 1 | uint8 | resetReason | ESP32 reset reason code (see below) |
+| 2 | 2 | uint16 | bootCount | Number of boots since last successful login (big-endian) |
+| 4 | 2 | uint16 | wifiAttempts | WiFi connection attempts before success (big-endian) |
+| 6 | 4 | uint32 | connectTimeMs | Milliseconds to establish WiFi connection (big-endian) |
+| 10 | 1 | uint8 | networkIndex | Index of network that succeeded (0-based) |
+| 11 | 1 | uint8 | lastFailureStage | Last failure stage code (see below) |
+| 12 | 1 | uint8 | lastDisconnectReason | WiFi disconnect reason code (see below) |
+| 13 | 1 | uint8 | reserved | Reserved for future use (set to 0) |
+
+**Reset Reason Codes (`esp_reset_reason_t` from ESP-IDF):**
+- `0`: ESP_RST_UNKNOWN - Unknown reset reason
+- `1`: ESP_RST_POWERON - Power-on reset
+- `2`: ESP_RST_EXT - External pin reset
+- `3`: ESP_RST_SW - Software reset via esp_restart
+- `4`: ESP_RST_PANIC - Software panic reset
+- `5`: ESP_RST_INT_WDT - Interrupt watchdog reset
+- `6`: ESP_RST_TASK_WDT - Task watchdog reset
+- `7`: ESP_RST_WDT - Other watchdog reset
+- `8`: ESP_RST_DEEPSLEEP - Deep sleep reset
+- `9`: ESP_RST_BROWNOUT - Brownout reset
+- `10`: ESP_RST_SDIO - SDIO reset
+
+**Failure Stage Codes:**
+- `0x00`: None (no failure)
+- `0x01`: Association failed (SSID not found)
+- `0x02`: Authentication failed (wrong password)
+- `0x03`: DHCP failed (no IP address)
+- `0x04`: DNS resolution failed
+- `0x05`: TLS handshake failed
+- `0x06`: Proxy connection failed
+
+**WiFi Disconnect Reason Codes:**
+ESP32 `wifi_err_reason_t` enum values (200+ range):
+- `200`: WIFI_REASON_BEACON_TIMEOUT - Beacon timeout
+- `201`: WIFI_REASON_NO_AP_FOUND - AP not found
+- `202`: WIFI_REASON_AUTH_FAIL - Authentication failed
+- `203`: WIFI_REASON_ASSOC_FAIL - Association failed
+- `204`: WIFI_REASON_HANDSHAKE_TIMEOUT - 4-way handshake timeout
+- And others per ESP32 WiFi API (see `esp_wifi_types.h`)
+
+All codes fit in uint8 field (0-255 range).
+
+### Usage
+
+**Enable diagnostics in your sketch:**
+
+```cpp
+#include <TcpBridge.h>
+#include <WiFiConnection.h>
+
+WiFiConnection wifiConnection;
+TcpBridge *tcpConnection;
+
+void setup() {
+    // Connect to WiFi
+    WiFiCredentials networks[] = {
+        {"Network1", "password1"},
+        {"Network2", "password2"},
+        {nullptr, nullptr}  // Terminator
+    };
+    wifiConnection.setupWifi(networks);
+    
+    // Optional: Set connection timeout (default 30000ms)
+    wifiConnection.setConnectionTimeout(45000); // 45 seconds
+    
+    // Setup TCP bridge with diagnostics
+    tcpConnection = new TcpBridge();
+    tcpConnection->setFirmwareVersion("v1.0.0");
+    tcpConnection->setWiFiDiagnostics(wifiConnection.getDiagnostics());
+    tcpConnection->setKey(keyID, web3);
+    tcpConnection->startConnection();
+}
+```
+
+**Diagnostics are sent automatically:**
+1. Device boots and records boot count
+2. WiFi connection established with timing/attempts tracked
+3. TCP bridge connects and authenticates (challenge/response)
+4. After successful authentication, diagnostics sent once (opcode `0x0A`)
+5. Diagnostics counters reset after successful send
+
+**Server Implementation (SmartLayerProxy):**
+
+Old servers safely ignore unknown opcode `0x0A` - the TCP protocol is designed so unknown opcodes can be skipped. New servers should parse and store diagnostics:
+
+```typescript
+// Parse opcode 0x0A diagnostics packet (14 bytes)
+const opcode = buffer[0]; // 0x0A
+const resetReason = buffer[1];
+const bootCount = (buffer[2] << 8) | buffer[3];
+const wifiAttempts = (buffer[4] << 8) | buffer[5];
+const connectTimeMs = (buffer[6] << 24) | (buffer[7] << 16) | (buffer[8] << 8) | buffer[9];
+const networkIndex = buffer[10];
+const lastFailureStage = buffer[11];
+const lastDisconnectReason = buffer[12];
+const reserved = buffer[13];
+
+// Store diagnostics associated with device address
+console.log(`Device diagnostics: ${bootCount} boots, ${wifiAttempts} attempts, ${connectTimeMs}ms connect time`);
+```
+
+### Backward Compatibility
+
+- Old firmware without diagnostics: No opcode `0x0A` sent (fully compatible)
+- New firmware with diagnostics: Sends opcode `0x0A` after login
+- Old servers: Unknown opcode safely ignored (TCP protocol is opcode-extensible)
+- New servers: Parse and store diagnostics for monitoring
 
 Originally forked https://github.com/kopanitsa/web3-arduino but with almost a complete re-write it is a new framework entirely.
 
