@@ -80,6 +80,9 @@ void Initialize()
 
 void setup() 
 {
+  // Arm startup watchdog first (30s timeout until session confirmed)
+  TcpBridge::armStartupWatchdog();
+  
   Serial.begin(115200);
   
   // Connect to WiFi using WiFiConnection helper

@@ -101,6 +101,9 @@ std::string handleAPI(APIReturn *apiReturn) {
 }
 
 void setup() {
+    // Arm startup watchdog first (30s timeout until session confirmed)
+    TcpBridge::armStartupWatchdog();
+    
     Serial.begin(115200);
     delay(2000); // Wait for serial
     

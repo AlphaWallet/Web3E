@@ -10,6 +10,7 @@
 #include "Trezor/ecdsa.h"
 #include <vector>
 #include <string.h>
+#include "Web3Log.h"
 
 #define SIGNATURE_LENGTH 64
 
@@ -32,7 +33,7 @@ bool Crypto::Sign(BYTE* digest, BYTE* result)
     for (int i = 0; i < ETHERS_PRIVATEKEY_LENGTH; i++) if (privateKey[i] != 0) allZero = false;
     if (allZero == true)
     {
-        Serial.println("Private key not set, generate a private key (eg use Metamask) and call Contract::SetPrivateKey with it.");
+        WEB3E_PRINTLN("Private key not set, generate a private key (eg use Metamask) and call Contract::SetPrivateKey with it.");
     }
     else
     {

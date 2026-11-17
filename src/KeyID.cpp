@@ -1,5 +1,6 @@
 #include <KeyID.h>
 #include "Util.h"
+#include "Web3Log.h"
 
 // If we already have a private key
 KeyID::KeyID(Web3* web3, const std::string& privateKey)
@@ -20,19 +21,19 @@ KeyID::KeyID(Web3* web3)
   // On arduino-esp32 3.x, EEPROM.begin() with a smaller size truncates the NVS blob
   if (!EEPROM.begin(WEB3E_EEPROM_SIZE))
   {
-    Serial.println("failed to initialise EEPROM");
+    WEB3E_PRINTLN("failed to initialise EEPROM");
     delay(1000000);
     return;
   }
   
-  Serial.print("KeyID: EEPROM initialized with size ");
-  Serial.println(WEB3E_EEPROM_SIZE);
+  WEB3E_PRINT("KeyID: EEPROM initialized with size ");
+  WEB3E_PRINTLN(WEB3E_EEPROM_SIZE);
 
   //fitst see if there's a stored key
   if (static_cast<uint8_t>(EEPROM.read(0)) == 64)
   {
-    Serial.println();
-    Serial.println("Recovering key from EEPROM");
+    WEB3E_PRINTLN();
+    WEB3E_PRINTLN("Recovering key from EEPROM");
     for (int i = 0; i < ETHERS_PRIVATEKEY_LENGTH; i++)
     {
       privateKeyBytes[i] = static_cast<uint8_t>(EEPROM.read(i + 1));
@@ -74,11 +75,11 @@ void KeyID::getSignature(uint8_t* signature, BYTE* msgBytes, int length)
   uint8_t hash[ETHERS_KECCAK256_LENGTH];
 
   Crypto::Keccak256((uint8_t*)msgBytes, length, hash);
-  Serial.print("Got Hash: ");
-  Serial.println(Util::ConvertBytesToHex(hash, ETHERS_KECCAK256_LENGTH).c_str());
+  WEB3E_PRINT("Got Hash: ");
+  WEB3E_PRINTLN(Util::ConvertBytesToHex(hash, ETHERS_KECCAK256_LENGTH).c_str());
   crypto->Sign(hash, signature);
-  Serial.print("Got Sig: ");
-  Serial.println(Util::ConvertBytesToHex(signature, ETHERS_SIGNATURE_LENGTH).c_str());
+  WEB3E_PRINT("Got Sig: ");
+  WEB3E_PRINTLN(Util::ConvertBytesToHex(signature, ETHERS_SIGNATURE_LENGTH).c_str());
 }
 
 void KeyID::initPrivateKey(const std::string& privateKey, Web3* web3)
@@ -86,8 +87,8 @@ void KeyID::initPrivateKey(const std::string& privateKey, Web3* web3)
   crypto = new Crypto(web3);
   crypto->SetPrivateKey(privateKey.c_str());
   recoveredKey = true;
-  Serial.print("Device Address: ");
-  Serial.println(getAddress().c_str());
+  WEB3E_PRINT("Device Address: ");
+  WEB3E_PRINTLN(getAddress().c_str());
 }
 
 const std::string KeyID::getAddress()
