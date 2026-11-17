@@ -276,13 +276,13 @@ void loop() {
                 break;
                 
             case E2E_API_WAIT:
-                // Wait for at least one API call, or timeout
+                // Wait for at least one API call from the proxy
                 if (apiCallCount > 0) {
+                    e2ePrintResult("API_CALLS_RECEIVED", String(apiCallCount).c_str());
                     e2ePass();
                 } else if (now - stateStartTime > API_WAIT_TIMEOUT_MS) {
-                    // No API call received, but that's OK for basic test
-                    Serial.println("E2E:API_CALL count=0 (none received, OK for basic test)");
-                    e2ePass();
+                    // No API call received - FAIL (runner should trigger one)
+                    e2eFail("No API call received from proxy");
                 }
                 break;
                 
