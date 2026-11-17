@@ -135,17 +135,18 @@ The test firmware follows this sequence:
 ```
 1. E2E:START
 2. E2E:FW_VERSION=e2e-abc123
-3. E2E:KEYID=OK found=true
-4. E2E:WIFISTORE_READ networks=2
-5. E2E:WIFI=OK ip="192.168.1.100"
-6. E2E:DEVICE_ADDRESS="0x..."
-7. E2E:LOGIN=OK opcode=0x09
-8. E2E:DIAG_SENT opcode=0x0A
-9. E2E:KEEPALIVE count=1
-10. E2E:KEEPALIVE count=2
-11. E2E:KEEPALIVE count=3
-12. E2E:API_CALL name="..." count=1  (if triggered)
-13. E2E:DONE PASS time_ms=45000
+3. E2E:EEPROM_SIZE=1024
+4. E2E:KEYID=OK found=true
+5. E2E:WIFISTORE_READ networks=2
+6. E2E:WIFI=OK ip="192.168.1.100"
+7. E2E:DEVICE_ADDRESS="0x..."
+8. E2E:LOGIN=OK opcode=0x09
+9. E2E:DIAG_SENT opcode=0x0A
+10. E2E:KEEPALIVE count=1
+11. E2E:KEEPALIVE count=2
+12. E2E:KEEPALIVE count=3
+13. E2E:API_CALL name="..." count=1  (if triggered)
+14. E2E:DONE PASS time_ms=45000
 ```
 
 ## Serial Line Format
@@ -162,6 +163,7 @@ E2E:TEST=STATUS key1=value1 key2="quoted value"
 |------|-------------|
 | `E2E:START` | Test started |
 | `E2E:FW_VERSION=<version>` | Firmware version |
+| `E2E:EEPROM_SIZE=<size>` | EEPROM size opened (bytes) |
 | `E2E:KEYID=OK` | KeyID loaded from EEPROM |
 | `E2E:WIFISTORE_READ networks=N` | N networks loaded |
 | `E2E:WIFI=OK ip="..."` | WiFi connected |
@@ -287,7 +289,16 @@ E2E:FAIL reason="KeyID not found - device must be pre-provisioned"
 E2E:FAIL reason="WifiStore invalid - device must be pre-provisioned"
 ```
 
-**Solution:** Use Web3E-Setup-Firmware to configure WiFi networks. The WifiStore must have valid magic, version, and CRC32.
+**Possible causes:**
+1. Device not provisioned with Web3E-Setup-Firmware
+2. **EEPROM size mismatch** - KeyID truncated the WifiStore (see below)
+
+**Solutions:**
+- Use Web3E-Setup-Firmware to configure WiFi networks
+- Verify EEPROM size: Check `E2E:EEPROM_SIZE=1024` in serial output
+- If size is wrong, rebuild with correct `WEB3E_EEPROM_SIZE`
+
+**CRITICAL Bug:** On arduino-esp32 3.x, if KeyID calls `EEPROM.begin(33)` before WifiStore, it truncates the NVS blob and destroys WifiStore data at offset 33+. This is fixed by using shared `WEB3E_EEPROM_SIZE=1024` in both components. If you see CRC errors after provisioning, this was likely the cause - re-provision the device.
 
 ### WiFi connection failed
 

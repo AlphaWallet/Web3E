@@ -16,12 +16,17 @@ KeyID::KeyID(Web3* web3)
   std::string privateKey = "";
   privateKeyBytes = new BYTE[ETHERS_PRIVATEKEY_LENGTH];
 
-  if (!EEPROM.begin(EEPROM_SIZE + 1))
+  // CRITICAL: Use WEB3E_EEPROM_SIZE to avoid truncating WifiStore at offset 33+
+  // On arduino-esp32 3.x, EEPROM.begin() with a smaller size truncates the NVS blob
+  if (!EEPROM.begin(WEB3E_EEPROM_SIZE))
   {
     Serial.println("failed to initialise EEPROM");
     delay(1000000);
     return;
   }
+  
+  Serial.print("KeyID: EEPROM initialized with size ");
+  Serial.println(WEB3E_EEPROM_SIZE);
 
   //fitst see if there's a stored key
   if (static_cast<uint8_t>(EEPROM.read(0)) == 64)

@@ -112,10 +112,13 @@ void setup() {
     testState = E2E_INIT;
     stateStartTime = millis();
     
-    if (!EEPROM.begin(TOTAL_EEPROM_SIZE)) {
+    if (!EEPROM.begin(WEB3E_EEPROM_SIZE)) {
         e2eFail("EEPROM init failed");
         return;
     }
+    
+    Serial.print("E2E:EEPROM_SIZE=");
+    Serial.println(WEB3E_EEPROM_SIZE);
     
     // Check KeyID marker
     uint8_t marker = EEPROM.read(0);

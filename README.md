@@ -535,6 +535,63 @@ result = contract.SendTransaction(nonceVal, gasPriceVal, gasLimitVal, &contractA
 string transactionHash = web3->getString(&result);
 ```
 
+## EEPROM Layout and Size Management
+
+**CRITICAL:** Web3E components (KeyID, WifiStore) share EEPROM/NVS storage and MUST use the same size.
+
+### The Truncation Bug
+
+On arduino-esp32 3.x, `EEPROM.begin(size)` uses NVS (Non-Volatile Storage) as a blob. **If you call `EEPROM.begin()` with a smaller size than previously stored, it TRUNCATES the blob**, destroying data at higher offsets.
+
+**Example of the bug:**
+```cpp
+// Boot 1: WifiStore writes at offset 33+
+EEPROM.begin(1024);  // Allocates 1024 bytes
+// ... write WifiStore data at offset 33-828
+
+// Boot 2: KeyID runs first
+EEPROM.begin(33);    // ❌ TRUNCATES blob to 33 bytes!
+// WifiStore data at offset 33+ is now GONE
+```
+
+### The Fix
+
+All Web3E components now use **`WEB3E_EEPROM_SIZE`** (default 1024 bytes):
+
+```cpp
+#include "Web3EEeprom.h"
+
+// KeyID and WifiStore both use WEB3E_EEPROM_SIZE
+EEPROM.begin(WEB3E_EEPROM_SIZE);  // ✓ Always 1024 bytes
+```
+
+### EEPROM Layout
+
+```
+Offset 0-32:   KeyID (1 byte marker + 32 bytes private key)
+Offset 33+:    WifiStore (magic, version, networks, terminator, CRC32)
+Total:         1024 bytes (WEB3E_EEPROM_SIZE)
+```
+
+### Overriding EEPROM Size
+
+If you need a custom size (e.g., for additional data), define it before including Web3E headers:
+
+```cpp
+// In platformio.ini
+build_flags = -DWEB3E_EEPROM_SIZE=2048
+
+// Or in your sketch
+#define WEB3E_EEPROM_SIZE 2048
+#include <Web3.h>
+```
+
+Minimum: 828 bytes (enforced at compile time).
+
+**Note:** Changing `WEB3E_EEPROM_SIZE` on an already-provisioned device with a smaller size will truncate existing data. Always use the same or larger size.
+
+---
+
 ## TCP Bridge Protocol
 
 The TCP Bridge provides a secure connection between IoT devices and the SmartLayerProxy server for TokenScript integration.

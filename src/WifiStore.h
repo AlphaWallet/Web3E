@@ -4,6 +4,7 @@
 #include <Arduino.h>
 #include <EEPROM.h>
 #include <stdint.h>
+#include "Web3EEeprom.h"
 
 // EEPROM Layout Constants
 // KeyID (Web3E) uses bytes 0-32: [0]=marker(64), [1-32]=32-byte private key
@@ -30,9 +31,12 @@
 #define MAX_SSID_LENGTH 32
 #define MAX_PASSWORD_LENGTH 64
 
-// Calculate required EEPROM size
+// Calculate required EEPROM size for WifiStore alone
 #define WIFI_MAX_STORAGE_SIZE (WIFI_HEADER_SIZE + (MAX_WIFI_NETWORKS * (1 + MAX_SSID_LENGTH + 1 + MAX_PASSWORD_LENGTH)) + WIFI_TERMINATOR_SIZE + WIFI_CRC_SIZE)
-#define TOTAL_EEPROM_SIZE (WIFI_EEPROM_OFFSET + WIFI_MAX_STORAGE_SIZE)
+
+// Total EEPROM size is managed by WEB3E_EEPROM_SIZE (includes KeyID + WifiStore)
+// This ensures KeyID and WifiStore use the same size to prevent NVS truncation
+#define TOTAL_EEPROM_SIZE WEB3E_EEPROM_SIZE
 
 struct WifiCredential {
     char ssid[MAX_SSID_LENGTH + 1];

@@ -43,12 +43,15 @@ static const uint32_t crc32_table[256] = {
 WifiStore::WifiStore() : isInitialized(false) {}
 
 bool WifiStore::begin() {
-    if (!EEPROM.begin(TOTAL_EEPROM_SIZE)) {
+    // CRITICAL: Use WEB3E_EEPROM_SIZE to avoid truncating EEPROM
+    // On arduino-esp32 3.x, EEPROM.begin() with a smaller size truncates the NVS blob
+    if (!EEPROM.begin(WEB3E_EEPROM_SIZE)) {
         WEB3E_PRINTLN("WifiStore: Failed to initialize EEPROM");
         return false;
     }
     isInitialized = true;
-    WEB3E_PRINTLN("WifiStore: Initialized");
+    WEB3E_PRINT("WifiStore: Initialized with EEPROM size ");
+    WEB3E_PRINTLN(WEB3E_EEPROM_SIZE);
     return true;
 }
 
