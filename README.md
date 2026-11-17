@@ -619,10 +619,14 @@ tcpConnection->setFirmwareVersion(nullptr);
 
 ### Backward Compatibility
 
-- Devices without firmware version set (or `setFirmwareVersion(nullptr)`) continue to use opcode `0x07`
-- Old servers accepting only opcode `0x07` will work with legacy devices
-- New servers (SmartLayerProxy) accept both opcodes `0x07` and `0x09`
-- The firmware version is authenticated by including it in the signed challenge
+**Older firmware must NOT break. Servers MUST accept both opcodes.**
+
+- **Legacy devices** (no firmware version set, or `setFirmwareVersion(nullptr)`) use opcode `0x07`
+- **New devices** (with firmware version) use opcode `0x09`
+- **Old servers** accepting only opcode `0x07` continue working with legacy devices
+- **New servers** (SmartLayerProxy) MUST accept BOTH opcodes `0x07` (no version) and `0x09` (with version)
+- Opcode `0x07` behavior is byte-for-byte identical to the original implementation
+- The firmware version in opcode `0x09` is authenticated by including it in the signed challenge preimage
 
 Originally forked https://github.com/kopanitsa/web3-arduino but with almost a complete re-write it is a new framework entirely.
 
