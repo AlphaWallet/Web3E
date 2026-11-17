@@ -77,25 +77,43 @@ The firmware version is automatically set to `e2e-<git-short-sha>` (e.g., `e2e-a
 npm install
 ```
 
-### 4. Configure Environment
+### 4. Configure Environment (Optional)
 
-Create `.env` file from template:
+The test runner can load environment variables from `.env` for configuration.
+
+**Create `.env` file (gitignored):**
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env`:
+**Edit `.env`:**
 
 ```bash
-# SmartLayerProxy base URL
+# SmartLayerProxy base URL (default: https://scriptproxy.percolate.one)
 PROXY_BASE_URL=https://scriptproxy.percolate.one
 
-# Optional: Telemetry API key for verification
+# Telemetry API key for verification (optional but recommended)
+# Obtain from SmartLayerProxy admin
 TELEMETRY_API_KEY=your_api_key_here
 ```
 
-If `TELEMETRY_API_KEY` is not provided, the test will skip telemetry verification but still pass if the device completes successfully.
+**Telemetry Verification:**
+
+When `TELEMETRY_API_KEY` is configured, the runner will:
+- Verify the device's firmware version matches in telemetry
+- Verify WiFi diagnostics (opcode 0x0A) were recorded
+- Provide fallback device address lookup if serial output missed
+
+Without the API key, the test will skip telemetry verification but still pass if the device completes the protocol successfully.
+
+**Custom Environment Files:**
+
+Use `--env-file` to load from a different location:
+
+```bash
+npx tsx run-e2e.ts COM3 --env-file .env.production
+```
 
 ## Running the Test
 
@@ -130,9 +148,18 @@ npx tsx run-e2e.ts COM3 180000  # 3 minutes
 # With pre-configured device address (if serial output is missed):
 npx tsx run-e2e.ts COM3 --address 0xABCD1234...
 
+# With custom environment file:
+npx tsx run-e2e.ts COM3 --env-file .env.production
+
 # All options:
-npx tsx run-e2e.ts COM15 --timeout 180000 --address 0x123...
+npx tsx run-e2e.ts COM15 --timeout 180000 --address 0x123... --env-file .env.staging
 ```
+
+**CLI Options:**
+
+- `--address <addr>`: Pre-configure device address (helps if serial misses it)
+- `--timeout <ms>`: Test timeout in milliseconds (default: 120000)
+- `--env-file <path>`: Load environment variables from custom file (default: `.env` in this folder if present)
 
 **Note:** The runner automatically resets the ESP32 when it opens the serial port (DTR/RTS pulse). This ensures it captures all serial output from boot. If the device address is missed, use `--address` flag or set `TELEMETRY_API_KEY` for automatic fallback.
 
@@ -252,42 +279,59 @@ OVERALL RESULT:     ✓ PASS
 
 ## Telemetry Verification
 
-The test runner verifies SmartLayerProxy recorded:
+When `TELEMETRY_API_KEY` is configured, the test runner verifies SmartLayerProxy recorded:
 
 1. **Connect event** with firmware version matching device
+   - Endpoint: `GET /api/telemetry/feed?afterId=0&limit=100`
+   - Filters events for this device during the test run
+   - Verifies `firmwareVersion === FW_VERSION`
+
 2. **Diagnostics event** with boot count, WiFi attempts, connect time
+   - Endpoint: `GET /api/telemetry/diagnostics/feed?afterId=0&limit=50`
+   - Filters diagnostics for this device with `timestamp >= testStartTime`
+   - Confirms opcode 0x0A data was received and recorded
 
-Query URL: `GET /api/telemetry/feed?deviceAddress=0x...`
+**Authentication:**
 
-Headers: `Authorization: Bearer <TELEMETRY_API_KEY>`
+Both telemetry endpoints require:
 
-Response:
+```
+Authorization: Bearer <TELEMETRY_API_KEY>
+```
+
+**Connect Event Response:**
+
 ```json
 {
-  "events": [
+  "rows": [
     {
-      "type": "connect",
-      "deviceAddress": "0x...",
+      "device": "0x...",
+      "eventType": "connect",
       "firmwareVersion": "e2e-a1b2c3d",
-      "timestamp": "2026-11-17T00:00:00.000Z"
-    },
-    {
-      "type": "diagnostics",
-      "deviceAddress": "0x...",
-      "data": {
-        "resetReason": 1,
-        "bootCount": 2,
-        "wifiAttempts": 1,
-        "connectTimeMs": 3245,
-        "networkIndex": 0,
-        "lastFailureStage": 0,
-        "lastDisconnectReason": 0
-      },
-      "timestamp": "2026-11-17T00:00:00.100Z"
+      "timestamp": 1700179200000
     }
   ]
 }
 ```
+
+**Diagnostics Event Response:**
+
+```json
+{
+  "rows": [
+    {
+      "device": "0x...",
+      "bootCount": 2,
+      "wifiAttempts": 1,
+      "connectTimeMs": 3245,
+      "networkIndex": 0,
+      "timestamp": 1700179200100
+    }
+  ]
+}
+```
+
+**Note:** Telemetry verification is optional but recommended. The test will still pass if telemetry checks fail or are skipped due to missing API key.
 
 ## Troubleshooting
 

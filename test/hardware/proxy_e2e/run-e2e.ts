@@ -18,8 +18,11 @@ import * as dotenv from 'dotenv';
 import * as fs from 'fs';
 import * as path from 'path';
 
-// Load environment variables
-dotenv.config({ path: path.join(__dirname, '.env') });
+// Load environment variables from default .env (will be overridden by --env-file if specified)
+const defaultEnvPath = path.join(__dirname, '.env');
+if (fs.existsSync(defaultEnvPath)) {
+    dotenv.config({ path: defaultEnvPath });
+}
 
 interface E2ETestResult {
     pass: boolean;
@@ -44,6 +47,7 @@ class E2ETestRunner {
     private result: E2ETestResult;
     private timeout: NodeJS.Timeout | null = null;
     private resolve: ((result: E2ETestResult) => void) | null = null;
+    private testStartTime: number;
     
     constructor(
         private serialPath: string,
@@ -52,6 +56,7 @@ class E2ETestRunner {
         private deviceAddress: string | undefined,
         private timeoutMs: number = 120000 // 2 minutes default
     ) {
+        this.testStartTime = Date.now();
         this.result = {
             pass: false,
             wifiConnected: false,
@@ -221,10 +226,15 @@ class E2ETestRunner {
         } else if (message.startsWith('WAITING_FOR_API')) {
             console.log('⏳ Device waiting for API call - triggering test API call...');
             this.triggerApiCall();
-        } else if (message.startsWith('API_CALL')) {
+        } else if (message === 'API_CALL' || message.match(/^API_CALL\s/)) {
+            // Match "E2E:API_CALL name=..." but not "E2E:API_CALLS_RECEIVED=..."
             const kv = parseKV(message);
             this.result.apiCallCount = parseInt(kv.count || '0', 10);
             console.log(`✓ API call handled: ${kv.name} (count: ${this.result.apiCallCount})`);
+        } else if (message.startsWith('API_CALLS_RECEIVED=')) {
+            const kv = parseKV(message);
+            const totalCalls = parseInt(kv.API_CALLS_RECEIVED || '0', 10);
+            console.log(`✓ Total API calls received: ${totalCalls}`);
         } else if (message.startsWith('DONE')) {
             const parts = message.split(' ');
             const status = parts[1]; // PASS or FAIL
@@ -337,38 +347,48 @@ class E2ETestRunner {
     
     private async verifyTelemetry() {
         if (!this.telemetryApiKey || !this.result.deviceAddress) {
-            console.log('\n⚠ Skipping telemetry verification (no API key or device address)');
+            if (!this.telemetryApiKey) {
+                console.log('\n⚠ Skipping telemetry verification (no TELEMETRY_API_KEY)');
+            } else {
+                console.log('\n⚠ Skipping telemetry verification (no device address)');
+            }
             return;
         }
         
         console.log('\n📡 Verifying SmartLayerProxy telemetry...');
         
         try {
-            // Query telemetry API for this device
-            const response = await axios.get(
+            // Query telemetry feed for recent events from this device
+            const feedResponse = await axios.get(
                 `${this.proxyBaseUrl}/api/telemetry/feed`,
                 {
                     headers: {
                         'Authorization': `Bearer ${this.telemetryApiKey}`
                     },
                     params: {
-                        deviceAddress: this.result.deviceAddress,
-                        limit: 10
+                        afterId: 0,
+                        limit: 100
                     },
                     timeout: 10000
                 }
             );
             
-            if (response.status === 200 && response.data) {
-                const events = response.data.events || [];
-                console.log(`  Found ${events.length} telemetry events`);
-                
-                // Look for connect event with firmware version
-                const connectEvent = events.find((e: any) => 
-                    e.type === 'connect' && e.firmwareVersion
+            if (feedResponse.status === 200 && feedResponse.data && feedResponse.data.rows) {
+                const events = feedResponse.data.rows.filter((e: any) => 
+                    e.device?.toLowerCase() === this.result.deviceAddress?.toLowerCase()
                 );
                 
-                if (connectEvent) {
+                console.log(`  Found ${events.length} telemetry events for this device`);
+                
+                // Look for connect event with firmware version (during this test run)
+                const connectEvents = events.filter((e: any) => 
+                    e.eventType === 'connect' && 
+                    e.firmwareVersion &&
+                    e.timestamp >= this.testStartTime
+                );
+                
+                if (connectEvents.length > 0) {
+                    const connectEvent = connectEvents[connectEvents.length - 1]; // Most recent
                     this.result.telemetryFirmwareVersion = connectEvent.firmwareVersion;
                     console.log(`  ✓ Firmware version in telemetry: ${connectEvent.firmwareVersion}`);
                     
@@ -377,26 +397,55 @@ class E2ETestRunner {
                     } else {
                         console.log(`  ⚠ Firmware version mismatch (device: ${this.result.firmwareVersion})`);
                     }
+                } else {
+                    console.log('  ⚠ No connect event found during this test run');
                 }
-                
-                // Look for diagnostics event
-                const diagEvent = events.find((e: any) => 
-                    e.type === 'diagnostics' && e.data
+            }
+            
+            // Query diagnostics feed for this device
+            const diagResponse = await axios.get(
+                `${this.proxyBaseUrl}/api/telemetry/diagnostics/feed`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${this.telemetryApiKey}`
+                    },
+                    params: {
+                        afterId: 0,
+                        limit: 50
+                    },
+                    timeout: 10000
+                }
+            );
+            
+            if (diagResponse.status === 200 && diagResponse.data && diagResponse.data.rows) {
+                const diagEvents = diagResponse.data.rows.filter((e: any) =>
+                    e.device?.toLowerCase() === this.result.deviceAddress?.toLowerCase() &&
+                    e.timestamp >= this.testStartTime
                 );
                 
-                if (diagEvent) {
+                if (diagEvents.length > 0) {
+                    const diagEvent = diagEvents[diagEvents.length - 1]; // Most recent
                     this.result.telemetryHasDiagnostics = true;
-                    console.log('  ✓ Diagnostics found in telemetry');
-                    console.log(`    - Boot count: ${diagEvent.data.bootCount}`);
-                    console.log(`    - WiFi attempts: ${diagEvent.data.wifiAttempts}`);
-                    console.log(`    - Connect time: ${diagEvent.data.connectTimeMs}ms`);
+                    console.log('  ✓ Diagnostics found in telemetry (from this test run)');
+                    console.log(`    - Boot count: ${diagEvent.bootCount}`);
+                    console.log(`    - WiFi attempts: ${diagEvent.wifiAttempts}`);
+                    console.log(`    - Connect time: ${diagEvent.connectTimeMs}ms`);
+                    console.log(`    - Network index: ${diagEvent.networkIndex}`);
+                } else {
+                    console.log('  ⚠ No diagnostics found during this test run');
                 }
-                
-                this.result.telemetryVerified = true;
-                console.log('  ✓ Telemetry verification successful');
             }
+            
+            this.result.telemetryVerified = true;
+            console.log('  ✓ Telemetry verification complete');
         } catch (error: any) {
-            console.log(`  ⚠ Telemetry verification failed: ${error.message}`);
+            if (error.response?.status === 401) {
+                console.log('  ✗ Telemetry authentication failed (invalid API key)');
+            } else if (error.response?.status === 503) {
+                console.log('  ⚠ Telemetry endpoints disabled on proxy');
+            } else {
+                console.log(`  ⚠ Telemetry verification failed: ${error.message}`);
+            }
             console.log('    (This is non-fatal for the test)');
         }
     }
@@ -421,6 +470,7 @@ async function main() {
     let serialPath: string | undefined;
     let timeoutMs = 120000;
     let deviceAddress: string | undefined;
+    let envFile: string | undefined;
     
     // Collect positional args (non-flag args)
     const positional: string[] = [];
@@ -431,8 +481,21 @@ async function main() {
             deviceAddress = args[++i];
         } else if (arg === '--timeout' && i + 1 < args.length) {
             timeoutMs = parseInt(args[++i], 10);
+        } else if (arg === '--env-file' && i + 1 < args.length) {
+            envFile = args[++i];
         } else if (!arg.startsWith('--')) {
             positional.push(arg);
+        }
+    }
+    
+    // Load custom .env file if specified
+    if (envFile) {
+        if (fs.existsSync(envFile)) {
+            dotenv.config({ path: envFile, override: true });
+            console.log(`Loaded environment from: ${envFile}`);
+        } else {
+            console.error(`Error: --env-file not found: ${envFile}`);
+            process.exit(1);
         }
     }
     
@@ -448,19 +511,19 @@ async function main() {
     }
     
     if (!serialPath) {
-        console.error('Usage: tsx run-e2e.ts <serial-port> [timeout-ms] [--address <device-address>]');
-        console.error('       tsx run-e2e.ts <serial-port> --address <device-address> --timeout <ms>');
+        console.error('Usage: tsx run-e2e.ts <serial-port> [timeout-ms] [options]');
         console.error('');
         console.error('Examples:');
         console.error('  tsx run-e2e.ts COM3 120000');
         console.error('  tsx run-e2e.ts /dev/ttyUSB0 --address 0xABCD1234...');
-        console.error('  tsx run-e2e.ts COM15 --timeout 180000');
+        console.error('  tsx run-e2e.ts COM15 --timeout 180000 --env-file .env.production');
         console.error('');
         console.error('Options:');
         console.error('  --address <addr>     Pre-configure device address (if serial misses it)');
         console.error('  --timeout <ms>       Test timeout in milliseconds (default: 120000)');
+        console.error('  --env-file <path>    Load environment variables from custom file');
         console.error('');
-        console.error('Environment variables:');
+        console.error('Environment variables (.env or --env-file):');
         console.error('  PROXY_BASE_URL       SmartLayerProxy URL (default: https://scriptproxy.percolate.one)');
         console.error('  TELEMETRY_API_KEY    API key for telemetry fallback & verification (optional)');
         console.error('');
@@ -469,6 +532,11 @@ async function main() {
     
     const proxyBaseUrl = process.env.PROXY_BASE_URL || 'https://scriptproxy.percolate.one';
     const telemetryApiKey = process.env.TELEMETRY_API_KEY;
+    
+    // Never print the API key
+    if (telemetryApiKey) {
+        console.log('Telemetry API key: [configured]\n');
+    }
     
     const runner = new E2ETestRunner(serialPath, proxyBaseUrl, telemetryApiKey, deviceAddress, timeoutMs);
     const result = await runner.run();
