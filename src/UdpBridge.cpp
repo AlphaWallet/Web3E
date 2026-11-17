@@ -2,6 +2,7 @@
 #include "Web3.h"
 #include "Util.h"
 #include "KeyID.h"
+#include "Web3Log.h"
 
 // Default proxy configuration (overridable via compile-time flags or runtime setter)
 // The old smarttokenlabs.com domain no longer resolves - use percolate.one
@@ -30,10 +31,10 @@ UdpBridge::UdpBridge()
     port = defaultPort;
     serverName = defaultHost;
     connectionState = handshake;
-    Serial.print("UDP Bridge: ");
-    Serial.print(serverName.c_str());
-    Serial.print(":");
-    Serial.println(port);
+    WEB3E_PRINT("UDP Bridge: ");
+    WEB3E_PRINT(serverName.c_str());
+    WEB3E_PRINT(":");
+    WEB3E_PRINTln(port);
     initRandom = false;
     pongCount = 0;
 }
@@ -84,7 +85,7 @@ void UdpBridge::checkClientAPI(BridgeCallback callback)
                     else if (!initRandom)
                     {
                         initRandomSeed(sessionBytes);
-                        Serial.println("Refresh random");
+                        WEB3E_PRINTln("Refresh random");
                         initRandom = true;
                     }
 
@@ -135,18 +136,18 @@ void UdpBridge::scanAPI(const BYTE *packet, APIReturn *apiReturn, int payloadLen
 
     //read length of API description
     apiReturn->apiName = getArg(packet, index, payloadLength);
-    Serial.print("API: ");
-    Serial.println(apiReturn->apiName.c_str());
+    WEB3E_PRINT("API: ");
+    WEB3E_PRINTln(apiReturn->apiName.c_str());
 
     while (index < payloadLength)
     {
         std::string key = getArg(packet, index, payloadLength);
         std::string param = getArg(packet, index, payloadLength);
         apiReturn->params[key] = param;
-        Serial.print("PAIR: ");
-        Serial.print(key.c_str());
-        Serial.print("     ");
-        Serial.println(param.c_str());
+        WEB3E_PRINT("PAIR: ");
+        WEB3E_PRINT(key.c_str());
+        WEB3E_PRINT("     ");
+        WEB3E_PRINTln(param.c_str());
     }
 }
 

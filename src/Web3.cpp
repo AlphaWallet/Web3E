@@ -16,6 +16,7 @@
 #include <sstream>
 #include <memory>
 #include "nodes.h"
+#include "Web3Log.h"
 
 Web3::Web3(long long networkId) {
 #ifdef USING_INFURA
@@ -35,20 +36,20 @@ Web3::Web3(long long networkId, const char* infura_key_str) {
 #ifdef USING_INFURA
     if (strnlen(infura_key_str, 34) != 32)
     {
-        Serial.println("Incorrect Infura Key spec, fallback to staging API key");
+        WEB3E_PRINTLN("Incorrect Infura Key spec, fallback to staging API key");
         infura_key = INFURA_API_KEY;
     }
     else
     {
         infura_key = infura_key_str;
-        Serial.print("Setting Infura Key: ");
-        Serial.println(infura_key);
+        WEB3E_PRINT("Setting Infura Key: ");
+        WEB3E_PRINTLN(infura_key);
     }
 #else
     // Infura disabled - ignore the key
     infura_key = nullptr;
     if (infura_key_str) {
-        Serial.println("Warning: Infura key provided but USING_INFURA not defined - using public RPCs");
+        WEB3E_PRINTLN("Warning: Infura key provided but USING_INFURA not defined - using public RPCs");
     }
 #endif
 
@@ -261,8 +262,8 @@ string Web3::exec(const string* data) {
     int connected = client->connect(host, port);
     if (!connected) {
 #if defined(TEST_BUILD) || defined(DEBUG)
-        Serial.print("Web3: Unable to connect to ");
-        Serial.println(host);
+        WEB3E_PRINT("Web3: Unable to connect to ");
+        WEB3E_PRINTLN(host);
 #endif
 #ifdef WEB3_RESTART_ON_CONNECT_FAIL
         delay(100);
@@ -294,8 +295,8 @@ string Web3::exec(const string* data) {
     while (client->connected() && !client->available()) {
         if (millis() - startTime > WEB3_HTTP_TIMEOUT_MS) {
 #if defined(TEST_BUILD) || defined(DEBUG)
-            Serial.print("Web3: Response timeout from ");
-            Serial.println(host);
+            WEB3E_PRINT("Web3: Response timeout from ");
+            WEB3E_PRINTLN(host);
 #endif
             client->stop();
             client->~WiFiClientSecure();
@@ -315,7 +316,7 @@ string Web3::exec(const string* data) {
         if (!client->available()) {
             if (millis() - lastByteTime > WEB3_HTTP_TIMEOUT_MS) {
 #if defined(TEST_BUILD) || defined(DEBUG)
-                Serial.println("Web3: Timeout reading status line");
+                WEB3E_PRINTLN("Web3: Timeout reading status line");
 #endif
                 client->stop();
                 client->~WiFiClientSecure();
@@ -336,8 +337,8 @@ string Web3::exec(const string* data) {
                 statusParsed = parser.parseStatusLine(httpLineBuf);
                 if (!statusParsed) {
 #if defined(TEST_BUILD) || defined(DEBUG)
-                    Serial.print("Web3: Invalid status line: ");
-                    Serial.println(httpLineBuf);
+                    WEB3E_PRINT("Web3: Invalid status line: ");
+                    WEB3E_PRINTLN(httpLineBuf);
 #endif
                     client->stop();
                     client->~WiFiClientSecure();
@@ -360,7 +361,7 @@ string Web3::exec(const string* data) {
             if (!client->available()) {
                 if (millis() - lastByteTime > WEB3_HTTP_TIMEOUT_MS) {
 #if defined(TEST_BUILD) || defined(DEBUG)
-                    Serial.println("Web3: Timeout reading headers");
+                    WEB3E_PRINTLN("Web3: Timeout reading headers");
 #endif
                     client->stop();
                     client->~WiFiClientSecure();
@@ -397,10 +398,10 @@ string Web3::exec(const string* data) {
     // Check HTTP status code
     if (parser.statusCode < 200 || parser.statusCode >= 300) {
 #if defined(TEST_BUILD) || defined(DEBUG)
-        Serial.print("Web3: HTTP ");
-        Serial.print(parser.statusCode);
-        Serial.print(" from ");
-        Serial.println(host);
+        WEB3E_PRINT("Web3: HTTP ");
+        WEB3E_PRINT(parser.statusCode);
+        WEB3E_PRINT(" from ");
+        WEB3E_PRINTLN(host);
 #endif
         client->stop();
         client->~WiFiClientSecure();
@@ -501,10 +502,10 @@ string Web3::exec(const string* data) {
 #if defined(TEST_BUILD) || defined(DEBUG)
     // In debug/test builds, check for JSON-RPC error responses
     if (rpcResult.find("\"error\"") != string::npos) {
-        Serial.println("\n=== RPC ERROR RESPONSE ===");
+        WEB3E_PRINTLN("\n=== RPC ERROR RESPONSE ===");
         string truncated = rpcResult.length() > 300 ? rpcResult.substr(0, 300) + "..." : rpcResult;
-        Serial.println(truncated.c_str());
-        Serial.println("==========================\n");
+        WEB3E_PRINTLN(truncated.c_str());
+        WEB3E_PRINTLN("==========================\n");
     }
 #endif
     
@@ -651,9 +652,9 @@ void Web3::selectHost()
     // Null-check for safety (getNode should return "" not NULL, but be defensive)
     if (nodeStr == NULL || strlen(nodeStr) == 0)
     {
-        Serial.print("ChainId: ");
-        Serial.print(chainId);
-        Serial.println(" is not yet supported, please add the RPC (and certificate if required) and submit a PR to the repo.");
+        WEB3E_PRINT("ChainId: ");
+        WEB3E_PRINT(chainId);
+        WEB3E_PRINTLN(" is not yet supported, please add the RPC (and certificate if required) and submit a PR to the repo.");
         return;
     }
     
