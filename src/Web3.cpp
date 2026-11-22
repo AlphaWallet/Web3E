@@ -14,6 +14,7 @@
 #include "HttpParser.h"
 #include "UniversalNode.h"
 #include "RpcPairStore.h"
+#include "RpcPairPolicy.h"
 #include <iostream>
 #include <sstream>
 #include <memory>
@@ -202,12 +203,6 @@ void Web3::applyCachedRpcIndex(int index) {
     }
     WEB3E_PRINT("Web3: using cached RPC ");
     WEB3E_PRINTLN(host);
-}
-
-void Web3::rotateCachedRpc() {
-    if (cachedRpcCount <= 1) return;
-    int next = (cachedRpcIndex + 1) % cachedRpcCount;
-    applyCachedRpcIndex(next);
 }
 
 bool Web3::loadCachedRpcFromEeprom() {
@@ -573,16 +568,27 @@ string Web3::exec(const string* data) {
         maintainCachedRpcPair();
     }
 
+    // Single URL (or cached mode off): no load-sharing / retry rotation.
+    if (!cachedRpcEnabled || cachedRpcCount <= 1) {
+        return execOnce(data);
+    }
+
+    // Load-share: each request starts on cachedRpcIndex, then advances for the
+    // next call. Index is RAM-only (starts at 0 after boot; not written to EEPROM).
+    const int startIndex = cachedRpcIndex;
+    applyCachedRpcIndex(startIndex);
     string result = execOnce(data);
 
-    // Round-robin: on transport failure rotate once and retry on the next node.
-    // Application-level JSON-RPC errors (non-empty body) do not rotate.
-    if (cachedRpcEnabled && cachedRpcCount > 1 && result.empty()) {
-        WEB3E_PRINTLN("Web3: RPC transport error — rotating to next cached node");
-        rotateCachedRpc();
+    // Transport failure: retry the same call once on the other node.
+    // Application-level JSON-RPC errors (non-empty body) do not retry.
+    if (result.empty()) {
+        WEB3E_PRINTLN("Web3: RPC transport error — retrying on next cached node");
+        applyCachedRpcIndex(rpcPairRetryIndex(startIndex, cachedRpcCount));
         result = execOnce(data);
     }
 
+    // Advance primary index for the following request (round-robin load-share).
+    applyCachedRpcIndex(rpcPairNextIndex(startIndex, cachedRpcCount));
     return result;
 }
 

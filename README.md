@@ -546,9 +546,12 @@ uint256_t balance = web3->EthGetBalance(&address);
 ## Cached public RPC pair (direct nodes):
 Fetch a signed best-RPC URL pair for the device `chainId` from universal-node
 (`uninode_getRpcPair`), cache it in EEPROM, and talk **directly** to those public HTTPS
-nodes (reads and writes). Round-robin rotation on connection / timeout / HTTP transport
-errors. Call `maintainCachedRpcPair()` from setup and the Wi-Fi check loop (also throttled
-to ~24h inside `Web3::exec`). Default max cache age is 7 days. See `examples/Cached RPC Pair`.
+nodes (reads and writes). `Web3::exec` **alternates nodes on every call** (round-robin
+load-sharing to avoid rate limits); on connection / timeout / HTTP transport errors it
+still retries the same call once on the other node. The rotation index is RAM-only
+(starts at 0 after boot). With one cached URL, behaviour is unchanged. Call
+`maintainCachedRpcPair()` from setup and the Wi-Fi check loop (also throttled to ~24h
+inside `Web3::exec`). Default max cache age is 7 days. See `examples/Cached RPC Pair`.
 
 ``` C++
 KeyID* keyId = new KeyID(web3);

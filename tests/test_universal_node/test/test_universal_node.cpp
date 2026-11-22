@@ -14,6 +14,7 @@
 #include <string>
 #include <cstring>
 #include <UniversalNodeProtocol.h>
+#include <RpcPairPolicy.h>
 
 using namespace UniversalNodeProtocol;
 using namespace std;
@@ -287,6 +288,37 @@ void test_extract_rpc_pair_result_fields() {
     TEST_ASSERT_FALSE(extractTopLevelStringArray(bad, "rpcs", badRpcs));
 }
 
+void test_rpc_pair_load_share_next_index() {
+    // Per-request round-robin: after a call that started at i, next primary is i+1.
+    TEST_ASSERT_EQUAL(0, rpcPairNextIndex(0, 1));
+    TEST_ASSERT_EQUAL(0, rpcPairNextIndex(5, 1));
+    TEST_ASSERT_EQUAL(1, rpcPairNextIndex(0, 2));
+    TEST_ASSERT_EQUAL(0, rpcPairNextIndex(1, 2));
+    // Negative start clamps to 0, then advances → 1
+    TEST_ASSERT_EQUAL(1, rpcPairNextIndex(-1, 2));
+
+    // Transport-failure retry uses the other node for the same request.
+    TEST_ASSERT_EQUAL(1, rpcPairRetryIndex(0, 2));
+    TEST_ASSERT_EQUAL(0, rpcPairRetryIndex(1, 2));
+    TEST_ASSERT_EQUAL(0, rpcPairRetryIndex(0, 1));
+
+    // Sequence of successful calls: 0 → 1 → 0 → 1 …
+    int idx = 0;
+    idx = rpcPairNextIndex(idx, 2);
+    TEST_ASSERT_EQUAL(1, idx);
+    idx = rpcPairNextIndex(idx, 2);
+    TEST_ASSERT_EQUAL(0, idx);
+    idx = rpcPairNextIndex(idx, 2);
+    TEST_ASSERT_EQUAL(1, idx);
+
+    // Failure on start 0 retries 1, then next primary still advances from start 0 → 1
+    // (same as success path — load-share continues regardless of retry outcome).
+    const int start = 0;
+    const int retry = rpcPairRetryIndex(start, 2);
+    TEST_ASSERT_EQUAL(1, retry);
+    TEST_ASSERT_EQUAL(1, rpcPairNextIndex(start, 2));
+}
+
 void test_rpc_pair_result_canonical_json_sorted_keys() {
     // Server canonicalJson sorts object keys (UTF-8): chainId, rpcs, timestamp.
     // Insertion order on the server object is chainId,timestamp,rpcs — hashing
@@ -332,6 +364,7 @@ int main(int argc, char** argv) {
     RUN_TEST(test_verify_response_rejects_bad_request_hash);
     RUN_TEST(test_verify_response_rejects_timestamp_skew);
     RUN_TEST(test_extract_rpc_pair_result_fields);
+    RUN_TEST(test_rpc_pair_load_share_next_index);
     RUN_TEST(test_rpc_pair_result_canonical_json_sorted_keys);
     return UNITY_END();
 }

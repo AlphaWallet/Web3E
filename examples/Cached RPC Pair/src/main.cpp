@@ -3,8 +3,8 @@
  *
  * Fetches a signed pair of best public RPC URLs for this device's chainId from
  * universal-node (method uninode_getRpcPair), caches them in EEPROM after the
- * WifiStore region, and uses them for normal Web3 RPC with round-robin rotation
- * on transport failure.
+ * WifiStore region, and uses them for normal Web3 RPC with per-request
+ * round-robin load-sharing (plus one retry on the other node on transport failure).
  *
  * Unlike setUniversalNode() (which proxies every read through uninode), this
  * mode talks directly to the public nodes. UniversalNode is only used to fetch
