@@ -510,6 +510,37 @@ bool extractTopLevelInt64(const std::string& json, const char* key, long long& o
     return end && end != raw.c_str();
 }
 
+bool extractTopLevelStringArray(const std::string& json, const char* key,
+                                std::vector<std::string>& out) {
+    out.clear();
+    std::string raw;
+    if (!extractTopLevelJsonValue(json, key, raw)) return false;
+    size_t i = 0;
+    skipWs(raw, i);
+    if (i >= raw.size() || raw[i] != '[') return false;
+    ++i;
+    skipWs(raw, i);
+    if (i < raw.size() && raw[i] == ']') {
+        return true; // empty array
+    }
+    while (i < raw.size()) {
+        std::string decoded;
+        if (!parseStringRaw(raw, i, decoded)) return false;
+        out.push_back(decoded);
+        skipWs(raw, i);
+        if (i < raw.size() && raw[i] == ',') {
+            ++i;
+            skipWs(raw, i);
+            continue;
+        }
+        if (i < raw.size() && raw[i] == ']') {
+            return true;
+        }
+        return false;
+    }
+    return false;
+}
+
 VerifyStatus verifyResponse(const std::string& responseJson,
                             const std::string& deviceAddressLower,
                             const std::string& nonceHex,

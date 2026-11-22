@@ -17,6 +17,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Cached public RPC pair from universal-node**
+  - `Web3::useCachedRpcPair(uninode)` fetches signed best RPC URLs via `uninode_getRpcPair`
+  - Wire matches JamesSmartCell/universal-node PR #4: params[0]==envelope chainId; signed v1 success with `result:{chainId,timestamp,rpcs[]}` and `blockNumber:"0"`; unsigned HTTP `{error:{code:RPC_VALIDATION,message}}` on failure (keep cache)
+  - EEPROM `RpcPairStore` at offset 828 (after WifiStore reserved region): timestamp + chainId + length-prefixed HTTPS URLs
+  - chainId stored in cache (forces refresh on chain change — small addition to the pair cache layout)
+  - Refresh at startup / Wi-Fi check loop / ~24h; max age default 7 days; keep cache on refresh failure
+  - Round-robin rotation on connection failure, timeout, or HTTP transport error (retry once)
+  - TLS via `setInsecure` on the cached path (no per-node certs); existing `nodes.h` / `Certificates.h` path unchanged
+  - Example: `examples/Cached RPC Pair` (`huge_app` partition)
+  - Default `WEB3E_EEPROM_SIZE` raised to 2048 to fit RpcPairStore (min 1349)
+
 - **universal-node signed read-only RPC client**
   - `UniversalNode` / `UniversalNodeProtocol` — device client for `https://uninode.percolate.one`
   - EIP-191 `personal_sign` requests with device `KeyID` (EEPROM bytes 0–32 unchanged)

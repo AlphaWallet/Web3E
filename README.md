@@ -543,6 +543,25 @@ web3->setUniversalNode(uninode);                // route read-only Web3 calls
 uint256_t balance = web3->EthGetBalance(&address);
 ```
 
+## Cached public RPC pair (direct nodes):
+Fetch a signed best-RPC URL pair for the device `chainId` from universal-node
+(`uninode_getRpcPair`), cache it in EEPROM, and talk **directly** to those public HTTPS
+nodes (reads and writes). Round-robin rotation on connection / timeout / HTTP transport
+errors. Call `maintainCachedRpcPair()` from setup and the Wi-Fi check loop (also throttled
+to ~24h inside `Web3::exec`). Default max cache age is 7 days. See `examples/Cached RPC Pair`.
+
+``` C++
+KeyID* keyId = new KeyID(web3);
+UniversalNode* uninode = new UniversalNode(web3, keyId);
+uninode->syncTime();
+web3->useCachedRpcPair(uninode);                // load EEPROM + refresh if needed
+web3->maintainCachedRpcPair();                  // call from loop / Wi-Fi reconnect
+uint256_t balance = web3->EthGetBalance(&address); // via cached public RPC
+```
+
+`setUniversalNode` and `useCachedRpcPair` are alternatives: proxy every read through uninode,
+or fetch endpoints once and use public nodes directly.
+
 ## Query ERC20 Balance:
 ``` C++
 string address = string("0x007bee82bdd9e866b2bd114780a47f2261c684e3");
@@ -600,7 +619,7 @@ string transactionHash = web3->getString(&result);
 
 ## EEPROM Layout and Size Management
 
-**CRITICAL:** Web3E components (KeyID, WifiStore) share EEPROM/NVS storage and MUST use the same size.
+**CRITICAL:** Web3E components (KeyID, WifiStore, RpcPairStore) share EEPROM/NVS storage and MUST use the same size.
 
 ### The Truncation Bug
 
@@ -609,8 +628,8 @@ On arduino-esp32 3.x, `EEPROM.begin(size)` uses NVS (Non-Volatile Storage) as a 
 **Example of the bug:**
 ```cpp
 // Boot 1: WifiStore writes at offset 33+
-EEPROM.begin(1024);  // Allocates 1024 bytes
-// ... write WifiStore data at offset 33-828
+EEPROM.begin(2048);  // Allocates 2048 bytes
+// ... write WifiStore data at offset 33-827
 
 // Boot 2: KeyID runs first
 EEPROM.begin(33);    // ❌ TRUNCATES blob to 33 bytes!
@@ -619,22 +638,32 @@ EEPROM.begin(33);    // ❌ TRUNCATES blob to 33 bytes!
 
 ### The Fix
 
-All Web3E components now use **`WEB3E_EEPROM_SIZE`** (default 1024 bytes):
+All Web3E components now use **`WEB3E_EEPROM_SIZE`** (default 2048 bytes):
 
 ```cpp
 #include "Web3EEeprom.h"
 
-// KeyID and WifiStore both use WEB3E_EEPROM_SIZE
-EEPROM.begin(WEB3E_EEPROM_SIZE);  // ✓ Always 1024 bytes
+// KeyID, WifiStore, and RpcPairStore all use WEB3E_EEPROM_SIZE
+EEPROM.begin(WEB3E_EEPROM_SIZE);  // ✓ Always 2048 bytes
 ```
 
 ### EEPROM Layout
 
 ```
-Offset 0-32:   KeyID (1 byte marker + 32 bytes private key)
-Offset 33+:    WifiStore (magic, version, networks, terminator, CRC32)
-Total:         1024 bytes (WEB3E_EEPROM_SIZE)
+Offset 0-32:     KeyID (1 byte marker + 32 bytes private key)
+Offset 33-827:   WifiStore reserved (magic, version, networks, terminator, CRC32)
+                 WIFI_MAX_STORAGE_SIZE = 795 → ends at 828
+Offset 828+:     RpcPairStore
+                 [0..3]   uint32 timestamp (unix secs, little-endian)
+                 [4..7]   uint32 chainId   (forces refresh on chain change)
+                 [8..]    length-prefixed HTTPS URLs (1 byte len + bytes),
+                          repeated (1 or 2), terminated by 0 length byte
+Total:           2048 bytes (WEB3E_EEPROM_SIZE)
 ```
+
+RpcPairStore never writes KeyID or WifiStore bytes, never full-erases flash, and
+commits EEPROM only when the cached pair contents change. Blank / 0xFF / corrupt
+data is treated as empty.
 
 ### Overriding EEPROM Size
 
@@ -649,9 +678,9 @@ build_flags = -DWEB3E_EEPROM_SIZE=2048
 #include <Web3.h>
 ```
 
-Minimum: 828 bytes (enforced at compile time).
+Minimum: 1349 bytes (KeyID + WifiStore max + RpcPairStore max; enforced at compile time).
 
-**Note:** Changing `WEB3E_EEPROM_SIZE` on an already-provisioned device with a smaller size will truncate existing data. Always use the same or larger size.
+**Note:** Changing `WEB3E_EEPROM_SIZE` on an already-provisioned device with a smaller size will truncate existing data. Always use the same or larger size. Increasing from the previous default of 1024 to 2048 is safe (NVS expands).
 
 ---
 

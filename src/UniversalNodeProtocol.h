@@ -113,6 +113,13 @@ bool extractTopLevelString(const std::string& json, const char* key, std::string
 /** Extract a top-level JSON number as int64 (also accepts numeric strings). */
 bool extractTopLevelInt64(const std::string& json, const char* key, long long& out);
 
+/**
+ * Extract a top-level JSON string array for key into out (cleared first).
+ * Returns false if missing, not an array, or any element is not a string.
+ */
+bool extractTopLevelStringArray(const std::string& json, const char* key,
+                                std::vector<std::string>& out);
+
 std::string toLowerHex(const uint8_t* bytes, size_t length);
 std::string bytesToLowerHex0x(const uint8_t* bytes, size_t length);
 

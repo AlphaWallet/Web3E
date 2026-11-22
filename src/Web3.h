@@ -38,6 +38,7 @@ class Web3;
 class Crypto;
 class KeyID;
 class UniversalNode;
+class RpcPairStore;
 
 #include "stdint.h"
 #include "uint256/uint256_t.h"
@@ -53,6 +54,14 @@ class UniversalNode;
 
 using namespace std;
 
+#ifndef WEB3_RPC_PAIR_MAX_AGE_SECONDS
+#define WEB3_RPC_PAIR_MAX_AGE_SECONDS (7UL * 24UL * 60UL * 60UL) /* 7 days */
+#endif
+
+#ifndef WEB3_RPC_PAIR_CHECK_INTERVAL_MS
+#define WEB3_RPC_PAIR_CHECK_INTERVAL_MS (24UL * 60UL * 60UL * 1000UL) /* ~24h */
+#endif
+
 enum ConnectionStage
 {
     unconnected,
@@ -65,6 +74,7 @@ class Web3 {
 public:
     Web3(long long chainId);
     Web3(long long chainId, const char* infura_key);
+    ~Web3();
     string Web3ClientVersion();
     string Web3Sha3(const string* data);
     int NetVersion();
@@ -98,16 +108,50 @@ public:
      * Optionally route read-only RPC (balance, eth_call, blockNumber, chainId,
      * getTransactionReceipt) through a UniversalNode client. Pass nullptr to
      * restore public/Infura RPC. Does not take ownership.
+     * Mutually exclusive with useCachedRpcPair (enabling one clears the other mode).
      */
     void setUniversalNode(UniversalNode* node);
     UniversalNode* getUniversalNode() const { return universalNode; }
 
+    /**
+     * Use a signed best-RPC URL pair from universal-node, cached in EEPROM.
+     * Loads any valid cache immediately, then refreshes via uninode when empty,
+     * chain differs, or older than max age. Normal Web3 RPC (reads and writes)
+     * go directly to these public HTTPS nodes with round-robin rotation on
+     * transport failure. Does not take ownership of uninode.
+     */
+    void useCachedRpcPair(UniversalNode* uninode);
+
+    /** Max cache age before refresh (default 7 days). */
+    void setRpcPairMaxAgeSeconds(uint32_t seconds);
+
+    /**
+     * Call from setup (after WiFi) and from loop / WiFi reconnect checks.
+     * Throttled to about once per 24h (millis, rollover-safe). Refreshes when
+     * cache is empty, chain differs, or older than max age. On refresh failure
+     * keeps the cached pair. Returns true if a usable pair is loaded.
+     */
+    bool maintainCachedRpcPair();
+
+    bool usingCachedRpcPair() const { return cachedRpcEnabled; }
+    int getCachedRpcCount() const { return cachedRpcCount; }
+    const char* getCachedRpc(int index) const;
+    uint32_t getCachedRpcTimestamp() const { return cachedRpcTimestamp; }
+
 private:
     string exec(const string* data);
+    string execOnce(const string* data);
     string generateJson(const string* method, const string* params);
     void selectHost();
     void setupCert();
-    
+    void freeHeapHostPath();
+    bool parseAndApplyRpcUrl(const char* url);
+    void applyCachedRpcIndex(int index);
+    void rotateCachedRpc();
+    bool refreshRpcPairFromUninode();
+    bool loadCachedRpcFromEeprom();
+    bool cacheNeedsRefresh(uint32_t nowUnix) const;
+
     long getLong(const string* json);
     double getDouble(const string* json);
     bool getBool(const string* json);
@@ -125,6 +169,23 @@ private:
     string rpcResult;
     char rpcReadBuf[WEB3_RPC_BUFFER_SIZE];
     char httpLineBuf[WEB3_HTTP_LINE_BUFFER_SIZE];
+
+    // Cached RPC pair mode (direct public nodes; UniversalNode used only to fetch)
+    bool cachedRpcEnabled;
+    bool hostPathOnHeap;
+    UniversalNode* rpcPairUninode;
+    RpcPairStore* rpcPairStore;
+    char cachedRpcUrls[2][256];
+    char activeHostBuf[256];
+    char activePathBuf[256];
+    int cachedRpcCount;
+    int cachedRpcIndex;
+    uint32_t cachedRpcTimestamp;
+    uint32_t cachedRpcChainId;
+    uint32_t rpcPairMaxAgeSeconds;
+    uint32_t rpcPairCheckIntervalMs;
+    uint32_t lastRpcPairCheckMs;
+    bool rpcPairCheckInitialized;
 };
 
 #endif //ARDUINO_WEB3_WEB3_H

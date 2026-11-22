@@ -12,6 +12,7 @@
 
 Web3	KEYWORD1
 UniversalNode	KEYWORD1
+RpcPairStore	KEYWORD1
 KeyID	KEYWORD1
 
 
@@ -40,6 +41,9 @@ EthGetBalance	KEYWORD2
 EthGetTransactionCount	KEYWORD2
 EthViewCall				KEYWORD2
 setUniversalNode	KEYWORD2
+useCachedRpcPair	KEYWORD2
+maintainCachedRpcPair	KEYWORD2
+getRpcPair	KEYWORD2
 syncTime	KEYWORD2
 UdpBridge	KEYWORD2
 ScriptClient	KEYWORD2
