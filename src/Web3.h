@@ -117,8 +117,10 @@ public:
      * Use a signed best-RPC URL pair from universal-node, cached in EEPROM.
      * Loads any valid cache immediately, then refreshes via uninode when empty,
      * chain differs, or older than max age. Normal Web3 RPC (reads and writes)
-     * go directly to these public HTTPS nodes with round-robin rotation on
-     * transport failure. Does not take ownership of uninode.
+     * go directly to these public HTTPS nodes with per-request round-robin
+     * load-sharing (alternating nodes to avoid rate limits); transport failure
+     * still retries the same call once on the other node. Does not take
+     * ownership of uninode.
      */
     void useCachedRpcPair(UniversalNode* uninode);
 
@@ -147,7 +149,6 @@ private:
     void freeHeapHostPath();
     bool parseAndApplyRpcUrl(const char* url);
     void applyCachedRpcIndex(int index);
-    void rotateCachedRpc();
     bool refreshRpcPairFromUninode();
     bool loadCachedRpcFromEeprom();
     bool cacheNeedsRefresh(uint32_t nowUnix) const;

@@ -15,6 +15,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
     2. Configure a custom proxy: Use `setProxy()` (TCP) or `setupConnection()` (UDP) at runtime, or set `WEB3E_PROXY_HOST`/`WEB3E_PROXY_PORT` build flags
   - The old `scriptproxy.smarttokenlabs.com` domain no longer resolves
 
+### Changed
+
+- **Cached RPC pair load-sharing:** `Web3::exec` alternates between the two cached
+  URLs on every request (round-robin, RAM index only) to avoid public-RPC rate
+  limits. Transport failure still retries the same call once on the other node.
+  Single-URL cache behaviour unchanged.
+
 ### Added
 
 - **Cached public RPC pair from universal-node**
@@ -23,7 +30,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - EEPROM `RpcPairStore` at offset 828 (after WifiStore reserved region): timestamp + chainId + length-prefixed HTTPS URLs
   - chainId stored in cache (forces refresh on chain change — small addition to the pair cache layout)
   - Refresh at startup / Wi-Fi check loop / ~24h; max age default 7 days; keep cache on refresh failure
-  - Round-robin rotation on connection failure, timeout, or HTTP transport error (retry once)
+  - Per-request round-robin load-sharing; transport failure retries once on the other node
   - TLS via `setInsecure` on the cached path (no per-node certs); existing `nodes.h` / `Certificates.h` path unchanged
   - Example: `examples/Cached RPC Pair` (`huge_app` partition)
   - Default `WEB3E_EEPROM_SIZE` raised to 2048 to fit RpcPairStore (min 1349)
