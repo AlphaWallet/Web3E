@@ -1,0 +1,90 @@
+/**
+ * Device client for universal-node signed read-only JSON-RPC.
+ *
+ * Routes eth_getBalance / eth_call (and other allowlisted reads) through
+ * https://uninode.percolate.one with EIP-191 request signing (KeyID) and
+ * response verification against a pinned node signer address.
+ *
+ * Requires NTP-synced device time (default window ±60s).
+ */
+
+#ifndef WEB3E_UNIVERSAL_NODE_H
+#define WEB3E_UNIVERSAL_NODE_H
+
+#include "UniversalNodeProtocol.h"
+#include "Web3.h"
+#include <string>
+
+class KeyID;
+
+#ifndef UNIVERSAL_NODE_HOST
+#define UNIVERSAL_NODE_HOST "uninode.percolate.one"
+#endif
+
+#ifndef UNIVERSAL_NODE_PATH
+#define UNIVERSAL_NODE_PATH "/rpc"
+#endif
+
+class UniversalNode {
+public:
+    /**
+     * @param web3  Existing Web3 instance (provides chainId; used for Crypto context).
+     * @param keyId Device KeyID used to personal_sign requests. EEPROM layout unchanged.
+     */
+    UniversalNode(Web3* web3, KeyID* keyId);
+    ~UniversalNode();
+
+    void setHost(const char* host, const char* path = UNIVERSAL_NODE_PATH, unsigned short port = 443);
+    void setNodeSigner(const char* addressLowerOrChecksum);
+    void setTimestampWindowSeconds(int seconds);
+
+    const char* nodeSigner() const { return nodeSignerAddress.c_str(); }
+    bool isTimeSynced() const { return timeSynced; }
+
+    /**
+     * Sync clock via NTP. Returns false if time could not be established.
+     * Must succeed before call() / Web3 routed reads.
+     */
+    bool syncTime(const char* ntpServer1 = "pool.ntp.org",
+                  const char* ntpServer2 = "time.nist.gov",
+                  uint32_t timeoutMs = 15000);
+
+    /** Current unix seconds (0 if not synced). */
+    long long nowUnix() const;
+
+    /**
+     * Signed RPC read. paramsCanonicalJson must be canonical (use Protocol helpers).
+     * On success returns a JSON object {"result":...} compatible with Web3 parsers.
+     * On failure returns empty string (see lastError()).
+     */
+    std::string call(const std::string& method, const std::string& paramsCanonicalJson);
+
+    uint256_t ethGetBalance(const std::string* address);
+    std::string ethViewCall(const std::string* data, const char* to);
+    int ethBlockNumber();
+    long long ethChainId();
+
+    const char* lastError() const { return lastErrorMsg.c_str(); }
+    const std::string& lastBlockNumber() const { return lastVerifiedBlockNumber; }
+
+private:
+    bool ensureTimeReady();
+    bool generateNonce(std::string& outNonceHex);
+    bool personalSign(const std::string& message, std::string& outSigHex);
+    std::string httpPost(const std::string& body);
+    std::string wrapResult(const std::string& resultCanonical) const;
+
+    Web3* web3;
+    KeyID* keyId;
+    std::string host;
+    std::string path;
+    unsigned short port;
+    std::string nodeSignerAddress;
+    int timestampWindowSeconds;
+    bool timeSynced;
+    std::string lastErrorMsg;
+    std::string lastVerifiedBlockNumber;
+    BYTE* clientMem;
+};
+
+#endif

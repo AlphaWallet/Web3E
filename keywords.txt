@@ -11,6 +11,8 @@
 
 
 Web3	KEYWORD1
+UniversalNode	KEYWORD1
+KeyID	KEYWORD1
 
 
 
@@ -37,6 +39,8 @@ EthBlockNumber	KEYWORD2
 EthGetBalance	KEYWORD2
 EthGetTransactionCount	KEYWORD2
 EthViewCall				KEYWORD2
+setUniversalNode	KEYWORD2
+syncTime	KEYWORD2
 UdpBridge	KEYWORD2
 ScriptClient	KEYWORD2
 

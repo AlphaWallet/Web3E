@@ -12,6 +12,7 @@
 #include "Util.h"
 #include "TagReader/TagReader.h"
 #include "HttpParser.h"
+#include "UniversalNode.h"
 #include <iostream>
 #include <sstream>
 #include <memory>
@@ -26,6 +27,7 @@ Web3::Web3(long long networkId) {
 #endif
     mem = new BYTE[sizeof(WiFiClientSecure)];
     chainId = networkId;
+    universalNode = nullptr;
     rpcResult.reserve(WEB3_RPC_BUFFER_SIZE);
     selectHost();
 }
@@ -54,8 +56,13 @@ Web3::Web3(long long networkId, const char* infura_key_str) {
 #endif
 
     chainId = networkId;
+    universalNode = nullptr;
     rpcResult.reserve(WEB3_RPC_BUFFER_SIZE);
     selectHost();
+}
+
+void Web3::setUniversalNode(UniversalNode* node) {
+    universalNode = node;
 }
 
 string Web3::Web3ClientVersion() {
@@ -144,6 +151,9 @@ void Web3::EthAccounts(char** array, int size) {
 }
 
 int Web3::EthBlockNumber() {
+    if (universalNode) {
+        return universalNode->ethBlockNumber();
+    }
     string m = "eth_blockNumber";
     string p = "[]";
     string input = generateJson(&m, &p);
@@ -152,6 +162,9 @@ int Web3::EthBlockNumber() {
 }
 
 long long int Web3::EthChainId() {
+    if (universalNode) {
+        return universalNode->ethChainId();
+    }
     string m = "eth_chainId";
     string p = "[]";
     string input = generateJson(&m, &p);
@@ -160,6 +173,9 @@ long long int Web3::EthChainId() {
 }
 
 uint256_t Web3::EthGetBalance(const string* address) {
+    if (universalNode) {
+        return universalNode->ethGetBalance(address);
+    }
     string m = "eth_getBalance";
     string p = "[\"" + *address + "\",\"latest\"]";
     string input = generateJson(&m, &p);
@@ -169,6 +185,9 @@ uint256_t Web3::EthGetBalance(const string* address) {
 
 string Web3::EthViewCall(const string* data, const char* to)
 {
+    if (universalNode) {
+        return universalNode->ethViewCall(data, to);
+    }
     string m = "eth_call";
     string p = "[{\"data\":\"";// + *data;
     p += data->c_str();
@@ -214,6 +233,10 @@ long long int Web3::EthEstimateGas(const string* from, const char* to, const str
 
 string Web3::EthGetTransactionReceipt(const string* txHash)
 {
+    if (universalNode) {
+        string params = "[\"" + *txHash + "\"]";
+        return universalNode->call("eth_getTransactionReceipt", params);
+    }
     string m = "eth_getTransactionReceipt";
     string p = "[\"" + *txHash + "\"]";
     string input = generateJson(&m, &p);
@@ -230,6 +253,19 @@ int Web3::EthGetTransactionCount(const string* address) {
 
 string Web3::EthCall(const string* from, const char* to, long gas, long gasPrice,
                      const string* value, const string* data) {
+    if (universalNode) {
+        // Allowlisted eth_call via universal-node uses to+data (+ optional from).
+        // Prefer the ViewCall-shaped params (sorted keys) when from is unused.
+        (void)gas;
+        (void)gasPrice;
+        (void)value;
+        if (from != nullptr && !from->empty()) {
+            string params = "[{\"data\":\"" + *data + "\",\"from\":\"" + *from
+                          + "\",\"to\":\"" + string(to) + "\"},\"latest\"]";
+            return universalNode->call("eth_call", params);
+        }
+        return universalNode->ethViewCall(data, to);
+    }
     // TODO use gas, gasprice and value
     string m = "eth_call";
     string p = "[{\"from\":\"" + *from + "\",\"to\":\""

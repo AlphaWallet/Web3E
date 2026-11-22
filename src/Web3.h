@@ -37,6 +37,7 @@ typedef unsigned char BYTE;
 class Web3;
 class Crypto;
 class KeyID;
+class UniversalNode;
 
 #include "stdint.h"
 #include "uint256/uint256_t.h"
@@ -93,6 +94,14 @@ public:
     long long int getChainId() const;
     string getResult(const string* json);
 
+    /**
+     * Optionally route read-only RPC (balance, eth_call, blockNumber, chainId,
+     * getTransactionReceipt) through a UniversalNode client. Pass nullptr to
+     * restore public/Infura RPC. Does not take ownership.
+     */
+    void setUniversalNode(UniversalNode* node);
+    UniversalNode* getUniversalNode() const { return universalNode; }
+
 private:
     string exec(const string* data);
     string generateJson(const string* method, const string* params);
@@ -111,6 +120,7 @@ private:
     const char* infura_key;
     unsigned short port;
     long long chainId;
+    UniversalNode* universalNode;
     /** Filled each exec(); capacity retained across calls after first large response. */
     string rpcResult;
     char rpcReadBuf[WEB3_RPC_BUFFER_SIZE];

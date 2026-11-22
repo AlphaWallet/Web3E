@@ -530,6 +530,19 @@ uint256_t balance = web3->EthGetBalance(&address); //obtain balance in Wei
 string balanceStr = Util::ConvertWeiToEthString(&balance, 18); //get string balance as Eth (18 decimals)
 ```
 
+## Signed reads via universal-node (MITM-resistant):
+Use `UniversalNode` so `EthGetBalance` / `EthViewCall` (and other allowlisted reads) go through
+`https://uninode.percolate.one` with EIP-191 request signing and response verification against a
+pinned node signer. Requires NTP-synced time. See `examples/Universal Node RPC`.
+
+``` C++
+KeyID* keyId = new KeyID(web3);                 // EEPROM device key (bytes 0-32)
+UniversalNode* uninode = new UniversalNode(web3, keyId);
+uninode->syncTime();                            // required; fails clearly if not synced
+web3->setUniversalNode(uninode);                // route read-only Web3 calls
+uint256_t balance = web3->EthGetBalance(&address);
+```
+
 ## Query ERC20 Balance:
 ``` C++
 string address = string("0x007bee82bdd9e866b2bd114780a47f2261c684e3");

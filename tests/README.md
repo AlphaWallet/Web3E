@@ -7,6 +7,7 @@ PlatformIO Unity test suite for Web3E library on ESP32.
 - **`test_crypto/`** - Cryptography tests (Keccak-256, key derivation, signing, recovery)
 - **`test_util/`** - Utility function tests (hex conversion, Wei/Eth conversion, uint256, RLP)
 - **`test_transaction/`** - Transaction signing and ABI encoding tests (offline)
+- **`test_universal_node/`** - Native (host) tests for universal-node canonical JSON, request messages, and response verification (Anvil fixed vectors)
 - **`test_network_rpc/`** - Network RPC tests (read-only, no funds needed):
   - Wi-Fi connection using WiFiConnection class
   - Chain ID, block number queries
@@ -28,6 +29,11 @@ Offline tests run without Wi-Fi or RPC connectivity. They test pure cryptographi
 **Compile only (CI):**
 ```bash
 pio test -e esp32dev --without-uploading --without-testing
+```
+
+**Native host tests (universal-node protocol):**
+```bash
+cd tests/test_universal_node && pio test -e native
 ```
 
 **Run on connected ESP32 board:**
