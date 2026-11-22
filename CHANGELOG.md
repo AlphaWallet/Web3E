@@ -17,6 +17,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **universal-node signed read-only RPC client**
+  - `UniversalNode` / `UniversalNodeProtocol` — device client for `https://uninode.percolate.one`
+  - EIP-191 `personal_sign` requests with device `KeyID` (EEPROM bytes 0–32 unchanged)
+  - Response verification against pinned node signer (default `0xF09b881B849B50D9A3d96b7Aed50f34b5F585A30`)
+  - NTP time sync required (±60s window); fails clearly if clock not synced
+  - `Web3::setUniversalNode()` routes `EthGetBalance`, `EthViewCall` / `EthCall`, `EthBlockNumber`, `EthChainId`, `EthGetTransactionReceipt`
+  - Native host tests: `tests/test_universal_node` (canonical JSON, request messages, response verify)
+  - Example sketch: `examples/Universal Node RPC`
+
 - **TCP Bridge proxy configuration**
   - `TcpBridge::setProxy(host, port)` - Runtime proxy configuration (call before `startConnection()`)
   - `WEB3E_PROXY_HOST` / `WEB3E_PROXY_PORT` - Compile-time overrides (also honors `PROXY_HOST`/`PROXY_PORT`)

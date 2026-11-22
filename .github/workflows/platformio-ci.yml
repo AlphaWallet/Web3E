@@ -50,6 +50,15 @@ jobs:
           - project: tests/test_http_parser
             name: "Native Tests (HTTP Parser)"
             type: native_test
+
+          - project: tests/test_universal_node
+            name: "Native Tests (Universal Node Protocol)"
+            type: native_test
+
+          # Example: universal-node signed RPC
+          - project: examples/Universal Node RPC
+            name: "Example: Universal Node RPC"
+            type: build
     
     steps:
       - name: Checkout repository
