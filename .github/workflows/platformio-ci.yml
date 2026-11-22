@@ -59,6 +59,11 @@ jobs:
           - project: examples/Universal Node RPC
             name: "Example: Universal Node RPC"
             type: build
+
+          # Example: cached signed RPC pair (direct public nodes)
+          - project: examples/Cached RPC Pair
+            name: "Example: Cached RPC Pair"
+            type: build
     
     steps:
       - name: Checkout repository

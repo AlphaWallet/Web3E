@@ -8,6 +8,7 @@
 #include <time.h>
 #include <sstream>
 #include <string.h>
+#include <vector>
 
 using namespace std;
 using namespace UniversalNodeProtocol;
@@ -276,9 +277,26 @@ string UniversalNode::httpPost(const string& body) {
     client->~WiFiClientSecure();
 
     if (parser.statusCode < 200 || parser.statusCode >= 300) {
-        lastErrorMsg = "universal-node HTTP error";
+        // Unsigned HTTP error envelope: { "error": { "code": "...", "message": "..." } }
+        // (e.g. RPC_VALIDATION for uninode_getRpcPair). Not a signed success body.
+        string errCode;
+        string errMsg;
+        string errorObj;
+        if (extractTopLevelJsonValue(responseBody, "error", errorObj)) {
+            extractTopLevelString(errorObj, "code", errCode);
+            extractTopLevelString(errorObj, "message", errMsg);
+        }
+        if (!errMsg.empty()) {
+            lastErrorMsg = errCode.empty()
+                ? ("universal-node: " + errMsg)
+                : ("universal-node " + errCode + ": " + errMsg);
+        } else {
+            lastErrorMsg = "universal-node HTTP error";
+        }
         WEB3E_PRINT("UniversalNode: HTTP ");
-        WEB3E_PRINTLN(parser.statusCode);
+        WEB3E_PRINT(parser.statusCode);
+        WEB3E_PRINT(" ");
+        WEB3E_PRINTLN(lastErrorMsg.c_str());
         return "";
     }
     return responseBody;
@@ -336,10 +354,24 @@ string UniversalNode::call(const string& method, const string& paramsCanonicalJs
         return "";
     }
 
-    // Surface server error payloads clearly
+    // Unsigned error JSON on an unexpected 200 (normal path uses HTTP 4xx/5xx).
+    // Treat as a failed call — never accept as a signed success.
     if (response.find("\"error\"") != string::npos && response.find("\"result\"") == string::npos) {
-        lastErrorMsg = "universal-node returned error JSON";
-        WEB3E_PRINTLN(response.c_str());
+        string errCode;
+        string errMsg;
+        string errorObj;
+        if (extractTopLevelJsonValue(response, "error", errorObj)) {
+            extractTopLevelString(errorObj, "code", errCode);
+            extractTopLevelString(errorObj, "message", errMsg);
+        }
+        if (!errMsg.empty()) {
+            lastErrorMsg = errCode.empty()
+                ? ("universal-node: " + errMsg)
+                : ("universal-node " + errCode + ": " + errMsg);
+        } else {
+            lastErrorMsg = "universal-node returned error JSON";
+        }
+        WEB3E_PRINTLN(lastErrorMsg.c_str());
         return "";
     }
 
@@ -395,4 +427,108 @@ long long UniversalNode::ethChainId() {
     string output = call("eth_chainId", paramsEmpty());
     if (output.empty()) return 0;
     return web3->getLongLong(&output);
+}
+
+bool UniversalNode::getRpcPair(long long chainId,
+                               char outUrls[][256],
+                               int& outCount,
+                               uint32_t& outTimestamp,
+                               long long& outChainId) {
+    outCount = 0;
+    outTimestamp = 0;
+    outChainId = 0;
+    lastErrorMsg.clear();
+
+    if (!outUrls) {
+        lastErrorMsg = "getRpcPair: null output buffer";
+        return false;
+    }
+
+    // Server requires params[0] == envelope chainId. call() always uses
+    // web3->getChainId() for the envelope, so the param must match.
+    long long envelopeChainId = web3 ? web3->getChainId() : 0;
+    if (chainId <= 0 || chainId != envelopeChainId) {
+        lastErrorMsg = "getRpcPair: params[0] must equal Web3 chainId (envelope)";
+        WEB3E_PRINTLN(lastErrorMsg.c_str());
+        return false;
+    }
+
+    // Canonical params: [chainId] — matches server parseGetRpcPairChainId
+    ostringstream paramsSs;
+    paramsSs << "[" << chainId << "]";
+    string output = call("uninode_getRpcPair", paramsSs.str());
+    if (output.empty()) {
+        // Includes unsigned HTTP {error:{code:RPC_VALIDATION,message}} failures
+        if (lastErrorMsg.empty()) lastErrorMsg = "uninode_getRpcPair failed";
+        return false;
+    }
+
+    // call() verified the v1 signed envelope (signature over
+    // result:<keccak256(canonicalJson(result))>). blockNumber is "0" for this
+    // method — not a tip-pinned eth read; pair freshness is result.timestamp.
+    // Do not apply block-freshness checks to lastVerifiedBlockNumber here.
+    string resultRaw;
+    if (!extractTopLevelJsonValue(output, "result", resultRaw)) {
+        lastErrorMsg = "getRpcPair: missing result object";
+        return false;
+    }
+
+    // Re-canonicalise so field order matches server canonicalJson (sorted keys:
+    // chainId, rpcs, timestamp) before we trust parsed fields.
+    string resultCanon = canonicalJson(resultRaw);
+    if (resultCanon.empty()) {
+        lastErrorMsg = "getRpcPair: result not canonicalisable";
+        return false;
+    }
+
+    long long resultChain = 0;
+    if (!extractTopLevelInt64(resultCanon, "chainId", resultChain)) {
+        lastErrorMsg = "getRpcPair: missing result.chainId";
+        return false;
+    }
+    if (resultChain != chainId) {
+        lastErrorMsg = "getRpcPair: result chainId mismatch";
+        WEB3E_PRINTLN(lastErrorMsg.c_str());
+        return false;
+    }
+
+    long long resultTs = 0;
+    if (!extractTopLevelInt64(resultCanon, "timestamp", resultTs)) {
+        lastErrorMsg = "getRpcPair: missing result.timestamp";
+        return false;
+    }
+    if (resultTs <= 0 || resultTs > 0xFFFFFFFFll) {
+        lastErrorMsg = "getRpcPair: invalid result.timestamp";
+        return false;
+    }
+
+    vector<string> rpcs;
+    if (!extractTopLevelStringArray(resultCanon, "rpcs", rpcs)) {
+        lastErrorMsg = "getRpcPair: missing or invalid result.rpcs";
+        return false;
+    }
+    if (rpcs.empty() || rpcs.size() > 2) {
+        lastErrorMsg = "getRpcPair: rpcs must contain 1 or 2 URLs";
+        return false;
+    }
+
+    for (size_t i = 0; i < rpcs.size(); i++) {
+        const string& url = rpcs[i];
+        if (url.size() == 0 || url.size() > 255) {
+            lastErrorMsg = "getRpcPair: URL length out of range";
+            return false;
+        }
+        if (url.compare(0, 8, "https://") != 0) {
+            lastErrorMsg = "getRpcPair: URL must be https";
+            WEB3E_PRINTLN(lastErrorMsg.c_str());
+            return false;
+        }
+        memcpy(outUrls[i], url.c_str(), url.size());
+        outUrls[i][url.size()] = '\0';
+    }
+
+    outCount = static_cast<int>(rpcs.size());
+    outTimestamp = static_cast<uint32_t>(resultTs);
+    outChainId = resultChain;
+    return true;
 }

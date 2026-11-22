@@ -262,6 +262,57 @@ void test_verify_response_rejects_timestamp_skew() {
     TEST_ASSERT_EQUAL(VERIFY_TIMESTAMP_SKEW, st);
 }
 
+void test_extract_rpc_pair_result_fields() {
+    // Shape returned inside verified uninode_getRpcPair result
+    string result =
+        "{\"chainId\":1,\"rpcs\":[\"https://ethereum-rpc.publicnode.com\","
+        "\"https://eth.drpc.org\"],\"timestamp\":1700000099}";
+
+    long long chain = 0;
+    long long ts = 0;
+    TEST_ASSERT_TRUE(extractTopLevelInt64(result, "chainId", chain));
+    TEST_ASSERT_EQUAL(1, (int)chain);
+    TEST_ASSERT_TRUE(extractTopLevelInt64(result, "timestamp", ts));
+    TEST_ASSERT_EQUAL(1700000099, (int)ts);
+
+    vector<string> rpcs;
+    TEST_ASSERT_TRUE(extractTopLevelStringArray(result, "rpcs", rpcs));
+    TEST_ASSERT_EQUAL(2, (int)rpcs.size());
+    TEST_ASSERT_EQUAL_STRING("https://ethereum-rpc.publicnode.com", rpcs[0].c_str());
+    TEST_ASSERT_EQUAL_STRING("https://eth.drpc.org", rpcs[1].c_str());
+
+    // Reject non-https would be done by UniversalNode::getRpcPair; here just parsing
+    string bad = "{\"chainId\":1,\"rpcs\":[1,2],\"timestamp\":1}";
+    vector<string> badRpcs;
+    TEST_ASSERT_FALSE(extractTopLevelStringArray(bad, "rpcs", badRpcs));
+}
+
+void test_rpc_pair_result_canonical_json_sorted_keys() {
+    // Server canonicalJson sorts object keys (UTF-8): chainId, rpcs, timestamp.
+    // Insertion order on the server object is chainId,timestamp,rpcs — hashing
+    // must use the sorted form so result:<keccak256(canonicalJson(result))> matches.
+    string unsorted =
+        "{\"timestamp\":1700000001,\"rpcs\":[\"https://base-rpc.publicnode.com\","
+        "\"https://base.drpc.org\"],\"chainId\":8453}";
+    string expected =
+        "{\"chainId\":8453,\"rpcs\":[\"https://base-rpc.publicnode.com\","
+        "\"https://base.drpc.org\"],\"timestamp\":1700000001}";
+    TEST_ASSERT_EQUAL_STRING(expected.c_str(), canonicalJson(unsorted).c_str());
+
+    // Response signing message uses blockNumber decimal "0" for getRpcPair
+    string msg = buildResponseSigningMessage(
+        "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+        "0x0123456789abcdef0123456789abcdef",
+        8453,
+        "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "0",
+        1700000001LL,
+        expected);
+    TEST_ASSERT_TRUE(msg.find("blockNumber:0\n") != string::npos);
+    TEST_ASSERT_TRUE(msg.find("result:0x") != string::npos);
+    // Freshness is result.timestamp / cache age — blockNumber 0 is not a tip pin
+}
+
 int main(int argc, char** argv) {
     UNITY_BEGIN();
     RUN_TEST(test_canonical_sorts_object_keys);
@@ -280,5 +331,7 @@ int main(int argc, char** argv) {
     RUN_TEST(test_verify_response_rejects_wrong_signer);
     RUN_TEST(test_verify_response_rejects_bad_request_hash);
     RUN_TEST(test_verify_response_rejects_timestamp_skew);
+    RUN_TEST(test_extract_rpc_pair_result_fields);
+    RUN_TEST(test_rpc_pair_result_canonical_json_sorted_keys);
     return UNITY_END();
 }

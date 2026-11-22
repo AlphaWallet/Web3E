@@ -13,9 +13,12 @@
 #include "TagReader/TagReader.h"
 #include "HttpParser.h"
 #include "UniversalNode.h"
+#include "RpcPairStore.h"
 #include <iostream>
 #include <sstream>
 #include <memory>
+#include <stdlib.h>
+#include <time.h>
 #include "nodes.h"
 #include "Web3Log.h"
 
@@ -28,6 +31,24 @@ Web3::Web3(long long networkId) {
     mem = new BYTE[sizeof(WiFiClientSecure)];
     chainId = networkId;
     universalNode = nullptr;
+    host = nullptr;
+    path = nullptr;
+    port = 443;
+    cachedRpcEnabled = false;
+    hostPathOnHeap = false;
+    rpcPairUninode = nullptr;
+    rpcPairStore = nullptr;
+    cachedRpcCount = 0;
+    cachedRpcIndex = 0;
+    cachedRpcTimestamp = 0;
+    cachedRpcChainId = 0;
+    rpcPairMaxAgeSeconds = WEB3_RPC_PAIR_MAX_AGE_SECONDS;
+    rpcPairCheckIntervalMs = WEB3_RPC_PAIR_CHECK_INTERVAL_MS;
+    lastRpcPairCheckMs = 0;
+    rpcPairCheckInitialized = false;
+    memset(cachedRpcUrls, 0, sizeof(cachedRpcUrls));
+    memset(activeHostBuf, 0, sizeof(activeHostBuf));
+    memset(activePathBuf, 0, sizeof(activePathBuf));
     rpcResult.reserve(WEB3_RPC_BUFFER_SIZE);
     selectHost();
 }
@@ -57,12 +78,267 @@ Web3::Web3(long long networkId, const char* infura_key_str) {
 
     chainId = networkId;
     universalNode = nullptr;
+    host = nullptr;
+    path = nullptr;
+    port = 443;
+    cachedRpcEnabled = false;
+    hostPathOnHeap = false;
+    rpcPairUninode = nullptr;
+    rpcPairStore = nullptr;
+    cachedRpcCount = 0;
+    cachedRpcIndex = 0;
+    cachedRpcTimestamp = 0;
+    cachedRpcChainId = 0;
+    rpcPairMaxAgeSeconds = WEB3_RPC_PAIR_MAX_AGE_SECONDS;
+    rpcPairCheckIntervalMs = WEB3_RPC_PAIR_CHECK_INTERVAL_MS;
+    lastRpcPairCheckMs = 0;
+    rpcPairCheckInitialized = false;
+    memset(cachedRpcUrls, 0, sizeof(cachedRpcUrls));
+    memset(activeHostBuf, 0, sizeof(activeHostBuf));
+    memset(activePathBuf, 0, sizeof(activePathBuf));
     rpcResult.reserve(WEB3_RPC_BUFFER_SIZE);
     selectHost();
 }
 
+Web3::~Web3() {
+    freeHeapHostPath();
+    delete rpcPairStore;
+    rpcPairStore = nullptr;
+    delete[] mem;
+    mem = nullptr;
+}
+
 void Web3::setUniversalNode(UniversalNode* node) {
+    // Signed proxy mode and cached direct-RPC mode are alternatives.
+    if (node != nullptr) {
+        cachedRpcEnabled = false;
+        rpcPairUninode = nullptr;
+    }
     universalNode = node;
+}
+
+void Web3::setRpcPairMaxAgeSeconds(uint32_t seconds) {
+    if (seconds > 0) rpcPairMaxAgeSeconds = seconds;
+}
+
+const char* Web3::getCachedRpc(int index) const {
+    if (index < 0 || index >= cachedRpcCount) return nullptr;
+    return cachedRpcUrls[index];
+}
+
+void Web3::freeHeapHostPath() {
+    if (hostPathOnHeap) {
+        if (host) free(const_cast<char*>(host));
+        if (path) free(const_cast<char*>(path));
+        hostPathOnHeap = false;
+    }
+    host = nullptr;
+    path = nullptr;
+}
+
+bool Web3::parseAndApplyRpcUrl(const char* url) {
+    if (!url) return false;
+    static const char kHttps[] = "https://";
+    if (strncmp(url, kHttps, 8) != 0) return false;
+
+    const char* rest = url + 8;
+    const char* slash = strchr(rest, '/');
+    const char* colon = nullptr;
+    size_t hostLen = 0;
+    unsigned short parsedPort = 443;
+
+    // Find host[:port] before first '/'
+    size_t authorityLen = slash ? static_cast<size_t>(slash - rest) : strlen(rest);
+    if (authorityLen == 0 || authorityLen >= sizeof(activeHostBuf)) return false;
+
+    for (size_t i = 0; i < authorityLen; i++) {
+        if (rest[i] == ':') {
+            colon = rest + i;
+            break;
+        }
+    }
+
+    if (colon) {
+        hostLen = static_cast<size_t>(colon - rest);
+        if (hostLen == 0 || hostLen >= sizeof(activeHostBuf)) return false;
+        char portBuf[8];
+        size_t portLen = authorityLen - hostLen - 1;
+        if (portLen == 0 || portLen >= sizeof(portBuf)) return false;
+        memcpy(portBuf, colon + 1, portLen);
+        portBuf[portLen] = '\0';
+        int p = atoi(portBuf);
+        if (p <= 0 || p > 65535) return false;
+        parsedPort = static_cast<unsigned short>(p);
+    } else {
+        hostLen = authorityLen;
+    }
+
+    freeHeapHostPath();
+    memcpy(activeHostBuf, rest, hostLen);
+    activeHostBuf[hostLen] = '\0';
+
+    if (slash && slash[0] != '\0') {
+        size_t pathLen = strlen(slash);
+        if (pathLen >= sizeof(activePathBuf)) return false;
+        memcpy(activePathBuf, slash, pathLen + 1);
+    } else {
+        activePathBuf[0] = '/';
+        activePathBuf[1] = '\0';
+    }
+
+    host = activeHostBuf;
+    path = activePathBuf;
+    port = parsedPort;
+    return true;
+}
+
+void Web3::applyCachedRpcIndex(int index) {
+    if (index < 0 || index >= cachedRpcCount) return;
+    cachedRpcIndex = index;
+    if (!parseAndApplyRpcUrl(cachedRpcUrls[index])) {
+        WEB3E_PRINT("Web3: failed to apply cached RPC URL index ");
+        WEB3E_PRINTLN(index);
+        return;
+    }
+    WEB3E_PRINT("Web3: using cached RPC ");
+    WEB3E_PRINTLN(host);
+}
+
+void Web3::rotateCachedRpc() {
+    if (cachedRpcCount <= 1) return;
+    int next = (cachedRpcIndex + 1) % cachedRpcCount;
+    applyCachedRpcIndex(next);
+}
+
+bool Web3::loadCachedRpcFromEeprom() {
+    if (!rpcPairStore) return false;
+    RpcPairData data;
+    if (!rpcPairStore->load(data)) {
+        cachedRpcCount = 0;
+        cachedRpcTimestamp = 0;
+        cachedRpcChainId = 0;
+        return false;
+    }
+    cachedRpcCount = data.count;
+    cachedRpcTimestamp = data.timestamp;
+    cachedRpcChainId = data.chainId;
+    for (int i = 0; i < cachedRpcCount; i++) {
+        memcpy(cachedRpcUrls[i], data.urls[i], data.urlLens[i] + 1);
+    }
+    applyCachedRpcIndex(0);
+    return cachedRpcCount > 0;
+}
+
+bool Web3::cacheNeedsRefresh(uint32_t nowUnix) const {
+    if (cachedRpcCount <= 0) return true;
+    if (cachedRpcChainId != static_cast<uint32_t>(chainId)) return true;
+    if (nowUnix == 0) return false; // cannot judge age without time
+    if (cachedRpcTimestamp == 0) return true;
+    // Rollover-safe age: unsigned subtract
+    uint32_t age = nowUnix - cachedRpcTimestamp;
+    // If timestamp is in the future (clock skew), treat as needing refresh
+    if (cachedRpcTimestamp > nowUnix) return true;
+    return age > rpcPairMaxAgeSeconds;
+}
+
+bool Web3::refreshRpcPairFromUninode() {
+    if (!rpcPairUninode || !rpcPairStore) return false;
+
+    char fetched[2][256];
+    memset(fetched, 0, sizeof(fetched));
+    int count = 0;
+    uint32_t ts = 0;
+    long long resultChain = 0;
+
+    if (!rpcPairUninode->getRpcPair(chainId, fetched, count, ts, resultChain)) {
+        WEB3E_PRINT("Web3: RPC pair refresh failed: ");
+        WEB3E_PRINTLN(rpcPairUninode->lastError());
+        return false;
+    }
+
+    const char* urlPtrs[2] = { fetched[0], fetched[1] };
+    if (!rpcPairStore->save(ts, static_cast<uint32_t>(resultChain), urlPtrs, count)) {
+        WEB3E_PRINTLN("Web3: failed to persist RPC pair to EEPROM");
+        // Still use in-memory pair for this session
+    }
+
+    cachedRpcCount = count;
+    cachedRpcTimestamp = ts;
+    cachedRpcChainId = static_cast<uint32_t>(resultChain);
+    for (int i = 0; i < count; i++) {
+        strncpy(cachedRpcUrls[i], fetched[i], sizeof(cachedRpcUrls[i]) - 1);
+        cachedRpcUrls[i][sizeof(cachedRpcUrls[i]) - 1] = '\0';
+    }
+    applyCachedRpcIndex(0);
+    WEB3E_PRINT("Web3: refreshed RPC pair (");
+    WEB3E_PRINT(count);
+    WEB3E_PRINTLN(" URLs)");
+    return true;
+}
+
+void Web3::useCachedRpcPair(UniversalNode* uninode) {
+    if (!uninode) {
+        WEB3E_PRINTLN("Web3: useCachedRpcPair requires UniversalNode");
+        return;
+    }
+
+    // Direct public RPC mode — do not route reads through the uninode proxy.
+    universalNode = nullptr;
+    rpcPairUninode = uninode;
+    cachedRpcEnabled = true;
+
+    if (!rpcPairStore) {
+        rpcPairStore = new RpcPairStore();
+    }
+    if (!rpcPairStore->begin()) {
+        WEB3E_PRINTLN("Web3: RpcPairStore begin failed");
+    }
+
+    loadCachedRpcFromEeprom();
+
+    // Attempt immediate refresh if needed (requires NTP already synced on uninode)
+    maintainCachedRpcPair();
+}
+
+bool Web3::maintainCachedRpcPair() {
+    if (!cachedRpcEnabled || !rpcPairUninode) {
+        return cachedRpcCount > 0;
+    }
+
+    uint32_t nowMs = millis();
+    bool dueCheck = !rpcPairCheckInitialized;
+    if (!dueCheck) {
+        // Rollover-safe interval check
+        dueCheck = (nowMs - lastRpcPairCheckMs) >= rpcPairCheckIntervalMs;
+    }
+
+    // Always refresh immediately when cache is unusable, even between intervals
+    uint32_t nowUnix = 0;
+    long long uninodeNow = rpcPairUninode->nowUnix();
+    if (uninodeNow > 0) nowUnix = static_cast<uint32_t>(uninodeNow);
+
+    bool needs = cacheNeedsRefresh(nowUnix);
+    if (!dueCheck && !needs) {
+        return cachedRpcCount > 0;
+    }
+
+    lastRpcPairCheckMs = nowMs;
+    rpcPairCheckInitialized = true;
+
+    if (!needs) {
+        return cachedRpcCount > 0;
+    }
+
+    WEB3E_PRINTLN("Web3: refreshing RPC pair from universal-node");
+    if (!refreshRpcPairFromUninode()) {
+        // Keep using whatever was cached
+        if (cachedRpcCount > 0) {
+            WEB3E_PRINTLN("Web3: keeping previously cached RPC pair");
+            return true;
+        }
+        return false;
+    }
+    return cachedRpcCount > 0;
 }
 
 string Web3::Web3ClientVersion() {
@@ -292,6 +568,30 @@ string Web3::generateJson(const string* method, const string* params) {
 }
 
 string Web3::exec(const string* data) {
+    // Opportunistic cache maintenance (throttled internally)
+    if (cachedRpcEnabled) {
+        maintainCachedRpcPair();
+    }
+
+    string result = execOnce(data);
+
+    // Round-robin: on transport failure rotate once and retry on the next node.
+    // Application-level JSON-RPC errors (non-empty body) do not rotate.
+    if (cachedRpcEnabled && cachedRpcCount > 1 && result.empty()) {
+        WEB3E_PRINTLN("Web3: RPC transport error — rotating to next cached node");
+        rotateCachedRpc();
+        result = execOnce(data);
+    }
+
+    return result;
+}
+
+string Web3::execOnce(const string* data) {
+    if (!host || !path) {
+        WEB3E_PRINTLN("Web3: no RPC host configured");
+        return "";
+    }
+
     client = new (mem) WiFiClientSecure();
     setupCert();
 
@@ -305,6 +605,7 @@ string Web3::exec(const string* data) {
         delay(100);
         ESP.restart();
 #endif
+        client->~WiFiClientSecure();
         return "";
     }
 
@@ -431,7 +732,7 @@ string Web3::exec(const string* data) {
         parser.parseHeader(httpLineBuf);
     }
 
-    // Check HTTP status code
+    // Check HTTP status code — treat as transport error for rotation
     if (parser.statusCode < 200 || parser.statusCode >= 300) {
 #if defined(TEST_BUILD) || defined(DEBUG)
         WEB3E_PRINT("Web3: HTTP ");
@@ -532,6 +833,11 @@ string Web3::exec(const string* data) {
     client->flush();
     client->stop();
     client->~WiFiClientSecure();
+
+    // Empty body after successful HTTP is a transport/JSON-RPC framing failure
+    if (bodyLen == 0) {
+        return "";
+    }
 
     rpcResult.assign(rpcReadBuf, bodyLen);
     
@@ -670,6 +976,13 @@ string Web3::getString(const string *json)
  */
 void Web3::setupCert()
 {
+    // Cached public RPC pair path: no per-node certificates (setInsecure).
+    // Existing nodes.h / Certificates.h path remains for non-cached mode.
+    if (cachedRpcEnabled) {
+        client->setInsecure();
+        return;
+    }
+
     const char *cert = getCertificate(chainId);
     if (cert != NULL)
     {
@@ -714,6 +1027,8 @@ void Web3::selectHost()
         port = 443;
     }
 
+    freeHeapHostPath();
+
     ppos = node.find("/");
     if (ppos > 0)
     {
@@ -723,8 +1038,9 @@ void Web3::selectHost()
     else
     {
         host = strdup(node.c_str());
-        path = "/";
+        path = strdup("/");
     }
+    hostPathOnHeap = true;
 }
 
 

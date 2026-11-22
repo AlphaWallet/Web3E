@@ -34,9 +34,12 @@
 // Calculate required EEPROM size for WifiStore alone
 #define WIFI_MAX_STORAGE_SIZE (WIFI_HEADER_SIZE + (MAX_WIFI_NETWORKS * (1 + MAX_SSID_LENGTH + 1 + MAX_PASSWORD_LENGTH)) + WIFI_TERMINATOR_SIZE + WIFI_CRC_SIZE)
 
-// Total EEPROM size is managed by WEB3E_EEPROM_SIZE (includes KeyID + WifiStore)
-// This ensures KeyID and WifiStore use the same size to prevent NVS truncation
+// Total EEPROM size is managed by WEB3E_EEPROM_SIZE (KeyID + WifiStore + RpcPairStore)
+// All components must use the same size to prevent NVS truncation
 #define TOTAL_EEPROM_SIZE WEB3E_EEPROM_SIZE
+
+// Reserved WifiStore region ends here; RpcPairStore begins at this offset (828)
+#define WIFI_STORE_END_OFFSET (WIFI_EEPROM_OFFSET + WIFI_MAX_STORAGE_SIZE)
 
 struct WifiCredential {
     char ssid[MAX_SSID_LENGTH + 1];
