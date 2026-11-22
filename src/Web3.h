@@ -51,6 +51,7 @@ class RpcPairStore;
 #include <string.h>
 #include <string>
 #include "chainIds.h"
+#include "RpcPairPolicy.h"
 
 using namespace std;
 
@@ -119,8 +120,13 @@ public:
      * chain differs, or older than max age. Normal Web3 RPC (reads and writes)
      * go directly to these public HTTPS nodes with per-request round-robin
      * load-sharing (alternating nodes to avoid rate limits); transport failure
-     * still retries the same call once on the other node. Does not take
-     * ownership of uninode.
+     * still retries the same call once on the other node.
+     *
+     * Connect/TLS failures are tracked in RAM. After N consecutive failures on
+     * one node while the other succeeds (default 3), the device reports
+     * blocked/working to uninode_getRpcPair (rate-limited) and caches a
+     * replacement pair. Periodic refresh sends the current pair as working
+     * plus any known blocked URLs. Does not take ownership of uninode.
      */
     void useCachedRpcPair(UniversalNode* uninode);
 
@@ -130,8 +136,10 @@ public:
     /**
      * Call from setup (after WiFi) and from loop / WiFi reconnect checks.
      * Throttled to about once per 24h (millis, rollover-safe). Refreshes when
-     * cache is empty, chain differs, or older than max age. On refresh failure
-     * keeps the cached pair. Returns true if a usable pair is loaded.
+     * cache is empty, chain differs, or older than max age; periodic checks
+     * also send working(+blocked) feedback even if the pair is still young.
+     * On refresh failure keeps the cached pair. Returns true if a usable pair
+     * is loaded.
      */
     bool maintainCachedRpcPair();
 
@@ -149,9 +157,15 @@ private:
     void freeHeapHostPath();
     bool parseAndApplyRpcUrl(const char* url);
     void applyCachedRpcIndex(int index);
-    bool refreshRpcPairFromUninode();
+    bool refreshRpcPairFromUninode(bool withFeedback);
+    bool requestRpcPairReplacement(int blockedIndex);
     bool loadCachedRpcFromEeprom();
     bool cacheNeedsRefresh(uint32_t nowUnix) const;
+    void rememberBlockedUrl(const char* url);
+    void noteCachedRpcConnectFailure();
+    void noteCachedRpcConnectSuccess();
+    void logTlsConnectFailure(WiFiClientSecure* secureClient);
+    void resetCachedRpcHealth();
 
     long getLong(const string* json);
     double getDouble(const string* json);
@@ -187,6 +201,14 @@ private:
     uint32_t rpcPairCheckIntervalMs;
     uint32_t lastRpcPairCheckMs;
     bool rpcPairCheckInitialized;
+
+    // Per-node connect/TLS health (RAM only) + boot-local blocked URL feedback
+    int rpcNodeFailStreak[2];
+    int rpcNodeSuccessStreak[2];
+    char blockedRpcUrls[RPC_PAIR_FEEDBACK_MAX_URLS][256];
+    int blockedRpcCount;
+    uint32_t lastRpcReplacementMs;
+    bool rpcReplacementEverRequested;
 };
 
 #endif //ARDUINO_WEB3_WEB3_H

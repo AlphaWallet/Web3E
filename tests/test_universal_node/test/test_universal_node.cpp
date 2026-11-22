@@ -13,6 +13,7 @@
 #include <unity.h>
 #include <string>
 #include <cstring>
+#include <cstdio>
 #include <UniversalNodeProtocol.h>
 #include <RpcPairPolicy.h>
 
@@ -319,6 +320,81 @@ void test_rpc_pair_load_share_next_index() {
     TEST_ASSERT_EQUAL(1, rpcPairNextIndex(start, 2));
 }
 
+void test_params_get_rpc_pair_feedback_json() {
+    // No feedback → [chainId]
+    TEST_ASSERT_EQUAL_STRING("[1]", paramsGetRpcPair(1, nullptr, 0, nullptr, 0).c_str());
+    TEST_ASSERT_EQUAL_STRING("[8453]", paramsGetRpcPair(8453, nullptr, 0, nullptr, 0).c_str());
+
+    const char* workingOnly[] = {
+        "https://ethereum-rpc.publicnode.com",
+        "https://eth.drpc.org"
+    };
+    string onlyWorking = paramsGetRpcPair(1, nullptr, 0, workingOnly, 2);
+    TEST_ASSERT_EQUAL_STRING(
+        "[1,{\"working\":[\"https://ethereum-rpc.publicnode.com\",\"https://eth.drpc.org\"]}]",
+        onlyWorking.c_str());
+
+    const char* blockedOnly[] = { "https://eth.drpc.org" };
+    string onlyBlocked = paramsGetRpcPair(1, blockedOnly, 1, nullptr, 0);
+    TEST_ASSERT_EQUAL_STRING(
+        "[1,{\"blocked\":[\"https://eth.drpc.org\"]}]",
+        onlyBlocked.c_str());
+
+    // Keys sorted: blocked before working
+    const char* blocked[] = { "https://eth.drpc.org" };
+    const char* working[] = { "https://ethereum-rpc.publicnode.com" };
+    string both = paramsGetRpcPair(1, blocked, 1, working, 1);
+    TEST_ASSERT_EQUAL_STRING(
+        "[1,{\"blocked\":[\"https://eth.drpc.org\"],"
+        "\"working\":[\"https://ethereum-rpc.publicnode.com\"]}]",
+        both.c_str());
+
+    // Cap at 8 URLs per list; null/empty entries skipped
+    const char* many[10];
+    char bufs[10][64];
+    for (int i = 0; i < 10; i++) {
+        snprintf(bufs[i], sizeof(bufs[i]), "https://n%d.example", i);
+        many[i] = bufs[i];
+    }
+    string capped = paramsGetRpcPair(1, many, 10, nullptr, 0);
+    TEST_ASSERT_TRUE(capped.find("https://n7.example") != string::npos);
+    TEST_ASSERT_TRUE(capped.find("https://n8.example") == string::npos);
+
+    const char* withEmpty[] = { "https://ok.example", "", nullptr, "https://two.example" };
+    string skipped = paramsGetRpcPair(1, nullptr, 0, withEmpty, 4);
+    TEST_ASSERT_EQUAL_STRING(
+        "[1,{\"working\":[\"https://ok.example\",\"https://two.example\"]}]",
+        skipped.c_str());
+}
+
+void test_rpc_pair_blocked_detection_and_rate_limit() {
+    TEST_ASSERT_FALSE(rpcPairShouldMarkBlocked(0, 5));
+    TEST_ASSERT_FALSE(rpcPairShouldMarkBlocked(2, 5)); // default threshold 3
+    TEST_ASSERT_FALSE(rpcPairShouldMarkBlocked(3, 0)); // peer not succeeding
+    TEST_ASSERT_TRUE(rpcPairShouldMarkBlocked(3, 1));
+    TEST_ASSERT_TRUE(rpcPairShouldMarkBlocked(5, 2));
+    TEST_ASSERT_TRUE(rpcPairShouldMarkBlocked(2, 1, 2)); // custom threshold
+
+    TEST_ASSERT_TRUE(rpcPairCanRequestReplacement(1000, 0, false));
+    TEST_ASSERT_TRUE(rpcPairCanRequestReplacement(1000, 500, false)); // never requested
+    TEST_ASSERT_FALSE(rpcPairCanRequestReplacement(1000, 900, true, 500));
+    TEST_ASSERT_TRUE(rpcPairCanRequestReplacement(1400, 900, true, 500));
+    // Rollover-safe: now wrapped past last (0xFFFFFFF0 → 300 is 316 ms)
+    TEST_ASSERT_TRUE(rpcPairCanRequestReplacement(300, 0xFFFFFFF0u, true, 200));
+    TEST_ASSERT_FALSE(rpcPairCanRequestReplacement(100, 0xFFFFFFF0u, true, 200));
+
+    TEST_ASSERT_TRUE(rpcPairLooksLikeTlsIntercept(-29184));
+    TEST_ASSERT_TRUE(rpcPairLooksLikeTlsIntercept(-80));
+    TEST_ASSERT_FALSE(rpcPairLooksLikeTlsIntercept(-1));
+    TEST_ASSERT_FALSE(rpcPairLooksLikeTlsIntercept(0));
+
+    TEST_ASSERT_TRUE(rpcPairLooksLikePlaintextHttp("HTTP/1.1 200 OK", 15));
+    TEST_ASSERT_TRUE(rpcPairLooksLikePlaintextHttp("GET / HTTP/1.1", 14));
+    TEST_ASSERT_TRUE(rpcPairLooksLikePlaintextHttp("POST /", 6));
+    TEST_ASSERT_FALSE(rpcPairLooksLikePlaintextHttp("\x16\x03\x01", 3));
+    TEST_ASSERT_FALSE(rpcPairLooksLikePlaintextHttp(nullptr, 10));
+}
+
 void test_rpc_pair_result_canonical_json_sorted_keys() {
     // Server canonicalJson sorts object keys (UTF-8): chainId, rpcs, timestamp.
     // Insertion order on the server object is chainId,timestamp,rpcs — hashing
@@ -365,6 +441,8 @@ int main(int argc, char** argv) {
     RUN_TEST(test_verify_response_rejects_timestamp_skew);
     RUN_TEST(test_extract_rpc_pair_result_fields);
     RUN_TEST(test_rpc_pair_load_share_next_index);
+    RUN_TEST(test_params_get_rpc_pair_feedback_json);
+    RUN_TEST(test_rpc_pair_blocked_detection_and_rate_limit);
     RUN_TEST(test_rpc_pair_result_canonical_json_sorted_keys);
     return UNITY_END();
 }

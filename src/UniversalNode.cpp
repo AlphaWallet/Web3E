@@ -433,7 +433,11 @@ bool UniversalNode::getRpcPair(long long chainId,
                                char outUrls[][256],
                                int& outCount,
                                uint32_t& outTimestamp,
-                               long long& outChainId) {
+                               long long& outChainId,
+                               const char* const* blockedUrls,
+                               int blockedCount,
+                               const char* const* workingUrls,
+                               int workingCount) {
     outCount = 0;
     outTimestamp = 0;
     outChainId = 0;
@@ -453,10 +457,10 @@ bool UniversalNode::getRpcPair(long long chainId,
         return false;
     }
 
-    // Canonical params: [chainId] — matches server parseGetRpcPairChainId
-    ostringstream paramsSs;
-    paramsSs << "[" << chainId << "]";
-    string output = call("uninode_getRpcPair", paramsSs.str());
+    // Canonical params: [chainId] or [chainId,{blocked,working}] (keys sorted)
+    string params = paramsGetRpcPair(chainId, blockedUrls, blockedCount,
+                                     workingUrls, workingCount);
+    string output = call("uninode_getRpcPair", params);
     if (output.empty()) {
         // Includes unsigned HTTP {error:{code:RPC_VALIDATION,message}} failures
         if (lastErrorMsg.empty()) lastErrorMsg = "uninode_getRpcPair failed";

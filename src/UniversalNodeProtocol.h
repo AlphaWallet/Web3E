@@ -45,6 +45,16 @@ std::string paramsEthCall(const std::string& to, const std::string& data,
                           const std::string& blockTag = "latest");
 std::string paramsEmpty();
 
+/**
+ * Canonical params for uninode_getRpcPair.
+ * - No feedback: `[chainId]`
+ * - With feedback: `[chainId,{"blocked":[...],"working":[...]}]` (omit empty arrays;
+ *   object keys sorted). At most 8 URLs per list; extras ignored.
+ */
+std::string paramsGetRpcPair(long long chainId,
+                             const char* const* blockedUrls, int blockedCount,
+                             const char* const* workingUrls, int workingCount);
+
 /** Lowercase 0x-hex of keccak256(utf8 bytes). */
 std::string keccakHex(const uint8_t* data, size_t length);
 std::string keccakHex(const std::string& utf8);

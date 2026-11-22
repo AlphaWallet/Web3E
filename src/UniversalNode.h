@@ -68,20 +68,28 @@ public:
      * Fetch a signed best-RPC URL pair via uninode_getRpcPair (protocol v1).
      *
      * Wire (must match universal-node):
-     * - Request params `[chainId]` with params[0] == envelope chainId (== Web3 chainId).
+     * - Request params `[chainId]` or
+     *   `[chainId,{"blocked":[url...],"working":[url...]}]` (lists optional, ≤8 each;
+     *   empty lists omitted; object keys sorted). params[0] == envelope chainId.
      * - Success: signed v1 response with
      *   result `{chainId,timestamp,rpcs[]}`, blockNumber `"0"`, signature over
      *   `result:<keccak256(canonicalJson(result))>` (sorted keys, no whitespace).
      * - Errors: unsigned HTTP `{error:{code:"RPC_VALIDATION",message}}` — returns false.
      *
-     * Pair freshness is result.timestamp (not blockNumber). On success: outCount
-     * is 1 or 2, each URL https and ≤255 bytes.
+     * With blocked set, server returns [working node, next ranked below both].
+     * With only working (refresh), may return the same pair if still healthy.
+     * Blocked URLs are never returned. Pair freshness is result.timestamp.
+     * On success: outCount is 1 or 2, each URL https and ≤255 bytes.
      */
     bool getRpcPair(long long chainId,
                     char outUrls[][256],
                     int& outCount,
                     uint32_t& outTimestamp,
-                    long long& outChainId);
+                    long long& outChainId,
+                    const char* const* blockedUrls = nullptr,
+                    int blockedCount = 0,
+                    const char* const* workingUrls = nullptr,
+                    int workingCount = 0);
 
     const char* lastError() const { return lastErrorMsg.c_str(); }
     const std::string& lastBlockNumber() const { return lastVerifiedBlockNumber; }
