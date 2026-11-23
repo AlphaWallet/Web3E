@@ -1,6 +1,6 @@
 // Web3E main header
 //
-// By James Brown Githubs: @JamesSmartCell @AlphaWallet 
+// By James Brown Githubs: @JamesSmartCell @AlphaWallet
 // Twitters: @TallyDigital @AlphaWallet
 //
 // Based on Web3 Arduino by Okada, Takahiro.
@@ -16,14 +16,6 @@ typedef unsigned char BYTE;
 #define ETHERS_ADDRESS_LENGTH          20
 #define ETHERS_KECCAK256_LENGTH        32
 #define ETHERS_SIGNATURE_LENGTH        65
-
-// Infura API key (opt-in only)
-// Define -DUSING_INFURA and -DINFURA_API_KEY="your-key-here" in build_flags to enable
-#ifdef USING_INFURA
-  #ifndef INFURA_API_KEY
-    #define INFURA_API_KEY "a9d6b1764a464faaa8f0399958601361" // Staging key - REPLACE in production
-  #endif
-#endif
 
 /** Reused staging buffer for eth RPC HTTP bodies (avoids per-byte string growth). */
 #define WEB3_RPC_BUFFER_SIZE           4096
@@ -72,8 +64,13 @@ enum ConnectionStage
 
 class Web3 {
 public:
+    /**
+     * Construct with a chainId only. No RPC endpoint is selected automatically —
+     * call useCachedRpcPair(uninode) (preferred; any chainlist.org chain) or
+     * setRpcUrl("https://...") before methods that talk to an RPC.
+     * Crypto helpers (KeyID, signing) work without an RPC host.
+     */
     Web3(long long chainId);
-    Web3(long long chainId, const char* infura_key);
     ~Web3();
     string Web3ClientVersion();
     string Web3Sha3(const string* data);
@@ -107,28 +104,26 @@ public:
     /**
      * Optionally route read-only RPC (balance, eth_call, blockNumber, chainId,
      * getTransactionReceipt) through a UniversalNode client. Pass nullptr to
-     * restore public/Infura RPC. Does not take ownership.
-     * Mutually exclusive with useCachedRpcPair (enabling one clears the other mode).
+     * clear proxy routing (direct RPC then needs useCachedRpcPair or setRpcUrl).
+     * Does not take ownership. Mutually exclusive with useCachedRpcPair.
      */
     void setUniversalNode(UniversalNode* node);
     UniversalNode* getUniversalNode() const { return universalNode; }
 
     /**
-     * Use a signed best-RPC URL pair from universal-node, cached in EEPROM.
-     * Loads any valid cache immediately, then refreshes via uninode when empty,
-     * chain differs, or older than max age. Normal Web3 RPC (reads and writes)
-     * go directly to these public HTTPS nodes with per-request round-robin
-     * load-sharing (alternating nodes to avoid rate limits); transport failure
-     * still retries the same call once on the other node.
-     *
-     * Connect/TLS failures are tracked per current cached node in RAM. After N
-     * consecutive failures on one node while the other succeeds (default 3),
-     * or when both nodes hit that threshold, the device tags only those two
-     * URLs as working/blocked in uninode_getRpcPair (rate-limited) and caches
-     * a replacement. Weekly / age-based refresh sends the current pair as
-     * working. Does not take ownership of uninode.
+     * Preferred path: fetch a signed best-RPC URL pair from universal-node for
+     * this chainId (any chainlist.org chain uninode serves), cache in EEPROM,
+     * and talk directly to those public HTTPS nodes. See maintainCachedRpcPair.
+     * Disables any prior setRpcUrl host. Does not take ownership of uninode.
      */
     void useCachedRpcPair(UniversalNode* uninode);
+
+    /**
+     * Explicit single HTTPS RPC override (lab / private node / provider URL).
+     * Disables cached-pair mode. Returns false if the URL is not https://… .
+     * Prefer useCachedRpcPair for production devices.
+     */
+    bool setRpcUrl(const char* httpsUrl);
 
     /** Max cache age before refresh (default 7 days). */
     void setRpcPairMaxAgeSeconds(uint32_t seconds);
@@ -152,7 +147,6 @@ private:
     string exec(const string* data);
     string execOnce(const string* data);
     string generateJson(const string* method, const string* params);
-    void selectHost();
     void setupCert();
     void freeHeapHostPath();
     bool parseAndApplyRpcUrl(const char* url);
@@ -165,6 +159,7 @@ private:
     void noteCachedRpcConnectSuccess();
     void logTlsConnectFailure(WiFiClientSecure* secureClient);
     void resetCachedRpcHealth();
+    void initCachedRpcState();
 
     long getLong(const string* json);
     double getDouble(const string* json);
@@ -175,7 +170,6 @@ private:
     BYTE *mem;
     const char* host;
     const char* path;
-    const char* infura_key;
     unsigned short port;
     long long chainId;
     UniversalNode* universalNode;

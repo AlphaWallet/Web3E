@@ -1,10 +1,11 @@
 /**
  * Universal Node RPC example
  *
- * Makes read-only JSON-RPC calls through https://uninode.percolate.one instead
- * of a public RPC. Requests are EIP-191 signed with the device KeyID key;
+ * Makes read-only JSON-RPC calls through https://uninode.percolate.one
+ * (signed proxy). Requests are EIP-191 signed with the device KeyID key;
  * responses are verified against the pinned node signer address so a
- * spoofed/MITM RPC cannot forge an NFT balance.
+ * spoofed/MITM RPC cannot forge an NFT balance. For direct public-RPC reads
+ * and writes, prefer examples/Cached RPC Pair (useCachedRpcPair).
  *
  * Setup:
  * 1. Set Wi-Fi credentials below.

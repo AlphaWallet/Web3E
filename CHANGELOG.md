@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### 🔴 BREAKING CHANGES
 
+- **Legacy RPC node selection removed.** `src/nodes.h`, `src/Certificates.h`,
+  Infura opt-in (`USING_INFURA` / `INFURA_API_KEY` / `Web3(chainId, infura_key)`),
+  and automatic `selectHost()` are gone. `Web3(chainId)` no longer picks a public
+  RPC. Call `useCachedRpcPair(uninode)` (preferred; any chainlist.org chain uninode
+  serves) or `setRpcUrl("https://…")` before JSON-RPC. EEPROM KeyID (0–32) and
+  WifiStore layout are unchanged.
+
 - **Default proxy server changed** from `scriptproxy.smarttokenlabs.com:8003` to `scriptproxy.percolate.one:8083` (TCP) / `:8083` (UDP)
   - **Impact:** Devices using the default proxy (no custom configuration) will fail to connect with DNS errors
   - **Required action:** Update existing deployments to either:
@@ -42,9 +49,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - chainId stored in cache (forces refresh on chain change — small addition to the pair cache layout)
   - Refresh at startup / Wi-Fi check loop / ~24h; max age default 7 days; keep cache on refresh failure
   - Per-request round-robin load-sharing; transport failure retries once on the other node
-  - TLS via `setInsecure` on the cached path (no per-node certs); existing `nodes.h` / `Certificates.h` path unchanged
+  - TLS via `setInsecure` on HTTPS RPC (no per-node certs)
   - Example: `examples/Cached RPC Pair` (`huge_app` partition)
   - Default `WEB3E_EEPROM_SIZE` raised to 2048 to fit RpcPairStore (min 1349)
+  - `Web3::setRpcUrl(httpsUrl)` — optional explicit single-URL override (disables cached-pair mode)
 
 - **universal-node signed read-only RPC client**
   - `UniversalNode` / `UniversalNodeProtocol` — device client for `https://uninode.percolate.one`

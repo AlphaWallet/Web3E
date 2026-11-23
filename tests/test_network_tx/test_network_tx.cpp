@@ -26,6 +26,10 @@
 #include <WiFi.h>
 #include <WiFiConnection.h>
 #include <Web3.h>
+
+#ifndef TEST_SEPOLIA_RPC_URL
+#define TEST_SEPOLIA_RPC_URL "https://ethereum-sepolia-rpc.publicnode.com"
+#endif
 #include <Contract.h>
 #include <Util.h>
 #include <KeyID.h>
@@ -176,6 +180,7 @@ void test_send_eth_transaction() {
     }
     
     Web3 web3(SEPOLIA_CHAIN_ID);
+    TEST_ASSERT_TRUE_MESSAGE(web3.setRpcUrl(TEST_SEPOLIA_RPC_URL), "setRpcUrl sepolia");
     
     // Safety: Verify we're on a testnet
     long long chainId = web3.getChainId();
@@ -266,6 +271,7 @@ void test_send_erc20_transaction() {
     }
     
     Web3 web3(SEPOLIA_CHAIN_ID);
+    TEST_ASSERT_TRUE_MESSAGE(web3.setRpcUrl(TEST_SEPOLIA_RPC_URL), "setRpcUrl sepolia");
     
     // Safety: Verify we're on a testnet
     long long chainId = web3.getChainId();
@@ -376,6 +382,7 @@ void test_transaction_signing_only() {
     Serial.println("\n=== Transaction Signing Test (No Send) ===");
     
     Web3 web3(SEPOLIA_CHAIN_ID);
+    TEST_ASSERT_TRUE_MESSAGE(web3.setRpcUrl(TEST_SEPOLIA_RPC_URL), "setRpcUrl sepolia");
     Contract contract(&web3, "");
     contract.SetPrivateKey(TEST_PRIVATE_KEY);
     

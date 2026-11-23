@@ -17,6 +17,8 @@
 #include "esp_wifi.h"
 #include <Arduino.h>
 #include <Web3.h>
+#include <KeyID.h>
+#include <UniversalNode.h>
 #include <WiFi.h>
 #include <WiFiConnection.h>
 #include <functional>
@@ -37,6 +39,7 @@ WiFiConnection wifiConnection;
 TcpBridge *tcpConnection;
 Web3 *web3;
 KeyID *keyID;
+UniversalNode *uninode;
 std::string challenge;
 boolean blinkLEDOn = false;
 
@@ -87,6 +90,16 @@ void setup()
   
   web3 = new Web3(SEPOLIA_ID);
   keyID = new KeyID(web3);
+  uninode = new UniversalNode(web3, keyID);
+  if (!uninode->syncTime()) {
+    Serial.println("WARNING: NTP sync failed — will use EEPROM RPC cache if present.");
+  }
+  Serial.print("Device address (whitelist on universal-node): ");
+  Serial.println(keyID->getAddress().c_str());
+  // balanceOf ViewCall needs a public RPC pair from uninode (no bundled nodes.h).
+  web3->useCachedRpcPair(uninode);
+  web3->maintainCachedRpcPair();
+
   pinMode(BLUE_LED, OUTPUT);
   digitalWrite(BLUE_LED, 0);
   Initialize(); //init after wifi setup to change startup delay
@@ -100,6 +113,7 @@ void setup()
 void loop() 
 {
   delay(1);
+  web3->maintainCachedRpcPair();
   tcpConnection->checkClientAPI(&handleTCPAPI);
   blinkTicker.update();
 }
