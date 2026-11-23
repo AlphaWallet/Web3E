@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include <August.h>
+#include <august.h>
 #include <vector>
 #include <string>
 #include <esp_wifi.h>
