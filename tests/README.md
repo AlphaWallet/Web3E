@@ -9,12 +9,14 @@ PlatformIO Unity test suite for Web3E library on ESP32.
 - **`test_transaction/`** - Transaction signing and ABI encoding tests (offline)
 - **`test_universal_node/`** - Native (host) tests for universal-node canonical JSON, request messages, and response verification (Anvil fixed vectors)
 - **`test_network_rpc/`** - Network RPC tests (read-only, no funds needed):
+  - Uses `Web3::setRpcUrl()` with explicit lab HTTPS endpoints (not bundled node tables)
   - Wi-Fi connection using WiFiConnection class
   - Chain ID, block number queries
   - Native ETH balance queries
   - Transaction count (nonce) queries
   - ERC20 token balance, name, symbol queries
 - **`test_network_tx/`** - Network transaction tests (SENDS REAL TRANSACTIONS):
+  - Same `setRpcUrl` lab override; production devices should use `useCachedRpcPair`
   - Transaction signing (dry-run)
   - Send ETH transaction and verify
   - Send ERC20 token transaction and verify

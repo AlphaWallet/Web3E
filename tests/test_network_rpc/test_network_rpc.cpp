@@ -2,8 +2,9 @@
  * Web3E Network RPC Tests
  * 
  * Read-only network tests (no funds required).
- * Tests Web3E's built-in node selection and RPC functionality.
- * 
+ * Uses explicit setRpcUrl() for lab endpoints (not bundled node tables).
+ * Production devices should prefer useCachedRpcPair(uninode).
+ *
  * Configure credentials in test_config.ini:
  * - WIFI_SSID, WIFI_PASS: Wi-Fi credentials
  * - ERC721_CONTRACT: Optional mainnet ERC721 for query test
@@ -37,9 +38,16 @@
 #define ERC721_NFT_TEST_ADDRESS ""
 #endif
 
-// Web3E uses built-in node selection based on chain ID
 #define SEPOLIA_CHAIN_ID 11155111
 #define MAINNET_CHAIN_ID 1
+
+// Explicit lab RPC URLs (user-supplied override — not library builtins)
+#ifndef TEST_SEPOLIA_RPC_URL
+#define TEST_SEPOLIA_RPC_URL "https://ethereum-sepolia-rpc.publicnode.com"
+#endif
+#ifndef TEST_MAINNET_RPC_URL
+#define TEST_MAINNET_RPC_URL "https://ethereum-rpc.publicnode.com"
+#endif
 
 // Vitalik's mainnet address for testing
 #define VITALIK_ADDRESS "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"
@@ -106,6 +114,7 @@ void test_sepolia_chain_id() {
     Serial.println("\n=== Sepolia Chain ID Test ===");
     
     Web3 web3(SEPOLIA_CHAIN_ID);
+    TEST_ASSERT_TRUE_MESSAGE(web3.setRpcUrl(TEST_SEPOLIA_RPC_URL), "setRpcUrl sepolia");
     
     // Call eth_chainId RPC method (genuine network I/O test)
     long long chainId = web3.EthChainId();
@@ -125,6 +134,7 @@ void test_sepolia_block_number() {
     delay(500); // Rate limit protection
     
     Web3 web3(SEPOLIA_CHAIN_ID);
+    TEST_ASSERT_TRUE_MESSAGE(web3.setRpcUrl(TEST_SEPOLIA_RPC_URL), "setRpcUrl sepolia");
     long long blockNumber = web3.EthBlockNumber();
     
     // Retry once on failure (RPC error or rate limit)
@@ -152,6 +162,7 @@ void test_mainnet_chain_id() {
     delay(500); // Rate limit protection
     
     Web3 web3(MAINNET_CHAIN_ID);
+    TEST_ASSERT_TRUE_MESSAGE(web3.setRpcUrl(TEST_MAINNET_RPC_URL), "setRpcUrl mainnet");
     
     // Call eth_chainId RPC method (genuine network I/O test)
     long long chainId = web3.EthChainId();
@@ -171,6 +182,7 @@ void test_mainnet_vitalik_balance() {
     delay(500); // Rate limit protection
     
     Web3 web3(MAINNET_CHAIN_ID);
+    TEST_ASSERT_TRUE_MESSAGE(web3.setRpcUrl(TEST_MAINNET_RPC_URL), "setRpcUrl mainnet");
     string address = VITALIK_ADDRESS;
     uint256_t balance = web3.EthGetBalance(&address);
     
@@ -199,6 +211,7 @@ void test_mainnet_transaction_count() {
     delay(500); // Rate limit protection
     
     Web3 web3(MAINNET_CHAIN_ID);
+    TEST_ASSERT_TRUE_MESSAGE(web3.setRpcUrl(TEST_MAINNET_RPC_URL), "setRpcUrl mainnet");
     string address = VITALIK_ADDRESS;
     long long nonce = web3.EthGetTransactionCount(&address);
     
@@ -220,6 +233,7 @@ void test_erc20_name() {
     delay(500); // Rate limit protection
     
     Web3 web3(MAINNET_CHAIN_ID);
+    TEST_ASSERT_TRUE_MESSAGE(web3.setRpcUrl(TEST_MAINNET_RPC_URL), "setRpcUrl mainnet");
     Contract contract(&web3, USDC_MAINNET);
     
     string param = contract.SetupContractData("name()");
@@ -242,6 +256,7 @@ void test_erc20_decimals() {
     delay(500); // Rate limit protection
     
     Web3 web3(MAINNET_CHAIN_ID);
+    TEST_ASSERT_TRUE_MESSAGE(web3.setRpcUrl(TEST_MAINNET_RPC_URL), "setRpcUrl mainnet");
     Contract contract(&web3, USDC_MAINNET);
     
     string param = contract.SetupContractData("decimals()");
@@ -264,6 +279,7 @@ void test_erc20_balance() {
     delay(500); // Rate limit protection
     
     Web3 web3(MAINNET_CHAIN_ID);
+    TEST_ASSERT_TRUE_MESSAGE(web3.setRpcUrl(TEST_MAINNET_RPC_URL), "setRpcUrl mainnet");
     Contract contract(&web3, USDC_MAINNET);
     
     string address = VITALIK_ADDRESS;
@@ -299,6 +315,7 @@ void test_erc721_balance() {
     Serial.println(ERC721_NFT_TEST_ADDRESS);
     
     Web3 web3(MAINNET_CHAIN_ID);
+    TEST_ASSERT_TRUE_MESSAGE(web3.setRpcUrl(TEST_MAINNET_RPC_URL), "setRpcUrl mainnet");
     Contract contract(&web3, ERC721_CONTRACT);
     
     string address = ERC721_NFT_TEST_ADDRESS;
@@ -323,7 +340,7 @@ void setup() {
     
 #ifdef ENABLE_NETWORK_TESTS
     Serial.println("Network RPC tests ENABLED");
-    Serial.println("Tests use Web3E's built-in node selection");
+    Serial.println("Tests use Web3::setRpcUrl (explicit lab endpoints)");
     Serial.println();
     
     UNITY_BEGIN();

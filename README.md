@@ -181,30 +181,18 @@ Common partition schemes:
 
 Without adequate flash space, you'll see: `Image length XXXXXX doesn't fit in partition length YYYYYY` and boot loops.
 
-### Infura Support (Opt-In)
+### RPC endpoints (no bundled node tables)
 
-By default, Web3E uses **public RPC nodes** for maximum portability and zero configuration. Infura support is **opt-in only** and requires compile-time flags.
+Web3E does **not** ship hardcoded per-chain RPC URLs or Infura keys. Construct
+`Web3(chainId)` for crypto / KeyID / TokenScript bridge work, then obtain RPC
+endpoints before any JSON-RPC call:
 
-**To enable Infura:**
+1. **Preferred:** `useCachedRpcPair(uninode)` — signed pair from universal-node for
+   any chainId listed on [chainlist.org](https://chainlist.org) that uninode serves.
+2. **Lab / private override:** `setRpcUrl("https://…")` — a single explicit HTTPS URL
+   (e.g. your Infura/Alchemy project URL). Disables cached-pair mode.
 
-Add these build flags to your `platformio.ini`:
-
-```ini
-build_flags =
-    -DARDUINO_LOOP_STACK_SIZE=16384
-    -DUSING_INFURA
-    -DINFURA_API_KEY=\"your-infura-api-key-here\"
-```
-
-**Without these flags:** The library will use public RPCs from the curated rankings feed. The `Web3(chainId, infura_key)` constructor will ignore the key parameter and log a warning. **Public RPCs use unverified TLS** (HTTPS connection without server certificate verification) for simplicity and broad compatibility.
-
-**With `-DUSING_INFURA` defined:** Infura endpoints become the primary RPC for supported chains (Ethereum, Polygon, Optimism, Arbitrum, Base, Linea, Avalanche testnets), with public nodes as fallback. **Infura uses pinned TLS certificate verification** with Amazon Root CA 1 for enhanced security.
-
-**TLS Certificate Policy:**
-- **Public RPCs:** Unverified TLS (`client->setInsecure()`) - encrypted connection without server verification
-- **Infura (opt-in):** Pinned Amazon Root CA 1 - full TLS verification with certificate pinning
-
-**Supported Infura chains:** See `tools/infura-chains.json` for the complete list of chains with Infura endpoints.
+HTTPS RPC connections use `setInsecure()` (encrypted without a pinned CA bundle).
 
 ## Example TokenScript flow
 
@@ -219,44 +207,21 @@ build_flags =
 
 The advantage of using TokenScript rather than a dapp is evident from looking at the code example. You will have a very nice user interface defined with html/css with the calling code written in small JavaScript functions. The user would quickly find the entry token in their wallet.
 
-## New in Version 1.3 - easy node setup
+## Chain IDs and RPC setup
 
-Web3E now has a series of API key free node endpoints for many EVMs. The full list can be found in ```src/chainIds.h```.
-Supply one of these to the Web3 object in your main sketch to start connecting.
-eg:
-
-``` C++
-Web3 *web3 = new Web3(SEPOLIA_ID);
-Web3 *web3 = new Web3(MAINNET_ID);
-Web3 *web3 = new Web3(MUMBAI_TEST_ID);
-```
-
-Note, if you have an Infura API key and wish to use Infura where possible, edit Web3.h like this:
+`src/chainIds.h` lists common EVM chainId constants. Pass one to `Web3(chainId)`,
+then configure RPC via universal-node (preferred) or an explicit URL:
 
 ``` C++
-#define USING_INFURA 1
-#define INFURA_KEY "1234567890abcdef1234567890abcdef" //<--- your Infura key here
+Web3* web3 = new Web3(SEPOLIA_ID);
+KeyID* keyId = new KeyID(web3);
+UniversalNode* uninode = new UniversalNode(web3, keyId);
+uninode->syncTime();
+web3->useCachedRpcPair(uninode);   // preferred — any chain uninode serves
+// OR: web3->setRpcUrl("https://your-provider.example/v3/KEY");  // lab override
 ```
 
-Web3E will adjust the node endpoint to use Infura for all Infura supported networks. Note that you will need to enable Infura in the dashboard for all these networks; otherwise use the free connections.
-
-### RPC Node Updates
-
-Web3E's RPC node URLs in `src/nodes.h` are automatically updated from a performance-ranked feed using the build-time updater in `tools/`. The updater selects the fastest public nodes (up to 3 per chain) based on response time measurements.
-
-Each chain now supports up to 3 URLs for future failover/rotation:
-
-``` C++
-// Get primary URL (backward compatible)
-const char* primaryUrl = getNode(SEPOLIA_ID);
-
-// Get alternate URLs for failover
-const char* url1 = getNodeUrls(SEPOLIA_ID, 0);  // Primary
-const char* url2 = getNodeUrls(SEPOLIA_ID, 1);  // Alternate 1
-const char* url3 = getNodeUrls(SEPOLIA_ID, 2);  // Alternate 2
-```
-
-See `tools/README.md` for details on updating node URLs.
+See **Cached public RPC pair** below and `examples/Cached RPC Pair`.
 
 ## Example Web3E DApp flow
 

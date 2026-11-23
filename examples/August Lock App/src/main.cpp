@@ -4,6 +4,7 @@
 #include <string>
 #include <esp_wifi.h>
 #include <Web3.h>
+#include <UniversalNode.h>
 #include <WiFi.h>
 #include <WiFiClient.h>
 #include <TcpBridge.h>
@@ -135,6 +136,7 @@ void Initialize()
 ConnectionState state = DISCONNECTED;
 Web3 *web3;
 KeyID *keyID;
+UniversalNode *uninode;
 LockComms lockStatus = idle;
 DoorCommand command = cmd_none;
 DoorCommand nextCmd = cmd_none;
@@ -585,6 +587,13 @@ void Web3Service(void *pvParameters)
 
     web3 = new Web3(SEPOLIA_ID);
     keyID = new KeyID(web3, DEVICE_PRIVATE_KEY);
+    uninode = new UniversalNode(web3, keyID);
+    if (!uninode->syncTime()) {
+        Serial.println("WARNING: NTP sync failed — will use EEPROM RPC cache if present.");
+    }
+    // NFT balanceOf ViewCall needs an RPC pair from uninode (no bundled nodes.h).
+    web3->useCachedRpcPair(uninode);
+    web3->maintainCachedRpcPair();
     updateChallenge();
 
     tcpConnection = new TcpBridge();
@@ -602,6 +611,7 @@ void Web3Service(void *pvParameters)
     {
         delay(500);
         setupWifi();
+        web3->maintainCachedRpcPair();
         tcpConnection->checkClientAPI(&handleTCPAPI);
         web3PulseTime = tcpConnection->getLastCommsTime();
     }

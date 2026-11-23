@@ -8,7 +8,6 @@
 //
 
 #include "Web3.h"
-#include "Certificates.h"
 #include "Util.h"
 #include "TagReader/TagReader.h"
 #include "HttpParser.h"
@@ -20,21 +19,9 @@
 #include <memory>
 #include <stdlib.h>
 #include <time.h>
-#include "nodes.h"
 #include "Web3Log.h"
 
-Web3::Web3(long long networkId) {
-#ifdef USING_INFURA
-    infura_key = INFURA_API_KEY;
-#else
-    infura_key = nullptr;
-#endif
-    mem = new BYTE[sizeof(WiFiClientSecure)];
-    chainId = networkId;
-    universalNode = nullptr;
-    host = nullptr;
-    path = nullptr;
-    port = 443;
+void Web3::initCachedRpcState() {
     cachedRpcEnabled = false;
     hostPathOnHeap = false;
     rpcPairUninode = nullptr;
@@ -54,59 +41,18 @@ Web3::Web3(long long networkId) {
     memset(activePathBuf, 0, sizeof(activePathBuf));
     memset(rpcNodeFailStreak, 0, sizeof(rpcNodeFailStreak));
     memset(rpcNodeSuccessStreak, 0, sizeof(rpcNodeSuccessStreak));
-    rpcResult.reserve(WEB3_RPC_BUFFER_SIZE);
-    selectHost();
 }
 
-Web3::Web3(long long networkId, const char* infura_key_str) {
+Web3::Web3(long long networkId) {
     mem = new BYTE[sizeof(WiFiClientSecure)];
-    
-#ifdef USING_INFURA
-    if (strnlen(infura_key_str, 34) != 32)
-    {
-        WEB3E_PRINTLN("Incorrect Infura Key spec, fallback to staging API key");
-        infura_key = INFURA_API_KEY;
-    }
-    else
-    {
-        infura_key = infura_key_str;
-        WEB3E_PRINT("Setting Infura Key: ");
-        WEB3E_PRINTLN(infura_key);
-    }
-#else
-    // Infura disabled - ignore the key
-    infura_key = nullptr;
-    if (infura_key_str) {
-        WEB3E_PRINTLN("Warning: Infura key provided but USING_INFURA not defined - using public RPCs");
-    }
-#endif
-
     chainId = networkId;
     universalNode = nullptr;
     host = nullptr;
     path = nullptr;
     port = 443;
-    cachedRpcEnabled = false;
-    hostPathOnHeap = false;
-    rpcPairUninode = nullptr;
-    rpcPairStore = nullptr;
-    cachedRpcCount = 0;
-    cachedRpcIndex = 0;
-    cachedRpcTimestamp = 0;
-    cachedRpcChainId = 0;
-    rpcPairMaxAgeSeconds = WEB3_RPC_PAIR_MAX_AGE_SECONDS;
-    rpcPairCheckIntervalMs = WEB3_RPC_PAIR_CHECK_INTERVAL_MS;
-    lastRpcPairCheckMs = 0;
-    rpcPairCheckInitialized = false;
-    lastRpcReplacementMs = 0;
-    rpcReplacementEverRequested = false;
-    memset(cachedRpcUrls, 0, sizeof(cachedRpcUrls));
-    memset(activeHostBuf, 0, sizeof(activeHostBuf));
-    memset(activePathBuf, 0, sizeof(activePathBuf));
-    memset(rpcNodeFailStreak, 0, sizeof(rpcNodeFailStreak));
-    memset(rpcNodeSuccessStreak, 0, sizeof(rpcNodeSuccessStreak));
+    initCachedRpcState();
     rpcResult.reserve(WEB3_RPC_BUFFER_SIZE);
-    selectHost();
+    // No automatic RPC host — call useCachedRpcPair() or setRpcUrl() first.
 }
 
 Web3::~Web3() {
@@ -128,6 +74,19 @@ void Web3::setUniversalNode(UniversalNode* node) {
 
 void Web3::setRpcPairMaxAgeSeconds(uint32_t seconds) {
     if (seconds > 0) rpcPairMaxAgeSeconds = seconds;
+}
+
+bool Web3::setRpcUrl(const char* httpsUrl) {
+    // Explicit override — leave UniversalNode proxy alone (reads can still use it).
+    cachedRpcEnabled = false;
+    rpcPairUninode = nullptr;
+    if (!parseAndApplyRpcUrl(httpsUrl)) {
+        WEB3E_PRINTLN("Web3: setRpcUrl requires an https:// URL (host[/path][:port])");
+        return false;
+    }
+    WEB3E_PRINT("Web3: using explicit RPC ");
+    WEB3E_PRINTLN(host);
+    return true;
 }
 
 const char* Web3::getCachedRpc(int index) const {
@@ -1158,82 +1117,12 @@ string Web3::getString(const string *json)
     return text;
 }
 
-/**
- * @brief Fetch TLS certificate for the node
- * 
- * TODO: Add remaining certificates as required
- * 
- * @return const char* 
- */
 void Web3::setupCert()
 {
-    // Cached public RPC pair path: no per-node certificates (setInsecure).
-    // Existing nodes.h / Certificates.h path remains for non-cached mode.
-    if (cachedRpcEnabled) {
-        client->setInsecure();
-        return;
-    }
-
-    const char *cert = getCertificate(chainId);
-    if (cert != NULL)
-    {
-        client->setCACert(cert);
-    }
-    else
-    {
-        client->setInsecure();
-    }
+    // Public / user-supplied HTTPS RPCs: encrypted without pinning a CA bundle
+    // (no bundled per-node certificates after removal of nodes.h / Certificates.h).
+    client->setInsecure();
 }
-
-void Web3::selectHost()
-{
-    const char* nodeStr = getNode(chainId);
-    
-    // Null-check for safety (getNode should return "" not NULL, but be defensive)
-    if (nodeStr == NULL || strlen(nodeStr) == 0)
-    {
-        WEB3E_PRINT("ChainId: ");
-        WEB3E_PRINT(chainId);
-        WEB3E_PRINTLN(" is not yet supported, please add the RPC (and certificate if required) and submit a PR to the repo.");
-        return;
-    }
-    
-    std::string node = nodeStr;
-
-#ifdef USING_INFURA
-    if (node.find("infura.io") != std::string::npos && infura_key)
-    {
-        node += infura_key;
-    }
-#endif
-
-    int ppos = node.find(":");
-    if (ppos > 0)
-    {
-        port = stoi(node.substr(ppos+1));
-        node = node.substr(0, ppos);
-    }
-    else
-    {
-        port = 443;
-    }
-
-    freeHeapHostPath();
-
-    ppos = node.find("/");
-    if (ppos > 0)
-    {
-        host = strdup(node.substr(0, ppos).c_str());
-        path = strdup(node.substr(ppos).c_str());
-    }
-    else
-    {
-        host = strdup(node.c_str());
-        path = strdup("/");
-    }
-    hostPathOnHeap = true;
-}
-
 
 long long Web3::getChainId() const {
     return chainId;

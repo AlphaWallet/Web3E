@@ -43,6 +43,7 @@ EthViewCall				KEYWORD2
 setUniversalNode	KEYWORD2
 useCachedRpcPair	KEYWORD2
 maintainCachedRpcPair	KEYWORD2
+setRpcUrl	KEYWORD2
 getRpcPair	KEYWORD2
 syncTime	KEYWORD2
 UdpBridge	KEYWORD2

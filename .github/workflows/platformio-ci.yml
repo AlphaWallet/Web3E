@@ -26,6 +26,26 @@ jobs:
           - project: examples/Wallet Bridge 2
             name: "Example: Wallet Bridge 2"
             type: build
+
+          - project: examples/Wallet Bridge 3
+            name: "Example: Wallet Bridge 3"
+            type: build
+
+          - project: examples/August Lock App
+            name: "Example: August Lock App"
+            type: build
+
+          - project: examples/Query Token Balance
+            name: "Example: Query Token Balance"
+            type: build
+
+          - project: examples/Send Eth to Address
+            name: "Example: Send Eth to Address"
+            type: build
+
+          - project: examples/Push Transaction
+            name: "Example: Push Transaction"
+            type: build
           
           # Test suite - verify tests compile (offline tests)
           - project: tests
@@ -38,13 +58,6 @@ jobs:
             name: "Test Suite (Network - compile only)"
             type: test
             env: esp32dev_network
-          
-          # Test with Infura opt-in flag (verifies USING_INFURA compiles)
-          - project: tests
-            name: "Test Suite (Offline - USING_INFURA flag)"
-            type: test
-            env: esp32dev
-            extra_flags: '-DUSING_INFURA'
           
           # Native tests - actually run on CI (not just compile)
           - project: tests/test_http_parser
