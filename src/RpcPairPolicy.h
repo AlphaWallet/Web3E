@@ -10,8 +10,12 @@
  * node on transport failure, then advances to nextIndex for the following
  * request. Index lives in RAM only (starts at 0 after boot).
  *
- * After N consecutive connect/TLS failures on one node while the other is
- * succeeding, the device may request a replacement pair from uninode (rate-limited).
+ * Feedback to uninode_getRpcPair tags only the current cached pair (1–2 URLs):
+ * - {working:[A], blocked:[B]} when B hits N consecutive connect/TLS failures
+ *   while A is succeeding
+ * - {blocked:[A,B]} when both hit the threshold
+ * - {working:[A,B]} on weekly / age-based refresh
+ * There is no cumulative blocked list beyond the current pair.
  */
 
 #ifndef RPC_PAIR_BLOCK_FAILURE_THRESHOLD
@@ -22,6 +26,7 @@
 #define RPC_PAIR_REPLACEMENT_MIN_INTERVAL_MS (30UL * 60UL * 1000UL) /* 30 min */
 #endif
 
+/** Protocol max URLs per blocked/working list (device only ever sends the current pair). */
 #ifndef RPC_PAIR_FEEDBACK_MAX_URLS
 #define RPC_PAIR_FEEDBACK_MAX_URLS 8
 #endif
@@ -52,15 +57,30 @@ inline int rpcPairRetryIndex(int startIndex, int count) {
     return rpcPairNextIndex(startIndex, count);
 }
 
+/** True when a single node's consecutive connect/TLS failures reached the threshold. */
+inline bool rpcPairNodeReachedBlockThreshold(int consecutiveFailures,
+                                             int threshold = RPC_PAIR_BLOCK_FAILURE_THRESHOLD) {
+    if (threshold < 1) threshold = 1;
+    return consecutiveFailures >= threshold;
+}
+
 /**
- * True when a node should be treated as router-blocked: enough consecutive
- * connect/TLS failures while the peer node has been succeeding.
+ * True when one node should be reported blocked while the peer is working:
+ * enough consecutive connect/TLS failures while the peer has been succeeding.
  */
 inline bool rpcPairShouldMarkBlocked(int consecutiveFailures,
                                      int otherConsecutiveSuccesses,
                                      int threshold = RPC_PAIR_BLOCK_FAILURE_THRESHOLD) {
-    if (threshold < 1) threshold = 1;
-    return consecutiveFailures >= threshold && otherConsecutiveSuccesses > 0;
+    return rpcPairNodeReachedBlockThreshold(consecutiveFailures, threshold)
+        && otherConsecutiveSuccesses > 0;
+}
+
+/** True when both current nodes have independently hit the failure threshold. */
+inline bool rpcPairBothReachedBlockThreshold(int failStreak0,
+                                             int failStreak1,
+                                             int threshold = RPC_PAIR_BLOCK_FAILURE_THRESHOLD) {
+    return rpcPairNodeReachedBlockThreshold(failStreak0, threshold)
+        && rpcPairNodeReachedBlockThreshold(failStreak1, threshold);
 }
 
 /** Rollover-safe rate limit for uninode replacement requests. */

@@ -51,7 +51,6 @@ class RpcPairStore;
 #include <string.h>
 #include <string>
 #include "chainIds.h"
-#include "RpcPairPolicy.h"
 
 using namespace std;
 
@@ -122,11 +121,12 @@ public:
      * load-sharing (alternating nodes to avoid rate limits); transport failure
      * still retries the same call once on the other node.
      *
-     * Connect/TLS failures are tracked in RAM. After N consecutive failures on
-     * one node while the other succeeds (default 3), the device reports
-     * blocked/working to uninode_getRpcPair (rate-limited) and caches a
-     * replacement pair. Periodic refresh sends the current pair as working
-     * plus any known blocked URLs. Does not take ownership of uninode.
+     * Connect/TLS failures are tracked per current cached node in RAM. After N
+     * consecutive failures on one node while the other succeeds (default 3),
+     * or when both nodes hit that threshold, the device tags only those two
+     * URLs as working/blocked in uninode_getRpcPair (rate-limited) and caches
+     * a replacement. Weekly / age-based refresh sends the current pair as
+     * working. Does not take ownership of uninode.
      */
     void useCachedRpcPair(UniversalNode* uninode);
 
@@ -137,9 +137,9 @@ public:
      * Call from setup (after WiFi) and from loop / WiFi reconnect checks.
      * Throttled to about once per 24h (millis, rollover-safe). Refreshes when
      * cache is empty, chain differs, or older than max age; periodic checks
-     * also send working(+blocked) feedback even if the pair is still young.
-     * On refresh failure keeps the cached pair. Returns true if a usable pair
-     * is loaded.
+     * also send the current pair as working so a healthy pair can renew its
+     * timestamp. On refresh failure keeps the cached pair. Returns true if a
+     * usable pair is loaded.
      */
     bool maintainCachedRpcPair();
 
@@ -157,11 +157,10 @@ private:
     void freeHeapHostPath();
     bool parseAndApplyRpcUrl(const char* url);
     void applyCachedRpcIndex(int index);
-    bool refreshRpcPairFromUninode(bool withFeedback);
-    bool requestRpcPairReplacement(int blockedIndex);
+    bool refreshRpcPairFromUninode(bool withWorkingFeedback);
+    bool requestRpcPairReplacement();
     bool loadCachedRpcFromEeprom();
     bool cacheNeedsRefresh(uint32_t nowUnix) const;
-    void rememberBlockedUrl(const char* url);
     void noteCachedRpcConnectFailure();
     void noteCachedRpcConnectSuccess();
     void logTlsConnectFailure(WiFiClientSecure* secureClient);
@@ -202,11 +201,9 @@ private:
     uint32_t lastRpcPairCheckMs;
     bool rpcPairCheckInitialized;
 
-    // Per-node connect/TLS health (RAM only) + boot-local blocked URL feedback
+    // Per-node connect/TLS health for the current cached pair only (RAM)
     int rpcNodeFailStreak[2];
     int rpcNodeSuccessStreak[2];
-    char blockedRpcUrls[RPC_PAIR_FEEDBACK_MAX_URLS][256];
-    int blockedRpcCount;
     uint32_t lastRpcReplacementMs;
     bool rpcReplacementEverRequested;
 };

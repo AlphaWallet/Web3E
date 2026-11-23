@@ -553,17 +553,19 @@ still retries the same call once on the other node. The rotation index is RAM-on
 
 **Blocked-node feedback:** connect/TLS failures are logged with the host and mbedtls
 `lastError` (e.g. `-29184` / `-80` when a home router SNI-filters the host and replies
-with plaintext HTTP). After N consecutive connect/TLS failures on one node while the
-other is succeeding (default 3, `RPC_PAIR_BLOCK_FAILURE_THRESHOLD`), the device calls
-`uninode_getRpcPair` with
-`[chainId, {"blocked":[url...], "working":[url...]}]` (≤8 URLs each), verifies the
-signed response, and writes the replacement pair to EEPROM (same layout, new timestamp).
-Replacement requests are rate-limited (default once per 30 minutes). A small RAM list of
-blocked URLs is kept for the boot and included in later refresh requests. Periodic
-(~24h) / age-based refresh sends the current pair as `working` (plus known blocked URLs);
-if the server returns the same URLs, the timestamp is still updated. On any uninode
-failure the current cache is kept. Call `maintainCachedRpcPair()` from setup and the
-Wi-Fi check loop (also throttled inside `Web3::exec`). Default max cache age is 7 days.
+with plaintext HTTP). The device only ever tags its **current two cached nodes** in
+`uninode_getRpcPair` feedback:
+- `{working:[A], blocked:[B]}` when B hits N consecutive connect/TLS failures while A
+  succeeds (default N=3, `RPC_PAIR_BLOCK_FAILURE_THRESHOLD`)
+- `{blocked:[A,B]}` when both nodes hit that threshold
+- `{working:[A,B]}` on weekly / age-based refresh
+
+There is no cumulative blocked list beyond the current pair (uninode returns
+rankedList entries below the worst-ranked of the two). Replacement requests are
+rate-limited (default once per 30 minutes). On success the signed response is verified
+and written to EEPROM (same layout, new timestamp); on uninode failure the current
+cache is kept. Call `maintainCachedRpcPair()` from setup and the Wi-Fi check loop
+(also throttled inside `Web3::exec`). Default max cache age is 7 days.
 See `examples/Cached RPC Pair`.
 
 ``` C++

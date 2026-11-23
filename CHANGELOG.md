@@ -18,11 +18,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Changed
 
 - **Cached RPC pair blocked/working feedback:** `uninode_getRpcPair` params may be
-  `[chainId]` or `[chainId,{"blocked":[...],"working":[...]}]` (≤8 URLs each). After
-  N consecutive connect/TLS failures on one node while the other succeeds, firmware
-  requests a replacement pair (rate-limited), verifies the signature, and updates
-  EEPROM. Periodic refresh sends working(+blocked); same URLs still renew the
-  timestamp. Connect failures always log host + mbedtls `lastError` (SNI/filter
+  `[chainId]` or `[chainId,{"blocked":[...],"working":[...]}]` (≤8 URLs each; firmware
+  only tags the current cached pair). Cases: `{working:[A],blocked:[B]}` when one
+  node is TLS-blocked and the other works; `{blocked:[A,B]}` when both hit the
+  failure threshold; `{working:[A,B]}` on weekly refresh. No cumulative blocked
+  list. Replacement is rate-limited (30 min); signature verified; EEPROM updated
+  on success. Connect failures always log host + mbedtls `lastError` (SNI/filter
   intercept detection for `-29184` / `-80`). Round-robin + one-shot retry unchanged.
   EEPROM layout unchanged (never touches KeyID 0–32 or WifiStore).
 

@@ -49,7 +49,8 @@ std::string paramsEmpty();
  * Canonical params for uninode_getRpcPair.
  * - No feedback: `[chainId]`
  * - With feedback: `[chainId,{"blocked":[...],"working":[...]}]` (omit empty arrays;
- *   object keys sorted). At most 8 URLs per list; extras ignored.
+ *   object keys sorted). At most 8 URLs per list; extras ignored. Firmware only
+ *   tags the current cached pair (≤2 URLs total across both lists).
  */
 std::string paramsGetRpcPair(long long chainId,
                              const char* const* blockedUrls, int blockedCount,

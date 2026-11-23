@@ -325,6 +325,7 @@ void test_params_get_rpc_pair_feedback_json() {
     TEST_ASSERT_EQUAL_STRING("[1]", paramsGetRpcPair(1, nullptr, 0, nullptr, 0).c_str());
     TEST_ASSERT_EQUAL_STRING("[8453]", paramsGetRpcPair(8453, nullptr, 0, nullptr, 0).c_str());
 
+    // Weekly refresh: current pair as working
     const char* workingOnly[] = {
         "https://ethereum-rpc.publicnode.com",
         "https://eth.drpc.org"
@@ -334,22 +335,26 @@ void test_params_get_rpc_pair_feedback_json() {
         "[1,{\"working\":[\"https://ethereum-rpc.publicnode.com\",\"https://eth.drpc.org\"]}]",
         onlyWorking.c_str());
 
-    const char* blockedOnly[] = { "https://eth.drpc.org" };
-    string onlyBlocked = paramsGetRpcPair(1, blockedOnly, 1, nullptr, 0);
-    TEST_ASSERT_EQUAL_STRING(
-        "[1,{\"blocked\":[\"https://eth.drpc.org\"]}]",
-        onlyBlocked.c_str());
-
-    // Keys sorted: blocked before working
+    // One TLS-blocked, one working
     const char* blocked[] = { "https://eth.drpc.org" };
     const char* working[] = { "https://ethereum-rpc.publicnode.com" };
-    string both = paramsGetRpcPair(1, blocked, 1, working, 1);
+    string oneBlocked = paramsGetRpcPair(1, blocked, 1, working, 1);
     TEST_ASSERT_EQUAL_STRING(
         "[1,{\"blocked\":[\"https://eth.drpc.org\"],"
         "\"working\":[\"https://ethereum-rpc.publicnode.com\"]}]",
-        both.c_str());
+        oneBlocked.c_str());
 
-    // Cap at 8 URLs per list; null/empty entries skipped
+    // Both current nodes blocked (no working list)
+    const char* bothBlocked[] = {
+        "https://eth.drpc.org",
+        "https://rpc.mevblocker.io"
+    };
+    string onlyBlocked = paramsGetRpcPair(1, bothBlocked, 2, nullptr, 0);
+    TEST_ASSERT_EQUAL_STRING(
+        "[1,{\"blocked\":[\"https://eth.drpc.org\",\"https://rpc.mevblocker.io\"]}]",
+        onlyBlocked.c_str());
+
+    // Protocol cap at 8 URLs per list; null/empty entries skipped
     const char* many[10];
     char bufs[10][64];
     for (int i = 0; i < 10; i++) {
@@ -368,12 +373,23 @@ void test_params_get_rpc_pair_feedback_json() {
 }
 
 void test_rpc_pair_blocked_detection_and_rate_limit() {
+    TEST_ASSERT_FALSE(rpcPairNodeReachedBlockThreshold(0));
+    TEST_ASSERT_FALSE(rpcPairNodeReachedBlockThreshold(2));
+    TEST_ASSERT_TRUE(rpcPairNodeReachedBlockThreshold(3));
+
     TEST_ASSERT_FALSE(rpcPairShouldMarkBlocked(0, 5));
     TEST_ASSERT_FALSE(rpcPairShouldMarkBlocked(2, 5)); // default threshold 3
     TEST_ASSERT_FALSE(rpcPairShouldMarkBlocked(3, 0)); // peer not succeeding
     TEST_ASSERT_TRUE(rpcPairShouldMarkBlocked(3, 1));
     TEST_ASSERT_TRUE(rpcPairShouldMarkBlocked(5, 2));
     TEST_ASSERT_TRUE(rpcPairShouldMarkBlocked(2, 1, 2)); // custom threshold
+
+    // Both current nodes independently at threshold → {blocked:[A,B]}
+    TEST_ASSERT_FALSE(rpcPairBothReachedBlockThreshold(2, 3));
+    TEST_ASSERT_FALSE(rpcPairBothReachedBlockThreshold(3, 2));
+    TEST_ASSERT_TRUE(rpcPairBothReachedBlockThreshold(3, 3));
+    TEST_ASSERT_TRUE(rpcPairBothReachedBlockThreshold(5, 4));
+    TEST_ASSERT_TRUE(rpcPairBothReachedBlockThreshold(2, 2, 2));
 
     TEST_ASSERT_TRUE(rpcPairCanRequestReplacement(1000, 0, false));
     TEST_ASSERT_TRUE(rpcPairCanRequestReplacement(1000, 500, false)); // never requested

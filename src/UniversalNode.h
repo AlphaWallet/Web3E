@@ -71,15 +71,17 @@ public:
      * - Request params `[chainId]` or
      *   `[chainId,{"blocked":[url...],"working":[url...]}]` (lists optional, ≤8 each;
      *   empty lists omitted; object keys sorted). params[0] == envelope chainId.
+     *   Firmware only ever tags its current cached pair (1–2 URLs), e.g.
+     *   `{working:[A],blocked:[B]}`, `{blocked:[A,B]}`, or `{working:[A,B]}`.
      * - Success: signed v1 response with
      *   result `{chainId,timestamp,rpcs[]}`, blockNumber `"0"`, signature over
      *   `result:<keccak256(canonicalJson(result))>` (sorted keys, no whitespace).
      * - Errors: unsigned HTTP `{error:{code:"RPC_VALIDATION",message}}` — returns false.
      *
-     * With blocked set, server returns [working node, next ranked below both].
-     * With only working (refresh), may return the same pair if still healthy.
-     * Blocked URLs are never returned. Pair freshness is result.timestamp.
-     * On success: outCount is 1 or 2, each URL https and ≤255 bytes.
+     * With feedback, server returns rankedList entries below the worst-ranked of
+     * the two reported URLs. With only working (refresh), may return the same
+     * pair if still healthy. Blocked URLs are never returned. Pair freshness is
+     * result.timestamp. On success: outCount is 1 or 2, each URL https and ≤255 bytes.
      */
     bool getRpcPair(long long chainId,
                     char outUrls[][256],
