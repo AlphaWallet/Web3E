@@ -1,4 +1,5 @@
 #include "UniversalNodeProtocol.h"
+#include "RpcPairPolicy.h"
 #include "Trezor/sha3.h"
 #include "Trezor/ecdsa.h"
 #include "Trezor/secp256k1.h"
@@ -309,6 +310,66 @@ std::string canonicalJsonNull() {
 
 std::string paramsEmpty() {
     return "[]";
+}
+
+std::string paramsGetRpcPair(long long chainId,
+                             const char* const* blockedUrls, int blockedCount,
+                             const char* const* workingUrls, int workingCount) {
+    if (blockedCount < 0) blockedCount = 0;
+    if (workingCount < 0) workingCount = 0;
+    if (blockedCount > RPC_PAIR_FEEDBACK_MAX_URLS) blockedCount = RPC_PAIR_FEEDBACK_MAX_URLS;
+    if (workingCount > RPC_PAIR_FEEDBACK_MAX_URLS) workingCount = RPC_PAIR_FEEDBACK_MAX_URLS;
+
+    // Collect non-empty URLs (extras / nulls skipped; still capped at max).
+    const char* blocked[RPC_PAIR_FEEDBACK_MAX_URLS];
+    const char* working[RPC_PAIR_FEEDBACK_MAX_URLS];
+    int nBlocked = 0;
+    int nWorking = 0;
+    if (blockedUrls) {
+        for (int i = 0; i < blockedCount && nBlocked < RPC_PAIR_FEEDBACK_MAX_URLS; i++) {
+            if (blockedUrls[i] && blockedUrls[i][0] != '\0') {
+                blocked[nBlocked++] = blockedUrls[i];
+            }
+        }
+    }
+    if (workingUrls) {
+        for (int i = 0; i < workingCount && nWorking < RPC_PAIR_FEEDBACK_MAX_URLS; i++) {
+            if (workingUrls[i] && workingUrls[i][0] != '\0') {
+                working[nWorking++] = workingUrls[i];
+            }
+        }
+    }
+
+    std::string out = "[";
+    out += canonicalJsonNumber(chainId);
+    if (nBlocked > 0 || nWorking > 0) {
+        out += ",{";
+        bool needComma = false;
+        // Object keys sorted: blocked before working
+        if (nBlocked > 0) {
+            out += escapeJsonString("blocked");
+            out += ":[";
+            for (int i = 0; i < nBlocked; i++) {
+                if (i > 0) out += ",";
+                out += escapeJsonString(blocked[i]);
+            }
+            out += "]";
+            needComma = true;
+        }
+        if (nWorking > 0) {
+            if (needComma) out += ",";
+            out += escapeJsonString("working");
+            out += ":[";
+            for (int i = 0; i < nWorking; i++) {
+                if (i > 0) out += ",";
+                out += escapeJsonString(working[i]);
+            }
+            out += "]";
+        }
+        out += "}";
+    }
+    out += "]";
+    return out;
 }
 
 std::string paramsEthGetBalance(const std::string& address, const std::string& blockTag) {

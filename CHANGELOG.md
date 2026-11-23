@@ -17,6 +17,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- **Cached RPC pair blocked/working feedback:** `uninode_getRpcPair` params may be
+  `[chainId]` or `[chainId,{"blocked":[...],"working":[...]}]` (≤8 URLs each; firmware
+  only tags the current cached pair). Cases: `{working:[A],blocked:[B]}` when one
+  node is TLS-blocked and the other works; `{blocked:[A,B]}` when both hit the
+  failure threshold; `{working:[A,B]}` on weekly refresh. No cumulative blocked
+  list. Replacement is rate-limited (30 min); signature verified; EEPROM updated
+  on success. Connect failures always log host + mbedtls `lastError` (SNI/filter
+  intercept detection for `-29184` / `-80`). Round-robin + one-shot retry unchanged.
+  EEPROM layout unchanged (never touches KeyID 0–32 or WifiStore).
+
 - **Cached RPC pair load-sharing:** `Web3::exec` alternates between the two cached
   URLs on every request (round-robin, RAM index only) to avoid public-RPC rate
   limits. Transport failure still retries the same call once on the other node.
@@ -27,6 +37,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Cached public RPC pair from universal-node**
   - `Web3::useCachedRpcPair(uninode)` fetches signed best RPC URLs via `uninode_getRpcPair`
   - Wire matches JamesSmartCell/universal-node PR #4: params[0]==envelope chainId; signed v1 success with `result:{chainId,timestamp,rpcs[]}` and `blockNumber:"0"`; unsigned HTTP `{error:{code:RPC_VALIDATION,message}}` on failure (keep cache)
+  - Optional blocked/working feedback object on getRpcPair (server built in parallel)
   - EEPROM `RpcPairStore` at offset 828 (after WifiStore reserved region): timestamp + chainId + length-prefixed HTTPS URLs
   - chainId stored in cache (forces refresh on chain change — small addition to the pair cache layout)
   - Refresh at startup / Wi-Fi check loop / ~24h; max age default 7 days; keep cache on refresh failure

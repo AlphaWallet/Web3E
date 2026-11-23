@@ -119,8 +119,14 @@ public:
      * chain differs, or older than max age. Normal Web3 RPC (reads and writes)
      * go directly to these public HTTPS nodes with per-request round-robin
      * load-sharing (alternating nodes to avoid rate limits); transport failure
-     * still retries the same call once on the other node. Does not take
-     * ownership of uninode.
+     * still retries the same call once on the other node.
+     *
+     * Connect/TLS failures are tracked per current cached node in RAM. After N
+     * consecutive failures on one node while the other succeeds (default 3),
+     * or when both nodes hit that threshold, the device tags only those two
+     * URLs as working/blocked in uninode_getRpcPair (rate-limited) and caches
+     * a replacement. Weekly / age-based refresh sends the current pair as
+     * working. Does not take ownership of uninode.
      */
     void useCachedRpcPair(UniversalNode* uninode);
 
@@ -130,8 +136,10 @@ public:
     /**
      * Call from setup (after WiFi) and from loop / WiFi reconnect checks.
      * Throttled to about once per 24h (millis, rollover-safe). Refreshes when
-     * cache is empty, chain differs, or older than max age. On refresh failure
-     * keeps the cached pair. Returns true if a usable pair is loaded.
+     * cache is empty, chain differs, or older than max age; periodic checks
+     * also send the current pair as working so a healthy pair can renew its
+     * timestamp. On refresh failure keeps the cached pair. Returns true if a
+     * usable pair is loaded.
      */
     bool maintainCachedRpcPair();
 
@@ -149,9 +157,14 @@ private:
     void freeHeapHostPath();
     bool parseAndApplyRpcUrl(const char* url);
     void applyCachedRpcIndex(int index);
-    bool refreshRpcPairFromUninode();
+    bool refreshRpcPairFromUninode(bool withWorkingFeedback);
+    bool requestRpcPairReplacement();
     bool loadCachedRpcFromEeprom();
     bool cacheNeedsRefresh(uint32_t nowUnix) const;
+    void noteCachedRpcConnectFailure();
+    void noteCachedRpcConnectSuccess();
+    void logTlsConnectFailure(WiFiClientSecure* secureClient);
+    void resetCachedRpcHealth();
 
     long getLong(const string* json);
     double getDouble(const string* json);
@@ -187,6 +200,12 @@ private:
     uint32_t rpcPairCheckIntervalMs;
     uint32_t lastRpcPairCheckMs;
     bool rpcPairCheckInitialized;
+
+    // Per-node connect/TLS health for the current cached pair only (RAM)
+    int rpcNodeFailStreak[2];
+    int rpcNodeSuccessStreak[2];
+    uint32_t lastRpcReplacementMs;
+    bool rpcReplacementEverRequested;
 };
 
 #endif //ARDUINO_WEB3_WEB3_H

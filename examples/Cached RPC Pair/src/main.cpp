@@ -6,6 +6,11 @@
  * WifiStore region, and uses them for normal Web3 RPC with per-request
  * round-robin load-sharing (plus one retry on the other node on transport failure).
  *
+ * If a home router SNI-filters one or both URLs (connect fails with mbedtls
+ * -29184/-80), after several consecutive failures the device tags only the
+ * current pair as working/blocked to uninode and caches a replacement
+ * (rate-limited). Weekly refresh sends the current pair as working.
+ *
  * Unlike setUniversalNode() (which proxies every read through uninode), this
  * mode talks directly to the public nodes. UniversalNode is only used to fetch
  * / refresh the pair (EIP-191 signed request/response, pinned signer).

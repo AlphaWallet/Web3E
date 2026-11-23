@@ -549,9 +549,24 @@ Fetch a signed best-RPC URL pair for the device `chainId` from universal-node
 nodes (reads and writes). `Web3::exec` **alternates nodes on every call** (round-robin
 load-sharing to avoid rate limits); on connection / timeout / HTTP transport errors it
 still retries the same call once on the other node. The rotation index is RAM-only
-(starts at 0 after boot). With one cached URL, behaviour is unchanged. Call
-`maintainCachedRpcPair()` from setup and the Wi-Fi check loop (also throttled to ~24h
-inside `Web3::exec`). Default max cache age is 7 days. See `examples/Cached RPC Pair`.
+(starts at 0 after boot). With one cached URL, behaviour is unchanged.
+
+**Blocked-node feedback:** connect/TLS failures are logged with the host and mbedtls
+`lastError` (e.g. `-29184` / `-80` when a home router SNI-filters the host and replies
+with plaintext HTTP). The device only ever tags its **current two cached nodes** in
+`uninode_getRpcPair` feedback:
+- `{working:[A], blocked:[B]}` when B hits N consecutive connect/TLS failures while A
+  succeeds (default N=3, `RPC_PAIR_BLOCK_FAILURE_THRESHOLD`)
+- `{blocked:[A,B]}` when both nodes hit that threshold
+- `{working:[A,B]}` on weekly / age-based refresh
+
+There is no cumulative blocked list beyond the current pair (uninode returns
+rankedList entries below the worst-ranked of the two). Replacement requests are
+rate-limited (default once per 30 minutes). On success the signed response is verified
+and written to EEPROM (same layout, new timestamp); on uninode failure the current
+cache is kept. Call `maintainCachedRpcPair()` from setup and the Wi-Fi check loop
+(also throttled inside `Web3::exec`). Default max cache age is 7 days.
+See `examples/Cached RPC Pair`.
 
 ``` C++
 KeyID* keyId = new KeyID(web3);

@@ -47,9 +47,13 @@ Web3::Web3(long long networkId) {
     rpcPairCheckIntervalMs = WEB3_RPC_PAIR_CHECK_INTERVAL_MS;
     lastRpcPairCheckMs = 0;
     rpcPairCheckInitialized = false;
+    lastRpcReplacementMs = 0;
+    rpcReplacementEverRequested = false;
     memset(cachedRpcUrls, 0, sizeof(cachedRpcUrls));
     memset(activeHostBuf, 0, sizeof(activeHostBuf));
     memset(activePathBuf, 0, sizeof(activePathBuf));
+    memset(rpcNodeFailStreak, 0, sizeof(rpcNodeFailStreak));
+    memset(rpcNodeSuccessStreak, 0, sizeof(rpcNodeSuccessStreak));
     rpcResult.reserve(WEB3_RPC_BUFFER_SIZE);
     selectHost();
 }
@@ -94,9 +98,13 @@ Web3::Web3(long long networkId, const char* infura_key_str) {
     rpcPairCheckIntervalMs = WEB3_RPC_PAIR_CHECK_INTERVAL_MS;
     lastRpcPairCheckMs = 0;
     rpcPairCheckInitialized = false;
+    lastRpcReplacementMs = 0;
+    rpcReplacementEverRequested = false;
     memset(cachedRpcUrls, 0, sizeof(cachedRpcUrls));
     memset(activeHostBuf, 0, sizeof(activeHostBuf));
     memset(activePathBuf, 0, sizeof(activePathBuf));
+    memset(rpcNodeFailStreak, 0, sizeof(rpcNodeFailStreak));
+    memset(rpcNodeSuccessStreak, 0, sizeof(rpcNodeSuccessStreak));
     rpcResult.reserve(WEB3_RPC_BUFFER_SIZE);
     selectHost();
 }
@@ -236,7 +244,80 @@ bool Web3::cacheNeedsRefresh(uint32_t nowUnix) const {
     return age > rpcPairMaxAgeSeconds;
 }
 
-bool Web3::refreshRpcPairFromUninode() {
+void Web3::resetCachedRpcHealth() {
+    memset(rpcNodeFailStreak, 0, sizeof(rpcNodeFailStreak));
+    memset(rpcNodeSuccessStreak, 0, sizeof(rpcNodeSuccessStreak));
+}
+
+void Web3::noteCachedRpcConnectSuccess() {
+    if (!cachedRpcEnabled || cachedRpcCount <= 0) return;
+    int idx = cachedRpcIndex;
+    if (idx < 0 || idx >= cachedRpcCount || idx > 1) return;
+    rpcNodeFailStreak[idx] = 0;
+    if (rpcNodeSuccessStreak[idx] < 1000000) {
+        rpcNodeSuccessStreak[idx]++;
+    }
+}
+
+void Web3::noteCachedRpcConnectFailure() {
+    if (!cachedRpcEnabled || cachedRpcCount < 2) return;
+    int idx = cachedRpcIndex;
+    if (idx < 0 || idx >= cachedRpcCount || idx > 1) return;
+    if (rpcNodeFailStreak[idx] < 1000000) {
+        rpcNodeFailStreak[idx]++;
+    }
+    rpcNodeSuccessStreak[idx] = 0;
+
+    const bool bothBlocked = rpcPairBothReachedBlockThreshold(
+        rpcNodeFailStreak[0], rpcNodeFailStreak[1]);
+    const int other = 1 - idx;
+    const bool oneBlocked = !bothBlocked
+        && rpcPairShouldMarkBlocked(rpcNodeFailStreak[idx], rpcNodeSuccessStreak[other]);
+
+    if (!bothBlocked && !oneBlocked) {
+        return;
+    }
+
+    if (bothBlocked) {
+        WEB3E_PRINTLN("Web3: both cached RPCs hit connect/TLS failure threshold");
+    } else {
+        WEB3E_PRINT("Web3: marking cached RPC blocked after ");
+        WEB3E_PRINT(rpcNodeFailStreak[idx]);
+        WEB3E_PRINT(" consecutive connect/TLS failures: ");
+        WEB3E_PRINTLN(cachedRpcUrls[idx]);
+    }
+
+    requestRpcPairReplacement();
+    // Require another N failures before the next replacement attempt.
+    if (bothBlocked) {
+        rpcNodeFailStreak[0] = 0;
+        rpcNodeFailStreak[1] = 0;
+    } else {
+        rpcNodeFailStreak[idx] = 0;
+    }
+}
+
+void Web3::logTlsConnectFailure(WiFiClientSecure* secureClient) {
+    char errMsg[160];
+    errMsg[0] = '\0';
+    int err = 0;
+    if (secureClient) {
+        err = secureClient->lastError(errMsg, sizeof(errMsg));
+    }
+
+    WEB3E_PRINT("Web3: Unable to connect to ");
+    WEB3E_PRINT(host ? host : "(null)");
+    WEB3E_PRINT(" lastError=");
+    WEB3E_PRINT(err);
+    WEB3E_PRINT(" ");
+    WEB3E_PRINTLN(errMsg);
+
+    if (rpcPairLooksLikeTlsIntercept(err)) {
+        WEB3E_PRINTLN("Web3: TLS intercepted by router/SNI filter (plaintext HTTP on 443)");
+    }
+}
+
+bool Web3::refreshRpcPairFromUninode(bool withWorkingFeedback) {
     if (!rpcPairUninode || !rpcPairStore) return false;
 
     char fetched[2][256];
@@ -245,7 +326,22 @@ bool Web3::refreshRpcPairFromUninode() {
     uint32_t ts = 0;
     long long resultChain = 0;
 
-    if (!rpcPairUninode->getRpcPair(chainId, fetched, count, ts, resultChain)) {
+    // Weekly / age refresh tags only the current cached pair as working.
+    const char* workingPtrs[2];
+    int wCount = 0;
+    if (withWorkingFeedback) {
+        for (int i = 0; i < cachedRpcCount && i < 2; i++) {
+            if (cachedRpcUrls[i][0] != '\0') {
+                workingPtrs[wCount++] = cachedRpcUrls[i];
+            }
+        }
+    }
+
+    if (!rpcPairUninode->getRpcPair(
+            chainId, fetched, count, ts, resultChain,
+            nullptr, 0,
+            withWorkingFeedback && wCount > 0 ? workingPtrs : nullptr,
+            withWorkingFeedback ? wCount : 0)) {
         WEB3E_PRINT("Web3: RPC pair refresh failed: ");
         WEB3E_PRINTLN(rpcPairUninode->lastError());
         return false;
@@ -264,8 +360,86 @@ bool Web3::refreshRpcPairFromUninode() {
         strncpy(cachedRpcUrls[i], fetched[i], sizeof(cachedRpcUrls[i]) - 1);
         cachedRpcUrls[i][sizeof(cachedRpcUrls[i]) - 1] = '\0';
     }
+    for (int i = count; i < 2; i++) {
+        cachedRpcUrls[i][0] = '\0';
+    }
+    resetCachedRpcHealth();
     applyCachedRpcIndex(0);
     WEB3E_PRINT("Web3: refreshed RPC pair (");
+    WEB3E_PRINT(count);
+    WEB3E_PRINTLN(" URLs)");
+    return true;
+}
+
+bool Web3::requestRpcPairReplacement() {
+    if (!rpcPairUninode || !rpcPairStore) return false;
+    if (cachedRpcCount < 2) return false;
+
+    uint32_t nowMs = millis();
+    if (!rpcPairCanRequestReplacement(nowMs, lastRpcReplacementMs, rpcReplacementEverRequested)) {
+        WEB3E_PRINTLN("Web3: RPC pair replacement rate-limited");
+        return false;
+    }
+
+    // Stamp before the call so a failing uninode cannot be hammered every RPC.
+    lastRpcReplacementMs = nowMs;
+    rpcReplacementEverRequested = true;
+
+    // Tag only the current two cached nodes as working or blocked.
+    const char* blockedPtrs[2];
+    const char* workingPtrs[2];
+    int bCount = 0;
+    int wCount = 0;
+    for (int i = 0; i < 2; i++) {
+        if (rpcPairNodeReachedBlockThreshold(rpcNodeFailStreak[i])) {
+            blockedPtrs[bCount++] = cachedRpcUrls[i];
+        } else {
+            workingPtrs[wCount++] = cachedRpcUrls[i];
+        }
+    }
+    if (bCount == 0) {
+        return false;
+    }
+
+    WEB3E_PRINT("Web3: requesting RPC replacement; blocked=");
+    WEB3E_PRINT(bCount);
+    WEB3E_PRINT(" working=");
+    WEB3E_PRINTLN(wCount);
+
+    char fetched[2][256];
+    memset(fetched, 0, sizeof(fetched));
+    int count = 0;
+    uint32_t ts = 0;
+    long long resultChain = 0;
+
+    if (!rpcPairUninode->getRpcPair(
+            chainId, fetched, count, ts, resultChain,
+            blockedPtrs, bCount,
+            wCount > 0 ? workingPtrs : nullptr, wCount)) {
+        WEB3E_PRINT("Web3: RPC pair replacement failed: ");
+        WEB3E_PRINTLN(rpcPairUninode->lastError());
+        // Keep current cache
+        return false;
+    }
+
+    const char* urlPtrs[2] = { fetched[0], fetched[1] };
+    if (!rpcPairStore->save(ts, static_cast<uint32_t>(resultChain), urlPtrs, count)) {
+        WEB3E_PRINTLN("Web3: failed to persist replacement RPC pair");
+    }
+
+    cachedRpcCount = count;
+    cachedRpcTimestamp = ts;
+    cachedRpcChainId = static_cast<uint32_t>(resultChain);
+    for (int i = 0; i < count; i++) {
+        strncpy(cachedRpcUrls[i], fetched[i], sizeof(cachedRpcUrls[i]) - 1);
+        cachedRpcUrls[i][sizeof(cachedRpcUrls[i]) - 1] = '\0';
+    }
+    for (int i = count; i < 2; i++) {
+        cachedRpcUrls[i][0] = '\0';
+    }
+    resetCachedRpcHealth();
+    applyCachedRpcIndex(0);
+    WEB3E_PRINT("Web3: replaced RPC pair (");
     WEB3E_PRINT(count);
     WEB3E_PRINTLN(" URLs)");
     return true;
@@ -301,7 +475,8 @@ bool Web3::maintainCachedRpcPair() {
     }
 
     uint32_t nowMs = millis();
-    bool dueCheck = !rpcPairCheckInitialized;
+    const bool firstInit = !rpcPairCheckInitialized;
+    bool dueCheck = firstInit;
     if (!dueCheck) {
         // Rollover-safe interval check
         dueCheck = (nowMs - lastRpcPairCheckMs) >= rpcPairCheckIntervalMs;
@@ -320,12 +495,18 @@ bool Web3::maintainCachedRpcPair() {
     lastRpcPairCheckMs = nowMs;
     rpcPairCheckInitialized = true;
 
-    if (!needs) {
+    // First call only arms the ~24h timer when the cache is still young.
+    if (!needs && firstInit) {
         return cachedRpcCount > 0;
     }
 
-    WEB3E_PRINTLN("Web3: refreshing RPC pair from universal-node");
-    if (!refreshRpcPairFromUninode()) {
+    // Age/empty/wrong-chain OR periodic dueCheck: ask uninode. When a pair is
+    // already cached, tag it as working so a healthy pair can renew its timestamp.
+    const bool withWorkingFeedback = (cachedRpcCount > 0);
+    WEB3E_PRINTLN(needs
+                      ? "Web3: refreshing RPC pair from universal-node"
+                      : "Web3: periodic RPC pair refresh with working feedback");
+    if (!refreshRpcPairFromUninode(withWorkingFeedback)) {
         // Keep using whatever was cached
         if (cachedRpcCount > 0) {
             WEB3E_PRINTLN("Web3: keeping previously cached RPC pair");
@@ -603,10 +784,10 @@ string Web3::execOnce(const string* data) {
 
     int connected = client->connect(host, port);
     if (!connected) {
-#if defined(TEST_BUILD) || defined(DEBUG)
-        WEB3E_PRINT("Web3: Unable to connect to ");
-        WEB3E_PRINTLN(host);
-#endif
+        // Always log host + mbedtls lastError (not only under DEBUG) — COM15 /
+        // AiProtection SNI blocks show up as INVALID_RECORD (-29184) / -80.
+        logTlsConnectFailure(client);
+        noteCachedRpcConnectFailure();
 #ifdef WEB3_RESTART_ON_CONNECT_FAIL
         delay(100);
         ESP.restart();
@@ -614,6 +795,7 @@ string Web3::execOnce(const string* data) {
         client->~WiFiClientSecure();
         return "";
     }
+    noteCachedRpcConnectSuccess();
 
     // Make HTTP request with Connection: close
     int l = data->size();
@@ -679,10 +861,13 @@ string Web3::execOnce(const string* data) {
             if (!statusParsed) {
                 statusParsed = parser.parseStatusLine(httpLineBuf);
                 if (!statusParsed) {
-#if defined(TEST_BUILD) || defined(DEBUG)
-                    WEB3E_PRINT("Web3: Invalid status line: ");
+                    WEB3E_PRINT("Web3: Invalid status line from ");
+                    WEB3E_PRINT(host ? host : "(null)");
+                    WEB3E_PRINT(": ");
                     WEB3E_PRINTLN(httpLineBuf);
-#endif
+                    if (rpcPairLooksLikePlaintextHttp(httpLineBuf, static_cast<int>(n))) {
+                        WEB3E_PRINTLN("Web3: TLS intercepted by router/SNI filter (plaintext HTTP on 443)");
+                    }
                     client->stop();
                     client->~WiFiClientSecure();
                     return "";
