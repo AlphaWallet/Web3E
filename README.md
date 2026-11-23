@@ -5,6 +5,16 @@
 ## [![PlatformIO Registry](https://badges.registry.platformio.org/packages/alphawallet/library/Web3E.svg)](https://registry.platformio.org/libraries/alphawallet/Web3E)
 
 What's New:
+v1.47:
+- Add signed cached RPC pair from universal-node (`uninode_getRpcPair`, EEPROM cache at offset 828+, `useCachedRpcPair(uninode)`).
+- Per-call round-robin load-sharing across the two cached RPC nodes with automatic retry on transport failure.
+- Blocked/working RPC node feedback to uninode with replacement requests (3 consecutive failures marks blocked, rate-limited to 1 request per 30 minutes).
+- Router/SNI intercept logging for connection diagnostics (mbedtls error codes).
+- BREAKING: Legacy RPC node selection removed (`nodes.h`, `getNode()`, Infura opt-in path with `USING_INFURA`/`INFURA_API_KEY`, `Web3(chainId, infura_key)` constructor, automatic `selectHost()`).
+- BREAKING: `Web3(chainId)` no longer sets an RPC host. Sketches must call `useCachedRpcPair(uninode)` (recommended) or `setRpcUrl("https://...")` (explicit override).
+- Migration: Replace `Web3 web3(MAINNET_ID)` with `Web3 web3(MAINNET_ID); web3.useCachedRpcPair(uninode)` after creating `UniversalNode* uninode`.
+- Default `WEB3E_EEPROM_SIZE` increased from 1024 to 2048 bytes (safe for existing devices; NVS expands automatically).
+
 v1.46:
 - Add firmware version reporting to TCP bridge login (opcode 0x09, servers accept both old and new).
 - Add WifiStore EEPROM reader for persistent Wi-Fi credentials.
@@ -130,7 +140,7 @@ monitor_speed = 115200
 
 lib_ldf_mode = deep
 lib_deps =
-  https://github.com/AlphaWallet/Web3E.git#v1.46
+  https://github.com/AlphaWallet/Web3E.git#v1.47
 ```
 
 ### Option 3: Git URL with Commit Hash (For Testing or Specific Fixes)
