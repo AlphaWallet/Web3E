@@ -5,6 +5,11 @@
 ## [![PlatformIO Registry](https://badges.registry.platformio.org/packages/alphawallet/library/Web3E.svg)](https://registry.platformio.org/libraries/alphawallet/Web3E)
 
 What's New:
+v1.48 (in development):
+- **NEW**: Optional WiFi Portal Module with triple power-cycle reset, lost-WiFi watchdog, and revoke API. Zero flash cost when unused. See [docs/WIFI_PORTAL.md](docs/WIFI_PORTAL.md).
+- Improved WiFiConnection with nullptr safety and non-blocking `maintain()` loop method.
+- Add `markValidated()` API for apps to signal successful WiFi/server session.
+
 v1.47:
 - Add signed cached RPC pair from universal-node (`uninode_getRpcPair`, EEPROM cache at offset 828+, `useCachedRpcPair(uninode)`).
 - Per-call round-robin load-sharing across the two cached RPC nodes with automatic retry on transport failure.

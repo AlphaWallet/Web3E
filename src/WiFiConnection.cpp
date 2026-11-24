@@ -3,10 +3,23 @@
 #include "esp_wifi.h"
 #include "WiFiConnection.h"
 #include "Web3Log.h"
+#include "Web3EWifiPortal.h"
 
 WiFiConnection::WiFiConnection()
 {
     connectionTimeoutMs = DEFAULT_TIMEOUT_MS;
+    lostWifiTimeoutMinutes = DEFAULT_LOST_WIFI_TIMEOUT_MINUTES;
+    wifiValidated = false;
+    lastScanMs = 0;
+    lostWifiStartMs = 0;
+    lostWifiTimerActive = false;
+    savedNetworkCount = 0;
+    wifiPortal = nullptr;
+    
+    for (int i = 0; i < 8; i++) {
+        savedNetworks[i].ssid = nullptr;
+        savedNetworks[i].password = nullptr;
+    }
 }
 
 bool WiFiConnection::wifiConnect(const char* ssid, const char* password, uint8_t networkIndex)
@@ -60,15 +73,25 @@ bool WiFiConnection::wifiConnect(const char* ssid, const char* password, uint8_t
 
 void WiFiConnection::setupWifi(const WiFiCredentials* networks)
 {
+    if (networks == nullptr) {
+        WEB3E_PRINTLN("ERROR: WiFiConnection::setupWifi called with nullptr");
+        return;
+    }
+    
     if (WiFi.status() == WL_CONNECTED)
         return;
 
-    // Initialize diagnostics on first call
     static bool diagnosticsInitialized = false;
     if (!diagnosticsInitialized)
     {
         diagnostics.begin();
         diagnosticsInitialized = true;
+    }
+    
+    savedNetworkCount = 0;
+    for (int i = 0; i < 8 && networks[i].ssid != nullptr; i++) {
+        savedNetworks[i] = networks[i];
+        savedNetworkCount++;
     }
 
     delay(100);
@@ -76,7 +99,6 @@ void WiFiConnection::setupWifi(const WiFiCredentials* networks)
     WiFi.enableSTA(true);
     WiFi.mode(WIFI_STA);
 
-    // Watchdog: Try all networks up to 3 full cycles, then reboot
     const int MAX_CYCLES = 3;
     bool connected = false;
     
@@ -87,18 +109,18 @@ void WiFiConnection::setupWifi(const WiFiCredentials* networks)
         WEB3E_PRINT(" of ");
         WEB3E_PRINTLN(MAX_CYCLES);
         
-        for (size_t i = 0; networks[i].ssid != nullptr && !connected; i++)
+        for (size_t i = 0; i < savedNetworkCount && !connected; i++)
         {
-            connected = wifiConnect(networks[i].ssid, networks[i].password, i);
+            connected = wifiConnect(savedNetworks[i].ssid, savedNetworks[i].password, i);
             if (!connected)
             {
-                delay(1000); // Wait before trying next network
+                delay(1000);
             }
         }
         
         if (!connected && cycle < MAX_CYCLES - 1)
         {
-            delay(2000); // Wait before next cycle
+            delay(2000);
         }
     }
 
@@ -117,4 +139,123 @@ void WiFiConnection::setupWifi(const WiFiCredentials* networks)
     WEB3E_PRINTLN("WiFi connected.");
     WEB3E_PRINTLN("IP address: ");
     WEB3E_PRINTLN(WiFi.localIP());
+}
+
+bool WiFiConnection::maintain()
+{
+    if (WiFi.status() == WL_CONNECTED)
+    {
+        if (wifiValidated)
+        {
+            lostWifiTimerActive = false;
+            lostWifiStartMs = 0;
+        }
+        return true;
+    }
+    
+    if (!wifiValidated)
+    {
+        return attemptReconnect();
+    }
+    
+    checkLostWifiWatchdog();
+    
+    return false;
+}
+
+void WiFiConnection::markValidated()
+{
+    wifiValidated = true;
+    WEB3E_PRINTLN("[WiFi] Connection validated - watchdog armed");
+}
+
+bool WiFiConnection::attemptReconnect()
+{
+    for (int i = 0; i < savedNetworkCount; i++)
+    {
+        if (wifiConnect(savedNetworks[i].ssid, savedNetworks[i].password, i))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+void WiFiConnection::checkLostWifiWatchdog()
+{
+    unsigned long now = millis();
+    
+    if (now - lastScanMs < SCAN_INTERVAL_MS)
+    {
+        return;
+    }
+    
+    lastScanMs = now;
+    
+    bool savedNetworkVisible = scanForSavedNetworks();
+    
+    if (savedNetworkVisible)
+    {
+        lostWifiTimerActive = false;
+        lostWifiStartMs = 0;
+        
+        attemptReconnect();
+        return;
+    }
+    
+    int networksFound = WiFi.scanComplete();
+    if (networksFound == 0)
+    {
+        return;
+    }
+    
+    if (!lostWifiTimerActive)
+    {
+        lostWifiTimerActive = true;
+        lostWifiStartMs = now;
+        WEB3E_PRINTLN("[WiFi] Lost WiFi watchdog started");
+        return;
+    }
+    
+    unsigned long elapsedMinutes = (now - lostWifiStartMs) / 60000UL;
+    if (elapsedMinutes >= lostWifiTimeoutMinutes)
+    {
+        WEB3E_PRINT("[WiFi] No saved network visible for ");
+        WEB3E_PRINT(elapsedMinutes);
+        WEB3E_PRINTLN(" minutes - opening portal");
+        
+        if (wifiPortal != nullptr)
+        {
+            wifiPortal->requestPortal(PORTAL_REASON_LOST_WIFI);
+            delay(1000);
+            ESP.restart();
+        }
+    }
+}
+
+bool WiFiConnection::scanForSavedNetworks()
+{
+    WiFi.scanNetworks(false);
+    int n = WiFi.scanComplete();
+    
+    if (n < 0)
+    {
+        return false;
+    }
+    
+    for (int i = 0; i < n; i++)
+    {
+        String scannedSSID = WiFi.SSID(i);
+        for (int j = 0; j < savedNetworkCount; j++)
+        {
+            if (scannedSSID == savedNetworks[j].ssid)
+            {
+                WiFi.scanDelete();
+                return true;
+            }
+        }
+    }
+    
+    WiFi.scanDelete();
+    return false;
 }
