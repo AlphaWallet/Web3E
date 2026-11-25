@@ -77,6 +77,11 @@ jobs:
           - project: examples/Cached RPC Pair
             name: "Example: Cached RPC Pair"
             type: build
+          
+          # Example: WiFi portal module
+          - project: examples/WifiPortal
+            name: "Example: WiFi Portal"
+            type: build
     
     steps:
       - name: Checkout repository
