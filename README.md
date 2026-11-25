@@ -5,8 +5,12 @@
 ## [![PlatformIO Registry](https://badges.registry.platformio.org/packages/alphawallet/library/Web3E.svg)](https://registry.platformio.org/libraries/alphawallet/Web3E)
 
 What's New:
-v1.48 (in development):
-- **NEW**: Optional WiFi Portal Module with triple power-cycle reset, lost-WiFi watchdog, and revoke API. Zero flash cost when unused. See [docs/WIFI_PORTAL.md](docs/WIFI_PORTAL.md).
+v1.48:
+- **NEW**: Optional WiFi Portal Module with triple power-cycle reset, opt-in lost-WiFi watchdog, and revoke API. Zero flash cost when unused. See [docs/WIFI_PORTAL.md](docs/WIFI_PORTAL.md).
+  - Triple power-cycle detection: `checkAndHandlePowerCycle()` called automatically from `begin()`. Count clears after 10s uptime.
+  - Lost-WiFi watchdog now **opt-in** (default disabled). Enable via `setLostWifiTimeout(minutes)` with minutes > 0.
+  - `run(timeoutMs)` parameter honored (0 = no timeout; portal exits on timeout or Done button).
+  - Device address display on portal page: `setDeviceAddress(const char*)` or `run(uint32_t, const char* deviceAddress)`.
 - Improved WiFiConnection with nullptr safety and non-blocking `maintain()` loop method.
 - Add `markValidated()` API for apps to signal successful WiFi/server session.
 
@@ -145,7 +149,7 @@ monitor_speed = 115200
 
 lib_ldf_mode = deep
 lib_deps =
-  https://github.com/AlphaWallet/Web3E.git#v1.47
+  https://github.com/AlphaWallet/Web3E.git#v1.48
 ```
 
 ### Option 3: Git URL with Commit Hash (For Testing or Specific Fixes)
