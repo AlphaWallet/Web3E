@@ -6,12 +6,13 @@
 
 What's New:
 v1.48:
-- Fix Wi-Fi portal triple power-cycle detection: `checkAndHandlePowerCycle()` now called from `Web3EWifiPortal::begin()` automatically.
-- Triple power-cycle correctly opens portal (3× `ESP_RST_POWERON`/`ESP_RST_EXT` within 10s; count clears after 10s uptime).
-- Lost-WiFi watchdog now **opt-in** (default disabled with timeout = 0). Enable via `setLostWifiTimeout(minutes)` with minutes > 0.
-- `run(timeoutMs)` parameter now honored (0 = no timeout; portal exits on timeout or Done button).
-- Add device address display on portal page: `setDeviceAddress(const char*)` or `run(uint32_t timeoutMs, const char* deviceAddress)`.
-- Portal UI improvements: removed misleading auto-exit text, now says "Add network(s) and tap Done".
+- **NEW**: Optional WiFi Portal Module with triple power-cycle reset, opt-in lost-WiFi watchdog, and revoke API. Zero flash cost when unused. See [docs/WIFI_PORTAL.md](docs/WIFI_PORTAL.md).
+  - Triple power-cycle detection: `checkAndHandlePowerCycle()` called automatically from `begin()`. Count clears after 10s uptime.
+  - Lost-WiFi watchdog now **opt-in** (default disabled). Enable via `setLostWifiTimeout(minutes)` with minutes > 0.
+  - `run(timeoutMs)` parameter honored (0 = no timeout; portal exits on timeout or Done button).
+  - Device address display on portal page: `setDeviceAddress(const char*)` or `run(uint32_t, const char* deviceAddress)`.
+- Improved WiFiConnection with nullptr safety and non-blocking `maintain()` loop method.
+- Add `markValidated()` API for apps to signal successful WiFi/server session.
 
 v1.47:
 - Add signed cached RPC pair from universal-node (`uninode_getRpcPair`, EEPROM cache at offset 828+, `useCachedRpcPair(uninode)`).
