@@ -37,10 +37,10 @@ void setup() {
     // Check if portal should open
     if (wifiPortal.shouldOpenPortal()) {
         // Get device address for display (optional)
-        String addr = keyId->getAddress().c_str();
+        String addr = keyId->getAddress();
         
         // Run portal (blocks until user clicks Done)
-        bool saved = wifiPortal.run(0);
+        bool saved = wifiPortal.run(0, addr.c_str());
         
         // Reboot to normal operation
         ESP.restart();
@@ -125,12 +125,30 @@ ESP.restart();
 class Web3EWifiPortal {
 public:
     bool begin();
-    bool run(uint32_t timeoutMs = 0);
+    bool run(uint32_t timeoutMs = 0, const char* deviceAddress = nullptr);
     bool isActive() const;
     bool requestPortal(PortalReason reason);
+    
+    void setDeviceAddress(const char* address);
+    
     PortalReason getPortalReason() const;
     bool shouldOpenPortal() const;
 };
+```
+
+**Parameters:**
+- `timeoutMs`: Portal timeout in milliseconds (0 = no timeout, runs until Done)
+- `deviceAddress`: Device address to display in portal UI (optional, can also be set via `setDeviceAddress()`)
+
+**Usage:**
+```cpp
+// Option 1: Pass address directly to run()
+String addr = keyId->getAddress();
+wifiPortal.run(0, addr.c_str());
+
+// Option 2: Set address beforehand
+wifiPortal.setDeviceAddress(addr.c_str());
+wifiPortal.run(0);
 ```
 
 ### WiFiConnection Extensions
