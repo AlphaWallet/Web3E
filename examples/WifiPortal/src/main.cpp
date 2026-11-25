@@ -48,7 +48,7 @@ void runPortalAndReboot(const char* deviceAddress)
     Serial.println("[Portal] Opening embedded captive portal...");
     Serial.println("[Portal] Connect to ESP32-Setup-XXXX AP (192.168.4.1)");
     
-    bool saved = wifiPortal.run(0);
+    bool saved = wifiPortal.run(0, deviceAddress);
     
     Serial.printf("[Portal] Exiting portal (saved=%d) — rebooting\n", saved ? 1 : 0);
     delay(500);
