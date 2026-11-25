@@ -3,8 +3,8 @@
  *
  * Demonstrates the optional Web3E WiFi portal module with:
  * - Triple power-cycle to open portal (offline reset)
- * - Lost-WiFi watchdog that opens portal after 5 minutes
  * - Programmatic revoke API (opens portal on next reboot)
+ * - Lost-WiFi watchdog (opt-in, disabled by default)
  * - Multi-network support with EEPROM persistence
  *
  * Setup:
@@ -15,12 +15,13 @@
  * 5. Add your WiFi network(s) and click Done.
  * 6. Device reboots and connects to saved WiFi.
  *
- * The portal only opens when:
+ * The portal opens when:
  * - Triple power-cycle detected (stay_portal flag set)
- * - requestPortalOnRevoke() called then device reboots
- * - Lost WiFi watchdog triggers (validated WiFi lost for 5+ minutes)
+ * - requestPortal() called with PORTAL_REASON_REVOKE then device reboots
+ * - Lost WiFi watchdog triggers (opt-in: call setLostWifiTimeout(minutes) to enable)
  *
- * The portal NEVER opens automatically on simple WiFi failure or router outage.
+ * By default, the portal does NOT open on WiFi loss. Triple power-cycle and
+ * programmatic revoke are the standard entry methods.
  */
 
 #include <Arduino.h>
@@ -142,6 +143,9 @@ void setup()
     wifiConnection.setupWifi(networks);
     
     wifiConnection.markValidated();
+    
+    // Optional: Enable lost-WiFi watchdog (disabled by default)
+    // wifiConnection.setLostWifiTimeout(5);  // Open portal after 5 minutes without saved SSID
     
     Serial.println("Setup complete. WiFi validated, watchdog armed.");
     Serial.println();

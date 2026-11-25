@@ -11,6 +11,9 @@ bool Web3EWifiPortal::begin() {
         return false;
     }
     initialized = true;
+    
+    portalBoot.checkAndHandlePowerCycle();
+    
     return true;
 }
 
@@ -21,7 +24,7 @@ bool Web3EWifiPortal::run(uint32_t timeoutMs) {
     }
     
     portalActive = true;
-    bool saved = captivePortalRun(&portalBoot, nullptr);
+    bool saved = captivePortalRun(&portalBoot, nullptr, timeoutMs);
     portalActive = false;
     
     return saved;

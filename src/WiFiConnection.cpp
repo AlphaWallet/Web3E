@@ -183,6 +183,11 @@ bool WiFiConnection::attemptReconnect()
 
 void WiFiConnection::checkLostWifiWatchdog()
 {
+    if (lostWifiTimeoutMinutes == 0)
+    {
+        return;
+    }
+    
     unsigned long now = millis();
     
     if (now - lastScanMs < SCAN_INTERVAL_MS)
