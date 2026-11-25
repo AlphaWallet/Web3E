@@ -50,7 +50,7 @@ private:
     bool scanForSavedNetworks();
     
     static const uint32_t DEFAULT_TIMEOUT_MS = 30000;
-    static const uint32_t DEFAULT_LOST_WIFI_TIMEOUT_MINUTES = 5;
+    static const uint32_t DEFAULT_LOST_WIFI_TIMEOUT_MINUTES = 0;
     static const uint32_t SCAN_INTERVAL_MS = 45000;
 };
 

@@ -5,7 +5,7 @@ The Web3E WiFi Portal is an optional embedded captive portal that provides offli
 ## Features
 
 - **Triple Power-Cycle Reset**: Power-cycle the device 3 times within 10 seconds to open the portal
-- **Lost-WiFi Watchdog**: Automatically opens portal if validated WiFi is lost for 5+ minutes
+- **Lost-WiFi Watchdog**: Opt-in watchdog (disabled by default) can open portal if validated WiFi is lost
 - **Revoke API**: Programmatically open portal on next reboot (no OTA to separate setup firmware needed)
 - **Multi-Network Support**: Store up to 8 WiFi networks in EEPROM (bytes 33-827)
 - **EEPROM Compatibility**: Binary-compatible with v1.47 layout (KeyID 0-32, WifiStore 33-827, RPC cache 828+)
@@ -79,17 +79,25 @@ The portal opens in three scenarios:
 
 **Use case**: User lost WiFi password or moved device to new location without access to original network.
 
-### Lost-WiFi Watchdog
+### Lost-WiFi Watchdog (Opt-In)
 
-After WiFi is validated (`markValidated()`):
+The lost-WiFi watchdog is **disabled by default** (timeout = 0 minutes). Enable it explicitly:
+
+```cpp
+wifiConnection.setLostWifiTimeout(5);  // Enable 5-minute watchdog
+```
+
+When enabled and WiFi is validated (`markValidated()`):
 
 - If disconnected, scans every 30-60 seconds for saved SSIDs
 - If a saved SSID is visible → attempts reconnect, resets timer
 - If scan returns 0 networks → timer doesn't advance (antenna/radio fault guard)
-- If other SSIDs visible but no saved SSID for 5 continuous minutes → opens portal with `PORTAL_REASON_LOST_WIFI`
+- If other SSIDs visible but no saved SSID for the configured timeout → opens portal with `PORTAL_REASON_LOST_WIFI`
 - Saved SSID visible but connect/internet failing → NEVER opens portal
 
 **Use case**: User changed router SSID or moved device to new network, but device never sees the old SSID.
+
+**Default behavior**: The watchdog is disabled. Triple power-cycle and programmatic revoke are the standard entry methods.
 
 ### Programmatic Revoke
 
@@ -131,8 +139,8 @@ public:
 class WiFiConnection {
 public:
     void maintain();                              // Call from loop() - reconnects + watchdog
-    void markValidated();                         // Arms lost-WiFi watchdog
-    void setLostWifiTimeout(uint32_t minutes);    // Default: 5 minutes
+    void markValidated();                         // Arms lost-WiFi watchdog (if timeout > 0)
+    void setLostWifiTimeout(uint32_t minutes);    // Default: 0 (disabled)
     void setWifiPortal(Web3EWifiPortal* portal);  // Link portal for watchdog
 };
 ```
@@ -173,6 +181,21 @@ Override defaults via build flags:
 #define APP_NAME "My IoT Device"
 ```
 
+### Debug Logging
+
+The portal module uses `WEB3E_PRINT` and `WEB3E_PRINTLN` for diagnostic output:
+
+- **Development builds** (default): Full logging including AP name, portal reason, power-cycle count, reset reason, and timer status
+- **Release builds** (`-DWEB3E_RELEASE`): All logging is disabled at compile time
+
+**Essential portal diagnostics** (AP name, portal reason, boot count) are logged via the same macros. To see them in release builds, **do not define** `WEB3E_RELEASE`, or remove it temporarily for portal troubleshooting.
+
+```ini
+# platformio.ini - enable full portal logging
+build_flags = 
+    # -DWEB3E_RELEASE  ; Comment out for portal diagnostics
+```
+
 ## Example
 
 See `examples/WifiPortal/src/main.cpp` for a complete working example.
@@ -190,14 +213,16 @@ See `examples/WifiPortal/src/main.cpp` for a complete working example.
 7. Add network, click Done
 8. Device reboots and connects
 
-### Lost-WiFi Watchdog Test
+### Lost-WiFi Watchdog Test (Opt-In Feature)
 
-1. Flash firmware with valid WiFi credentials
+1. Flash firmware with valid WiFi credentials and `setLostWifiTimeout(5)` enabled
 2. Device connects, call `markValidated()`
 3. Change router SSID or move device out of range
 4. Wait 5+ minutes while device scans
 5. Portal opens automatically
 6. Add new network, click Done
+
+**Note**: The watchdog is disabled by default. This test requires explicitly enabling it.
 
 ### Revoke Test
 
@@ -248,6 +273,7 @@ Requires:
 
 ### Lost-WiFi watchdog not triggering
 
+- Ensure the watchdog is enabled: `setLostWifiTimeout(minutes)` with minutes > 0
 - Call `markValidated()` after WiFi connects
 - Call `maintain()` from `loop()` at least every few seconds
 - Ensure saved SSID is truly not visible (check serial scan results)

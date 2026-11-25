@@ -15,4 +15,4 @@
 #define APP_NAME "Web3E-Device"
 #endif
 
-bool captivePortalRun(PortalBoot* portalBoot, const char* deviceAddress);
+bool captivePortalRun(PortalBoot* portalBoot, const char* deviceAddress, uint32_t timeoutMs = 0);

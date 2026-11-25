@@ -177,7 +177,7 @@ static void handleRoot()
   
   if (gPortalReason == PORTAL_REASON_LOST_WIFI) {
     html += F("<div class=\"status info\" style=\"display:block\">Portal opened: saved Wi-Fi networks not visible. "
-      "If your network reappears, the portal will auto-exit and reconnect.</div>");
+      "Add network(s) and tap Done to reconnect.</div>");
   } else {
     html += F("<div class=\"status info\" style=\"display:block\">Setup portal held open "
       "(triple power-cycle). Saved Wi-Fi is kept — review and tap Done to "
@@ -386,7 +386,7 @@ static void setupAccessPoint()
   WEB3E_PRINTLN(WiFi.softAPIP().toString().c_str());
 }
 
-bool captivePortalRun(PortalBoot* portalBoot, const char* deviceAddress)
+bool captivePortalRun(PortalBoot* portalBoot, const char* deviceAddress, uint32_t timeoutMs)
 {
   WEB3E_PRINTLN("[Portal] Starting offline captive portal (no firmware OTA)");
   gPortalBoot = portalBoot;
@@ -417,13 +417,27 @@ bool captivePortalRun(PortalBoot* portalBoot, const char* deviceAddress)
 
   startWifiScan(false);
 
-  while (!doneRequested)
+  unsigned long startMs = millis();
+  bool timedOut = false;
+  
+  while (!doneRequested && !timedOut)
   {
     dnsServer.processNextRequest();
     webServer.handleClient();
     checkScanProgress();
     if (gPortalBoot)
       gPortalBoot->clearBootCountIfStable(millis());
+    
+    if (timeoutMs > 0)
+    {
+      unsigned long elapsed = millis() - startMs;
+      if (elapsed >= timeoutMs)
+      {
+        timedOut = true;
+        WEB3E_PRINTLN("[Portal] Timeout reached - exiting portal");
+      }
+    }
+    
     delay(10);
   }
 
